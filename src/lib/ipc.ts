@@ -165,4 +165,17 @@ export const translate = {
     call<TranslationResult>("translate_captions", { project, targetLanguage, model, apiKey: apiKey ?? null }),
 };
 
-export const ipc = { ops, exporters, project, asr, style, render, cleanup, polish, suggest, translate };
+// ── Speaker diarization (Phase 4.2) ──────────────────────────────────────────
+export const diarize = {
+  /** Detect speakers from extracted audio + attribute captions. Best-effort. */
+  run: (project: Project, audioPath: string) =>
+    call<Project>("diarize_run", { project, audioPath }),
+  mergeSpeakers: (project: Project, keepId: string, removeId: string) =>
+    call<Project>("speaker_merge", { project, keepId, removeId }),
+  renameSpeaker: (project: Project, speakerId: string, name: string) =>
+    call<Project>("speaker_rename", { project, speakerId, name }),
+  setSpeakerColor: (project: Project, speakerId: string, colorHex: string) =>
+    call<Project>("speaker_set_color", { project, speakerId, colorHex }),
+};
+
+export const ipc = { ops, exporters, project, asr, style, render, cleanup, polish, suggest, translate, diarize };

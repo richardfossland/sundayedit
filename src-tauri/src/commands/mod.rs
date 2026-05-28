@@ -11,3 +11,4 @@ pub mod cleanup;
 pub mod polish;
 pub mod suggest;
 pub mod translate;
+pub mod diarize;

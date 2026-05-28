@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Settings as SettingsIcon, Captions, FileVideo, Clock, Cpu, Palette, Wand2, Sparkles, Lightbulb, Languages } from "lucide-react";
+import { Download, Settings as SettingsIcon, Captions, FileVideo, Clock, Cpu, Palette, Wand2, Sparkles, Lightbulb, Languages, Users } from "lucide-react";
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
 import { ImportScreen } from "@/features/project/ImportScreen";
@@ -10,12 +10,13 @@ import { CleanupPanel } from "@/features/cleanup/CleanupPanel";
 import { PolishPanel } from "@/features/polish/PolishPanel";
 import { SuggestPanel } from "@/features/suggest/SuggestPanel";
 import { TranslatePanel } from "@/features/translate/TranslatePanel";
+import { SpeakersPanel } from "@/features/speakers/SpeakersPanel";
 import { Waveform } from "@/components/Waveform";
 import { SAMPLE_PROJECT } from "@/lib/sampleProject";
 import type { Project, Style, WaveformData, WhisperModel } from "@/lib/bindings";
 import { cn } from "@/lib/cn";
 
-type Tab = "transcribe" | "editor" | "polish" | "suggest" | "translate" | "cleanup" | "style" | "export";
+type Tab = "transcribe" | "editor" | "speakers" | "polish" | "suggest" | "translate" | "cleanup" | "style" | "export";
 
 function App() {
   const [project, setProject] = useState<Project | null>(null);
@@ -61,6 +62,9 @@ function App() {
         <NavIcon active={tab === "editor"} onClick={() => setTab("editor")} title="Editor">
           <Captions size={18} />
         </NavIcon>
+        <NavIcon active={tab === "speakers"} onClick={() => setTab("speakers")} title="Talere">
+          <Users size={18} />
+        </NavIcon>
         <NavIcon active={tab === "polish"} onClick={() => setTab("polish")} title="AI-tegnsetting">
           <Sparkles size={18} />
         </NavIcon>
@@ -99,6 +103,8 @@ function App() {
               project={project}
               onProjectChange={setProject}
             />
+          ) : tab === "speakers" ? (
+            <SpeakersPanel project={project} onProjectChange={setProject} />
           ) : tab === "polish" ? (
             <PolishPanel project={project} onProjectChange={setProject} />
           ) : tab === "suggest" ? (

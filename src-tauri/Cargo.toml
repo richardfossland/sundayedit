@@ -57,3 +57,6 @@ default = []
 whisper = ["dep:whisper-rs"]
 # Enable real Claude API calls (AI polish). `cargo build --features llm`.
 llm = ["dep:reqwest"]
+# Enable speaker diarization via the `verbatim-diarize` sidecar (Phase 4.2).
+# No extra crate — just shells out — but gated so the default build stubs it.
+diarize = []

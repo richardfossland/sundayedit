@@ -21,7 +21,7 @@ import {
   Eye, Sparkles, Undo2, Redo2, Lock, Check, ChevronRight, WandSparkles,
 } from "lucide-react";
 
-import { confidenceTier, type Caption, type Project, type Word } from "@/lib/bindings";
+import { confidenceTier, type Caption, type Project, type Speaker, type Word } from "@/lib/bindings";
 import { ipc } from "@/lib/ipc";
 import { useEditorHistory } from "@/lib/useEditorHistory";
 import { cn } from "@/lib/cn";
@@ -193,6 +193,11 @@ export function CaptionEditor({ project: initialProject, onProjectChange }: Prop
             <CaptionRow
               key={caption.id}
               caption={caption}
+              speaker={
+                project.speakers.length >= 2 && caption.speaker_id
+                  ? project.speakers.find((s) => s.id === caption.speaker_id) ?? null
+                  : null
+              }
               threshold={threshold}
               dimmed={focusMode && allConfident(caption, threshold)}
               cursor={cursor}
@@ -218,10 +223,11 @@ export function CaptionEditor({ project: initialProject, onProjectChange }: Prop
 }
 
 function CaptionRow({
-  caption, threshold, dimmed, cursor, editing, busy,
+  caption, speaker, threshold, dimmed, cursor, editing, busy,
   onCursor, onStartEdit, onCommitEdit, onLock, onAcceptAlternate,
 }: {
   caption: Caption;
+  speaker: Speaker | null;
   threshold: number;
   dimmed: boolean;
   cursor: WordRef | null;
@@ -244,6 +250,18 @@ function CaptionRow({
         {fmtTime(caption.start_ms)}
       </span>
       <p className="flex-1 text-[var(--text-ui-md)] leading-relaxed">
+        {speaker && (
+          <span
+            className="mr-1.5 inline-flex items-center gap-1 align-baseline text-[var(--text-ui-xs)] font-semibold"
+            style={{ color: speaker.color_hex ?? "var(--color-accent-400)" }}
+          >
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: speaker.color_hex ?? "var(--color-accent-400)" }}
+            />
+            {speaker.display_name}:
+          </span>
+        )}
         {caption.words.map((word, i) => {
           const ref: WordRef = { captionId: caption.id, wordIndex: i };
           return (

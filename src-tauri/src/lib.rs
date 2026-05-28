@@ -74,6 +74,11 @@ pub fn run() {
             commands::translate::translate_supported_languages,
             commands::translate::translate_estimate,
             commands::translate::translate_captions,
+            // Speaker diarization (Phase 4.2)
+            commands::diarize::diarize_run,
+            commands::diarize::speaker_merge,
+            commands::diarize::speaker_rename,
+            commands::diarize::speaker_set_color,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
