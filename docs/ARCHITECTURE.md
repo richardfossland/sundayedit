@@ -154,23 +154,31 @@ Caveat for path-stability: if the user moves their video file, Verbatim detects 
 
 ## Phase status (May 2026)
 
-- [x] Phase 0 — Scaffold + design tokens + confidence color scale
+Quality infra (Phase 0.2): ESLint/Prettier, Vitest, Playwright e2e, husky +
+commitlint, and a PR `ci.yml` gate (web + rust) — all wired.
+
+- [x] Phase 0 — Scaffold + design tokens + confidence color scale + quality infra (0.2)
 - [x] Phase 1.1 — Video import: ffprobe metadata, format validation, content-hash relink, `.verbatim` SQLite file format
 - [x] Phase 1.2 — Audio extraction command + multi-zoom waveform peaks + Canvas waveform component
-- [ ] Phase 1.3 — Full timeline (caption track + ruler + J/K/L) — partial (waveform + click-seek done)
-- [x] Phase 2.1 — ASR abstraction (`AsrProvider`), Whisper model registry, feature-gated `LocalWhisperProvider` (`--features whisper`), segment→caption captionizer
-- [x] Phase 2.2 — Cloud provider response normalization (OpenAI / AssemblyAI / Deepgram), confidence parity across backends
-- [x] Phase 2.3 — Per-word confidence normalization (logprob → 0..100, single calibrated curve) + `docs/CALIBRATION.md`
+- [ ] Phase 1.3 — Full timeline (caption track + ruler + J/K/L) — partial (waveform + click-seek only)
+- [x] Phase 2.1 — ASR abstraction, Whisper model registry, feature-gated `LocalWhisperProvider`, captionizer, **+ first-run model download** (`asr_download_model`, atomic + progress + cancel)
+- [x] Phase 2.2 — Cloud: response normalization (OpenAI/AssemblyAI/Deepgram) + **provider picker, cost preview, upload-consent UX** + **API keys in the OS keychain** (`keyring`). Pending: the live audio-upload call.
+- [x] Phase 2.3 — Per-word confidence normalization + **calibration harness** (`cargo run --example calibrate`). Curve still uses the v1 estimate until real labelled data is fed in.
 - [x] Phase 3.1 — Caption data model + operations
-- [x] Phase 3.2 — Editor UX: inline word edit, alternate-picker popover, lock, undo/redo (op-based history), focus mode
-- [x] Phase 3.3 — Confidence highlighting (killer feature #1): 4-tier colours, Tab/Shift-Tab linear review, threshold control, review-progress. Calibration of the curve pending real labelled data (`docs/CALIBRATION.md`).
-- [~] Phase 3.4 — Context priming + glossary (killer feature #2): priming hook + auto-correction pass + "Fix terms" button done; glossary-editing UI + AI term-suggestion pending
-- [ ] Phase 4 — Polish + diarization + smart suggestions
-- [x] Phase 5.1/5.3 — Style model (Phase 3.1) + 9 bundled presets + `styleToCss` WYSIWYG (mirrors ASS burn-in)
-- [x] Phase 5.2 — Visual style editor: preset gallery, live caption-over-frame preview, font/colour/outline/9-grid-position controls, safe-area guide
-- [x] Phase 6.1 — SRT / VTT / ASS / TXT export
-- [x] Phase 6.2 — Burn-in via libass: pure ffmpeg-arg builder (HW-encoder per platform, scale/crop, clip), ASS sidecar gen, `render()` shells out
-- [x] Phase 6.3 — Platform export presets (YouTube/Shorts/Reels/TikTok/X/Square/Broadcast) + pre-render validation (duration, aspect-crop, captions)
-- [~] Phase 7 — find & replace (7.3) + filler/silence removal with ripple (7.2) done; translation (7.1, needs LLM) pending
-- [ ] Phase 8 — Sunday Account integration (optional)
-- [ ] Phase 9 — Onboarding + distribution + landing site
+- [x] Phase 3.2 — Editor UX: inline word edit, alternate-picker popover, lock, undo/redo, focus mode
+- [x] Phase 3.3 — Confidence highlighting (killer #1): 4 tiers, Tab/Shift-Tab review, threshold, progress
+- [x] Phase 3.4 — Context priming + glossary (killer #2): priming + auto-correction + **ContextPanel CRUD UI** + **AI term-suggestion from transcript**. Pending: reference-document extraction.
+- [x] Phase 4 — AI polish (4.1, substance-guarded), diarization (4.2, sidecar-gated), smart suggestions (4.3, propose-and-approve)
+- [x] Phase 5.1/5.3 — Style model + bundled presets + `styleToCss` WYSIWYG (mirrors ASS burn-in)
+- [x] Phase 5.2 — Visual style editor: preset gallery, live preview, font/colour/outline/9-grid, safe-area guide
+- [x] Phase 6.1 — Export SRT / VTT / ASS / TXT / **JSON** / **DOCX** + **save-to-file** (`save_export`). Pending: SCC/CEA-608 (deliberately deferred).
+- [x] Phase 6.2 — Burn-in via libass: pure ffmpeg-arg builder (HW encoder per platform), ASS sidecar, `render()`
+- [x] Phase 6.3 — Platform export presets + pre-render validation
+- [x] Phase 7 — translation (7.1), filler/silence removal with ripple (7.2), find & replace (7.3)
+- [ ] Phase 8 — Sunday Account integration (optional) — not started
+- [~] Phase 9 — Onboarding (9.1) done; **distribution pipeline (9.2) live** (signed/notarized release on `v*` tag, ffmpeg sidecars, auto-update). Pending: full i18n (UI is Norwegian-hardcoded), landing site (9.3).
+
+**Not yet wired end-to-end:** there is no in-app "Transcribe" action connecting
+model + audio → `asr_transcribe_local` → editor yet (each piece exists; the
+glue is native-only so it's untested headless). And nothing has run against a
+real video, so WER / `PERFORMANCE.md` / empirical calibration remain open.

@@ -106,10 +106,10 @@ waveform, and burn-in work without a system ffmpeg:
 These are intentionally **not** wired yet (they need binaries/infra, not just
 config):
 
-- **Whisper model download.** Models are 1–3 GB — too big to bundle. Ship a
-  minimal installer and download the chosen model from a CDN on first run
-  (see Phase 9.2 in the source plan). The model registry already exists in
-  `services/asr/model.rs`.
+- ~~**Whisper model download.**~~ ✅ Done — the app downloads the chosen ggml
+  model on first run from the Hugging Face `whisper.cpp` repo
+  (`asr_download_model`: atomic `.part`→rename, progress events, cancel, size
+  verify), driven by the model picker / onboarding. No bundling, no own CDN.
 - **Windows code signing.** Import a code-signing cert on the runner (or use
   Azure Trusted Signing) and set `bundle.windows.certificateThumbprint` /
   the signing env. EV cert avoids SmartScreen warnings.
