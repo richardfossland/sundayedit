@@ -34,6 +34,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # tauri's build script validates the externalBin sidecars exist, so
+      # clippy/test won't compile without them (they're gitignored).
+      - name: Fetch ffmpeg/ffprobe sidecars
+        run: node scripts/fetch-ffmpeg.mjs
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
