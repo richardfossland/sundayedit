@@ -3,6 +3,7 @@ import { appDataDir, join } from "@tauri-apps/api/path";
 import {
   Download,
   Settings as SettingsIcon,
+  BookText,
   Captions,
   FileVideo,
   Clock,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
+import { ContextPanel } from "@/features/context/ContextPanel";
 import { ImportScreen } from "@/features/project/ImportScreen";
 import { ModelPicker } from "@/features/transcribe/ModelPicker";
 import { StyleEditor } from "@/features/style/StyleEditor";
@@ -42,6 +44,7 @@ import { cn } from "@/lib/cn";
 type Tab =
   | "transcribe"
   | "editor"
+  | "context"
   | "speakers"
   | "polish"
   | "suggest"
@@ -159,6 +162,13 @@ function App() {
           <Captions size={18} />
         </NavIcon>
         <NavIcon
+          active={tab === "context"}
+          onClick={() => setTab("context")}
+          title="Kontekst og ordliste"
+        >
+          <BookText size={18} />
+        </NavIcon>
+        <NavIcon
           active={tab === "speakers"}
           onClick={() => setTab("speakers")}
           title="Talere"
@@ -233,6 +243,8 @@ function App() {
               project={project}
               onProjectChange={setProject}
             />
+          ) : tab === "context" ? (
+            <ContextPanel project={project} onProjectChange={setProject} />
           ) : tab === "speakers" ? (
             <SpeakersPanel project={project} onProjectChange={setProject} />
           ) : tab === "polish" ? (
