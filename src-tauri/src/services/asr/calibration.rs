@@ -99,7 +99,10 @@ mod tests {
     use super::*;
 
     fn w(confidence: f32, correct: bool) -> LabeledWord {
-        LabeledWord { confidence, correct }
+        LabeledWord {
+            confidence,
+            correct,
+        }
     }
 
     #[test]
@@ -115,10 +118,18 @@ mod tests {
 
     #[test]
     fn recall_is_monotonic_in_threshold() {
-        let words = [w(95.0, true), w(72.0, false), w(55.0, false), w(30.0, false)];
+        let words = [
+            w(95.0, true),
+            w(72.0, false),
+            w(55.0, false),
+            w(30.0, false),
+        ];
         let lo = metrics_at(&words, 50.0).recall;
         let hi = metrics_at(&words, 90.0).recall;
-        assert!(hi >= lo, "raising the threshold flags more, so recall rises");
+        assert!(
+            hi >= lo,
+            "raising the threshold flags more, so recall rises"
+        );
         assert_eq!(metrics_at(&words, 90.0).recall, 1.0);
     }
 

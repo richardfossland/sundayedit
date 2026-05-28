@@ -45,7 +45,10 @@ fn main() -> ExitCode {
 
     let total = input.words.len();
     let wrong = input.words.iter().filter(|w| !w.correct).count();
-    println!("{total} labelled words, {wrong} wrong ({:.1}% error rate)\n", pct(wrong, total));
+    println!(
+        "{total} labelled words, {wrong} wrong ({:.1}% error rate)\n",
+        pct(wrong, total)
+    );
 
     let table = sweep(&input.words, &default_thresholds());
     println!("threshold  precision   recall      f1   flagged");
