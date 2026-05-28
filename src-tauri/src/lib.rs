@@ -63,6 +63,9 @@ pub fn run() {
             commands::cleanup::detect_fillers,
             commands::cleanup::detect_silences,
             commands::cleanup::apply_ripple_cuts,
+            // AI punctuation polish (Phase 4.1)
+            commands::polish::polish_estimate,
+            commands::polish::polish_captions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

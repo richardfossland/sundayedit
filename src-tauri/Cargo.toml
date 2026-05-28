@@ -42,6 +42,12 @@ tauri-plugin-dialog = "2.7.1"
 # cmake and pulls a multi-GB model at runtime, so it's off by default).
 whisper-rs = { version = "0.14", optional = true }
 
+# Phase 4 — Claude API client for AI polish/suggestions. Optional so the
+# default build (and the test suite) stay offline and lean; the pure prompt
+# building / response parsing / substance guard are tested without it.
+# `cargo build --features llm` enables real network calls.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
+
 [dev-dependencies]
 tempfile = "3"
 
@@ -49,3 +55,5 @@ tempfile = "3"
 default = []
 # Enable real on-device transcription. `cargo build --features whisper`.
 whisper = ["dep:whisper-rs"]
+# Enable real Claude API calls (AI polish). `cargo build --features llm`.
+llm = ["dep:reqwest"]

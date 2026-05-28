@@ -9,9 +9,10 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  AppError, AsrOptions, BurnInOptions, Caption, ExportPreset, ExportWarning,
-  FillerHit, FindMatch, FindOptions, GlossaryApplyResult, Project, ReplaceResult,
-  SilenceGap, StylePreset, VideoMetadata, WaveformData, WhisperModel, WhisperModelInfo,
+  AppError, AsrOptions, BurnInOptions, Caption, ClaudeModel, ExportPreset, ExportWarning,
+  FillerHit, FindMatch, FindOptions, GlossaryApplyResult, PolishEstimate, PolishResult,
+  Project, ReplaceResult, SilenceGap, StylePreset, VideoMetadata, WaveformData,
+  WhisperModel, WhisperModelInfo,
 } from "./bindings";
 
 export class IPCError extends Error {
@@ -130,4 +131,14 @@ export const cleanup = {
     call<Project>("apply_ripple_cuts", { project, cuts }),
 };
 
-export const ipc = { ops, exporters, project, asr, style, render, cleanup };
+// ── AI punctuation polish (Phase 4.1) ────────────────────────────────────────
+export const polish = {
+  /** Pure cost/scope preview — no network, safe to call freely. */
+  estimate: (project: Project, model: ClaudeModel) =>
+    call<PolishEstimate>("polish_estimate", { project, model }),
+  /** Run the polish. `apiKey` falls back to ANTHROPIC_API_KEY on the backend. */
+  run: (project: Project, model: ClaudeModel, apiKey?: string) =>
+    call<PolishResult>("polish_captions", { project, model, apiKey: apiKey ?? null }),
+};
+
+export const ipc = { ops, exporters, project, asr, style, render, cleanup, polish };

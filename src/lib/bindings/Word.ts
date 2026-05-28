@@ -15,6 +15,12 @@ edited: boolean,
  */
 locked: boolean, 
 /**
+ * AI polish (Phase 4.1) adjusted this word's punctuation/casing. Not a
+ * content change, so it does NOT trust the word like `edited` does —
+ * it only drives the "polished" dot in the editor.
+ */
+polished: boolean, 
+/**
  * Top alternates from ASR (max 3).
  */
 alternates: Array<AlternateRead>, };

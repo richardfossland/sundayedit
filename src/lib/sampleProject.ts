@@ -10,7 +10,7 @@
 import type { Project, Word } from "./bindings";
 
 function w(text: string, start: number, end: number, confidence: number, extra?: Partial<Word>): Word {
-  return { text, start_ms: start, end_ms: end, confidence, edited: false, locked: false, alternates: [], ...extra };
+  return { text, start_ms: start, end_ms: end, confidence, edited: false, locked: false, polished: false, alternates: [], ...extra };
 }
 
 export const SAMPLE_PROJECT: Project = {

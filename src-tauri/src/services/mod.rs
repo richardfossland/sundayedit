@@ -13,6 +13,7 @@
 //!   - `export_presets`— platform export presets + validation (Phase 6.3)
 //!   - `find_replace`  — find & replace + bulk ops (Phase 7.3)
 //!   - `filler`        — filler/silence detection + ripple cuts (Phase 7.2)
+//!   - `llm`           — Claude API client + AI punctuation polish (Phase 4.1)
 
 pub mod operations;
 pub mod export;
@@ -26,3 +27,4 @@ pub mod burnin;
 pub mod export_presets;
 pub mod find_replace;
 pub mod filler;
+pub mod llm;

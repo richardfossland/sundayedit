@@ -26,6 +26,11 @@ pub struct Word {
     pub edited: bool,
     /// User has confirmed — do not surface as uncertain even if confidence is low.
     pub locked: bool,
+    /// AI polish (Phase 4.1) adjusted this word's punctuation/casing. Not a
+    /// content change, so it does NOT trust the word like `edited` does —
+    /// it only drives the "polished" dot in the editor.
+    #[serde(default)]
+    pub polished: bool,
     /// Top alternates from ASR (max 3).
     #[serde(default)]
     pub alternates: Vec<AlternateRead>,
@@ -47,6 +52,7 @@ impl Word {
             confidence,
             edited: false,
             locked: false,
+            polished: false,
             alternates: Vec::new(),
         }
     }

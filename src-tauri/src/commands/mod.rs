@@ -8,3 +8,4 @@ pub mod asr;
 pub mod style;
 pub mod render;
 pub mod cleanup;
+pub mod polish;

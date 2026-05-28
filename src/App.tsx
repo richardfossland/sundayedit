@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Settings as SettingsIcon, Captions, FileVideo, Clock, Cpu, Palette, Wand2 } from "lucide-react";
+import { Download, Settings as SettingsIcon, Captions, FileVideo, Clock, Cpu, Palette, Wand2, Sparkles } from "lucide-react";
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
 import { ImportScreen } from "@/features/project/ImportScreen";
@@ -7,12 +7,13 @@ import { ModelPicker } from "@/features/transcribe/ModelPicker";
 import { StyleEditor } from "@/features/style/StyleEditor";
 import { ExportPanel } from "@/features/export/ExportPanel";
 import { CleanupPanel } from "@/features/cleanup/CleanupPanel";
+import { PolishPanel } from "@/features/polish/PolishPanel";
 import { Waveform } from "@/components/Waveform";
 import { SAMPLE_PROJECT } from "@/lib/sampleProject";
 import type { Project, Style, WaveformData, WhisperModel } from "@/lib/bindings";
 import { cn } from "@/lib/cn";
 
-type Tab = "transcribe" | "editor" | "cleanup" | "style" | "export";
+type Tab = "transcribe" | "editor" | "polish" | "cleanup" | "style" | "export";
 
 function App() {
   const [project, setProject] = useState<Project | null>(null);
@@ -58,6 +59,9 @@ function App() {
         <NavIcon active={tab === "editor"} onClick={() => setTab("editor")} title="Editor">
           <Captions size={18} />
         </NavIcon>
+        <NavIcon active={tab === "polish"} onClick={() => setTab("polish")} title="AI-tegnsetting">
+          <Sparkles size={18} />
+        </NavIcon>
         <NavIcon active={tab === "cleanup"} onClick={() => setTab("cleanup")} title="Opprydding">
           <Wand2 size={18} />
         </NavIcon>
@@ -87,6 +91,8 @@ function App() {
               project={project}
               onProjectChange={setProject}
             />
+          ) : tab === "polish" ? (
+            <PolishPanel project={project} onProjectChange={setProject} />
           ) : tab === "cleanup" ? (
             <CleanupPanel project={project} onProjectChange={setProject} />
           ) : tab === "style" ? (

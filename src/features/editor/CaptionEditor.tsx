@@ -324,6 +324,13 @@ function WordSpan({
       >
         {word.text}
       </span>
+      {word.polished && (
+        <span
+          className="ml-0.5 inline-block h-1 w-1 -translate-y-[0.5em] rounded-full bg-[var(--color-accent-400)] align-top"
+          title="AI-polert tegnsetting"
+          aria-label="AI-polert tegnsetting"
+        />
+      )}
       {isUncertain && !busy && (
         <button
           type="button"
