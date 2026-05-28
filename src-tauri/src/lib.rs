@@ -55,6 +55,14 @@ pub fn run() {
             commands::render::export_validate,
             commands::render::burnin_render,
             commands::render::burnin_render_preset,
+            // Find/replace + filler cleanup (Phase 7)
+            commands::cleanup::find_in_project,
+            commands::cleanup::replace_in_project,
+            commands::cleanup::bulk_delete_captions,
+            commands::cleanup::bulk_set_speaker,
+            commands::cleanup::detect_fillers,
+            commands::cleanup::detect_silences,
+            commands::cleanup::apply_ripple_cuts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

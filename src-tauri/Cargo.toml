@@ -31,6 +31,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 sha2 = "0.10"      # content hashing for path-stability relink
 hound = "3.5"      # WAV reader for waveform peak computation
 
+# Phase 7 — find & replace (regex search in captions)
+regex = "1"
+
 # Type generation for the frontend
 ts-rs = { version = "11", features = ["serde-compat", "chrono-impl", "uuid-impl"] }
 tauri-plugin-dialog = "2.7.1"

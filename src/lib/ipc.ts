@@ -10,8 +10,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AppError, AsrOptions, BurnInOptions, Caption, ExportPreset, ExportWarning,
-  GlossaryApplyResult, Project, StylePreset, VideoMetadata, WaveformData,
-  WhisperModel, WhisperModelInfo,
+  FillerHit, FindMatch, FindOptions, GlossaryApplyResult, Project, ReplaceResult,
+  SilenceGap, StylePreset, VideoMetadata, WaveformData, WhisperModel, WhisperModelInfo,
 } from "./bindings";
 
 export class IPCError extends Error {
@@ -112,4 +112,22 @@ export const render = {
     call<void>("burnin_render_preset", { project, output, preset }),
 };
 
-export const ipc = { ops, exporters, project, asr, style, render };
+// ── Find/replace + filler cleanup (Phase 7) ──────────────────────────────────
+export const cleanup = {
+  find: (project: Project, options: FindOptions) =>
+    call<FindMatch[]>("find_in_project", { project, options }),
+  replace: (project: Project, options: FindOptions, replacement: string) =>
+    call<ReplaceResult>("replace_in_project", { project, options, replacement }),
+  bulkDelete: (project: Project, captionIds: string[]) =>
+    call<Project>("bulk_delete_captions", { project, captionIds }),
+  bulkSetSpeaker: (project: Project, captionIds: string[], speakerId: string | null) =>
+    call<Project>("bulk_set_speaker", { project, captionIds, speakerId }),
+  detectFillers: (project: Project, language: string) =>
+    call<FillerHit[]>("detect_fillers", { project, language }),
+  detectSilences: (project: Project, minGapMs: number) =>
+    call<SilenceGap[]>("detect_silences", { project, minGapMs }),
+  applyRippleCuts: (project: Project, cuts: Array<[number, number]>) =>
+    call<Project>("apply_ripple_cuts", { project, cuts }),
+};
+
+export const ipc = { ops, exporters, project, asr, style, render, cleanup };

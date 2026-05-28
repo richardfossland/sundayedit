@@ -171,6 +171,6 @@ Caveat for path-stability: if the user moves their video file, Verbatim detects 
 - [x] Phase 6.1 — SRT / VTT / ASS / TXT export
 - [x] Phase 6.2 — Burn-in via libass: pure ffmpeg-arg builder (HW-encoder per platform, scale/crop, clip), ASS sidecar gen, `render()` shells out
 - [x] Phase 6.3 — Platform export presets (YouTube/Shorts/Reels/TikTok/X/Square/Broadcast) + pre-render validation (duration, aspect-crop, captions)
-- [ ] Phase 7 — Translation, filler removal, find & replace
+- [~] Phase 7 — find & replace (7.3) + filler/silence removal with ripple (7.2) done; translation (7.1, needs LLM) pending
 - [ ] Phase 8 — Sunday Account integration (optional)
 - [ ] Phase 9 — Onboarding + distribution + landing site

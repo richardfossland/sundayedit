@@ -1,0 +1,228 @@
+/**
+ * Cleanup panel — Phase 7.2 + 7.3.
+ *
+ * Two tools in one pane:
+ *   - Find & replace: search across captions (case / whole-word / regex),
+ *     replace-all with a live match count.
+ *   - Remove fillers: detect "um/uh/eh/liksom…" per language, review the
+ *     list, and ripple-cut the approved ones (shifts later captions
+ *     earlier). Replacing with "" via find/replace also works for a quick
+ *     non-ripple removal.
+ *
+ * Edits flow back to the parent through onProjectChange so undo (in the
+ * editor) and export see the result.
+ */
+
+import { useState } from "react";
+import { Search, Wand2, Scissors, Check } from "lucide-react";
+
+import { ipc, IPCError } from "@/lib/ipc";
+import type { FillerHit, Project } from "@/lib/bindings";
+import { cn } from "@/lib/cn";
+
+interface Props {
+  project: Project;
+  onProjectChange: (project: Project) => void;
+}
+
+export function CleanupPanel({ project, onProjectChange }: Props) {
+  return (
+    <div className="mx-auto max-w-2xl space-y-8 p-6">
+      <FindReplace project={project} onProjectChange={onProjectChange} />
+      <div className="h-px bg-[var(--color-border)]" />
+      <FillerRemoval project={project} onProjectChange={onProjectChange} />
+    </div>
+  );
+}
+
+function FindReplace({ project, onProjectChange }: Props) {
+  const [query, setQuery] = useState("");
+  const [replacement, setReplacement] = useState("");
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [wholeWord, setWholeWord] = useState(false);
+  const [regex, setRegex] = useState(false);
+  const [count, setCount] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const opts = () => ({ query, case_sensitive: caseSensitive, whole_word: wholeWord, regex });
+
+  async function doFind() {
+    setError(null);
+    if (!query) { setCount(null); return; }
+    try {
+      const matches = await ipc.cleanup.find(project, opts());
+      setCount(matches.length);
+    } catch (e) {
+      setError(e instanceof IPCError ? e.message : String(e));
+      setCount(null);
+    }
+  }
+
+  async function doReplace() {
+    setError(null);
+    if (!query) return;
+    try {
+      const res = await ipc.cleanup.replace(project, opts(), replacement);
+      onProjectChange(res.project);
+      setCount(0);
+      setError(res.count > 0 ? null : "Ingen treff å erstatte.");
+    } catch (e) {
+      setError(e instanceof IPCError ? e.message : String(e));
+    }
+  }
+
+  return (
+    <section>
+      <h2 className="mb-3 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
+        <Search size={16} className="text-[var(--color-accent-400)]" /> Søk og erstatt
+      </h2>
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <input
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setCount(null); }}
+            onKeyDown={(e) => e.key === "Enter" && doFind()}
+            placeholder="Søk…"
+            className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-input)] px-3 py-1.5 text-[var(--text-ui-sm)] outline-none focus:border-[var(--color-accent-500)]"
+          />
+          <button
+            type="button" onClick={doFind}
+            className="rounded-md bg-[var(--color-bg-surface)] px-3 py-1.5 text-[var(--text-ui-sm)] hover:text-[var(--color-accent-400)]"
+          >
+            Finn
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={replacement}
+            onChange={(e) => setReplacement(e.target.value)}
+            placeholder="Erstatt med… (tom = slett)"
+            className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-input)] px-3 py-1.5 text-[var(--text-ui-sm)] outline-none focus:border-[var(--color-accent-500)]"
+          />
+          <button
+            type="button" onClick={doReplace}
+            className="rounded-md bg-[var(--color-accent-600)] px-3 py-1.5 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
+          >
+            Erstatt alle
+          </button>
+        </div>
+        <div className="flex items-center gap-4 text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
+          <Toggle label="Aa" title="Skill store/små" on={caseSensitive} onChange={setCaseSensitive} />
+          <Toggle label="Ord" title="Kun hele ord" on={wholeWord} onChange={setWholeWord} />
+          <Toggle label=".*" title="Regulært uttrykk" on={regex} onChange={setRegex} />
+          {count !== null && <span className="ml-auto">{count} treff</span>}
+        </div>
+        {error && <p className="text-[var(--text-ui-xs)] text-[var(--color-danger)]">{error}</p>}
+      </div>
+    </section>
+  );
+}
+
+function FillerRemoval({ project, onProjectChange }: Props) {
+  const [hits, setHits] = useState<FillerHit[] | null>(null);
+  const [approved, setApproved] = useState<Set<number>>(new Set());
+
+  async function detect() {
+    const lang = project.language === "auto" ? "en" : project.language;
+    const found = await ipc.cleanup.detectFillers(project, lang);
+    setHits(found);
+    setApproved(new Set(found.map((_, i) => i))); // default: all approved
+  }
+
+  async function removeApproved() {
+    if (!hits) return;
+    const cuts: Array<[number, number]> = hits
+      .filter((_, i) => approved.has(i))
+      .map((h) => [h.start_ms, h.end_ms]);
+    if (cuts.length === 0) return;
+    const next = await ipc.cleanup.applyRippleCuts(project, cuts);
+    onProjectChange(next);
+    setHits(null);
+    setApproved(new Set());
+  }
+
+  return (
+    <section>
+      <h2 className="mb-3 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
+        <Wand2 size={16} className="text-[var(--color-accent-400)]" /> Fjern fyllord
+      </h2>
+      <p className="mb-3 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
+        Finn «eh», «øh», «um», «liksom» osv. Godkjente klipp fjernes og
+        resten av tidslinjen forskyves tidligere (ripple).
+      </p>
+
+      {hits === null ? (
+        <button
+          type="button" onClick={detect}
+          className="rounded-md bg-[var(--color-bg-surface)] px-4 py-2 text-[var(--text-ui-sm)] font-medium hover:text-[var(--color-accent-400)]"
+        >
+          Finn fyllord
+        </button>
+      ) : hits.length === 0 ? (
+        <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">Ingen fyllord funnet 🎉</p>
+      ) : (
+        <div className="space-y-3">
+          <ul className="max-h-64 space-y-1 overflow-y-auto rounded-md border border-[var(--color-border)] p-2">
+            {hits.map((h, i) => (
+              <li key={i}>
+                <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[var(--text-ui-sm)] hover:bg-[var(--color-bg-surface)]">
+                  <input
+                    type="checkbox"
+                    checked={approved.has(i)}
+                    onChange={(e) => {
+                      const next = new Set(approved);
+                      if (e.target.checked) next.add(i); else next.delete(i);
+                      setApproved(next);
+                    }}
+                    className="accent-[var(--color-accent-500)]"
+                  />
+                  <span className="font-mono">{h.text}</span>
+                  <span className="ml-auto text-[10px] text-[var(--color-fg-subtle)]">
+                    {(h.start_ms / 1000).toFixed(1)}s
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <div className="flex items-center gap-3">
+            <button
+              type="button" onClick={removeApproved}
+              className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
+            >
+              <Scissors size={14} /> Fjern {approved.size} valgte
+            </button>
+            <button
+              type="button" onClick={() => { setHits(null); setApproved(new Set()); }}
+              className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+            >
+              Avbryt
+            </button>
+            <span className="ml-auto flex items-center gap-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
+              <Check size={11} /> {hits.length} funnet
+            </span>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Toggle({
+  label, title, on, onChange,
+}: { label: string; title: string; on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={() => onChange(!on)}
+      className={cn(
+        "rounded px-2 py-0.5 font-mono",
+        on
+          ? "bg-[var(--color-accent-500)] text-[var(--color-neutral-950)]"
+          : "bg-[var(--color-bg-surface)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
+      )}
+    >
+      {label}
+    </button>
+  );
+}
