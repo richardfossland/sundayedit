@@ -48,6 +48,12 @@ whisper-rs = { version = "0.14", optional = true }
 # `cargo build --features llm` enables real network calls.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
 
+# Desktop-only plugins (Verbatim is a desktop app). Auto-update via GitHub
+# Releases + relaunch after install. Phase 9.2.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+
 [dev-dependencies]
 tempfile = "3"
 

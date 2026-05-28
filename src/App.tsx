@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Download, Settings as SettingsIcon, Captions, FileVideo, Clock, Cpu, Palette, Wand2, Sparkles, Lightbulb, Languages, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, Settings as SettingsIcon, Captions, FileVideo, Clock, Cpu, Palette, Wand2, Sparkles, Lightbulb, Languages, Users, RefreshCw } from "lucide-react";
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
 import { ImportScreen } from "@/features/project/ImportScreen";
@@ -14,6 +14,7 @@ import { SpeakersPanel } from "@/features/speakers/SpeakersPanel";
 import { Waveform } from "@/components/Waveform";
 import { SAMPLE_PROJECT } from "@/lib/sampleProject";
 import type { Project, Style, WaveformData, WhisperModel } from "@/lib/bindings";
+import { checkForUpdate, installAndRelaunch, type Update } from "@/lib/updater";
 import { cn } from "@/lib/cn";
 
 type Tab = "transcribe" | "editor" | "speakers" | "polish" | "suggest" | "translate" | "cleanup" | "style" | "export";
@@ -22,12 +23,20 @@ function App() {
   const [project, setProject] = useState<Project | null>(null);
   const [tab, setTab] = useState<Tab>("editor");
   const [model, setModel] = useState<WhisperModel | null>("large-v3-turbo");
+  const [update, setUpdate] = useState<Update | null>(null);
+
+  // Check for a newer signed build once on launch (no-op outside Tauri /
+  // before any release exists).
+  useEffect(() => {
+    checkForUpdate().then(setUpdate);
+  }, []);
 
   // Import screen until a project exists. "Try the demo" loads SAMPLE_PROJECT
   // so the editor is explorable without a real video / ffmpeg.
   if (!project) {
     return (
       <div className="flex h-screen w-screen flex-col bg-[var(--color-bg)] text-[var(--color-fg)]">
+        {update && <UpdateBanner update={update} onDismiss={() => setUpdate(null)} />}
         <div className="flex-1">
           <ImportScreen onProjectReady={setProject} />
         </div>
@@ -46,6 +55,7 @@ function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg)] text-[var(--color-fg)]">
+      {update && <UpdateBanner update={update} onDismiss={() => setUpdate(null)} />}
       {/* Sidebar */}
       <nav className="flex w-14 flex-col items-center gap-1 border-r border-[var(--color-border)] bg-[var(--color-bg-elevated)] py-3">
         <button
@@ -152,6 +162,54 @@ function ProjectHeader({ project }: { project: Project }) {
         </span>
       </div>
       <Waveform data={demoWaveform} durationMs={project.video_duration_ms} height={64} />
+    </div>
+  );
+}
+
+function UpdateBanner({ update, onDismiss }: { update: Update; onDismiss: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function install() {
+    setBusy(true);
+    setError(null);
+    try {
+      await installAndRelaunch(update);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-[var(--color-accent-600)] px-4 py-1.5 text-[var(--text-ui-sm)] text-[var(--color-neutral-950)] shadow-md">
+      <RefreshCw size={14} className={cn(busy && "animate-spin")} />
+      <span className="font-medium">
+        {error
+          ? `Oppdatering feilet: ${error}`
+          : busy
+            ? "Laster ned og installerer…"
+            : `Ny versjon ${update.version} er tilgjengelig.`}
+      </span>
+      {!busy && !error && (
+        <>
+          <button
+            type="button"
+            onClick={install}
+            className="rounded bg-[var(--color-neutral-950)]/15 px-2.5 py-0.5 font-semibold hover:bg-[var(--color-neutral-950)]/25"
+          >
+            Oppdater nå
+          </button>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="px-1 opacity-70 hover:opacity-100"
+            aria-label="Lukk"
+          >
+            Senere
+          </button>
+        </>
+      )}
     </div>
   );
 }
