@@ -20,6 +20,7 @@ import {
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
 import { ContextPanel } from "@/features/context/ContextPanel";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
+import { Onboarding } from "@/features/onboarding/Onboarding";
 import { ImportScreen } from "@/features/project/ImportScreen";
 import { ModelPicker } from "@/features/transcribe/ModelPicker";
 import { CloudPanel } from "@/features/transcribe/CloudPanel";
@@ -66,6 +67,13 @@ function App() {
     model: WhisperModel;
     progress: DownloadProgress;
   } | null>(null);
+  const [onboarded, setOnboarded] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("verbatim.onboarded") === "1";
+    } catch {
+      return false;
+    }
+  });
 
   // Check for a newer signed build once on launch (no-op outside Tauri /
   // before any release exists).
@@ -109,6 +117,28 @@ function App() {
       unlisten?.();
       setDownloading(null);
     }
+  }
+
+  // First run (no project yet): walk onboarding once, then the import screen.
+  if (!project && !onboarded) {
+    return (
+      <Onboarding
+        selected={model}
+        onSelect={setModel}
+        downloadedModels={downloadedModels}
+        downloading={downloading}
+        onDownload={handleDownloadModel}
+        onDone={() => {
+          try {
+            localStorage.setItem("verbatim.onboarded", "1");
+          } catch {
+            /* private mode — onboarding just shows again next launch */
+          }
+          setOnboarded(true);
+        }}
+        onTryDemo={() => setProject(SAMPLE_PROJECT)}
+      />
+    );
   }
 
   // Import screen until a project exists. "Try the demo" loads SAMPLE_PROJECT
