@@ -65,10 +65,11 @@ pub async fn suggest_captions(
     let user = build_suggest_user_prompt(&project);
     let max_tokens = estimate_output_tokens(&project).clamp(256, 8192) as u32;
 
-    let key = api_key
-        .filter(|k| !k.trim().is_empty())
-        .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
-        .unwrap_or_default();
+    let key = crate::services::secrets::resolve(
+        api_key,
+        crate::services::secrets::SecretProvider::Anthropic,
+        "ANTHROPIC_API_KEY",
+    );
     let config = LlmConfig {
         model,
         api_key: key,

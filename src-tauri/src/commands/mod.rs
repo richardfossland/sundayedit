@@ -9,6 +9,7 @@ pub mod operations;
 pub mod polish;
 pub mod project;
 pub mod render;
+pub mod secrets;
 pub mod style;
 pub mod suggest;
 pub mod translate;

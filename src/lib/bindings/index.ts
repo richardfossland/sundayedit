@@ -31,6 +31,8 @@ export type { ReplaceResult }    from "./ReplaceResult";
 export type { SilenceGap }       from "./SilenceGap";
 export type { Peak }             from "./Peak";
 export type { Project }          from "./Project";
+export type { SecretProvider }   from "./SecretProvider";
+export type { SecretStatus }     from "./SecretStatus";
 export type { Segment }          from "./Segment";
 export type { Speaker }          from "./Speaker";
 export type { Strictness }       from "./Strictness";

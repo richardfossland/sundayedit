@@ -27,6 +27,7 @@ pub mod glossary;
 pub mod llm;
 pub mod operations;
 pub mod project_file;
+pub mod secrets;
 pub mod style_presets;
 pub mod video;
 pub mod waveform;

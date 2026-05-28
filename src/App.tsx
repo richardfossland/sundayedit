@@ -19,6 +19,7 @@ import {
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
 import { ContextPanel } from "@/features/context/ContextPanel";
+import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { ImportScreen } from "@/features/project/ImportScreen";
 import { ModelPicker } from "@/features/transcribe/ModelPicker";
 import { StyleEditor } from "@/features/style/StyleEditor";
@@ -51,7 +52,8 @@ type Tab =
   | "translate"
   | "cleanup"
   | "style"
-  | "export";
+  | "export"
+  | "settings";
 
 function App() {
   const [project, setProject] = useState<Project | null>(null);
@@ -218,7 +220,11 @@ function App() {
           <Download size={18} />
         </NavIcon>
         <div className="flex-1" />
-        <NavIcon active={false} onClick={() => {}} title="Innstillinger">
+        <NavIcon
+          active={tab === "settings"}
+          onClick={() => setTab("settings")}
+          title="Innstillinger"
+        >
           <SettingsIcon size={18} />
         </NavIcon>
       </nav>
@@ -262,8 +268,10 @@ function App() {
                 setProject({ ...project, default_style: s })
               }
             />
-          ) : (
+          ) : tab === "export" ? (
             <ExportPanel project={project} />
+          ) : (
+            <SettingsPanel />
           )}
         </div>
       </main>

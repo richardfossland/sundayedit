@@ -34,6 +34,10 @@ hound = "3.5"      # WAV reader for waveform peak computation
 # Phase 7 — find & replace (regex search in captions)
 regex = "1"
 
+# Phase 2.2 — API keys in the OS keychain (Keychain / Credential Manager),
+# never plaintext. Native stores per platform; Linux is contributor-only.
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+
 # Type generation for the frontend
 ts-rs = { version = "11", features = ["serde-compat", "chrono-impl", "uuid-impl"] }
 tauri-plugin-dialog = "2.7.1"

@@ -26,6 +26,8 @@ import type {
   PolishResult,
   Project,
   ReplaceResult,
+  SecretProvider,
+  SecretStatus,
   SilenceGap,
   Strictness,
   Suggestion,
@@ -185,6 +187,16 @@ export const style = {
   listPresets: () => call<StylePreset[]>("style_list_presets"),
 };
 
+// ── API key storage (Phase 2.2) ──────────────────────────────────────────────
+// The renderer only ever learns whether a key is set — never its value.
+export const secrets = {
+  status: () => call<SecretStatus[]>("secret_status"),
+  set: (provider: SecretProvider, value: string) =>
+    call<void>("secret_set", { provider, value }),
+  delete: (provider: SecretProvider) =>
+    call<void>("secret_delete", { provider }),
+};
+
 // ── Burn-in + platform export (Phase 6.2 / 6.3) ──────────────────────────────
 export const render = {
   listExportPresets: () => call<ExportPreset[]>("export_list_presets"),
@@ -302,6 +314,7 @@ export const ipc = {
   project,
   asr,
   style,
+  secrets,
   render,
   cleanup,
   polish,

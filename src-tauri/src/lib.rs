@@ -62,6 +62,10 @@ pub fn run() {
             commands::asr::asr_download_model,
             commands::asr::asr_cancel_download,
             commands::asr::asr_transcribe_local,
+            // API key storage (Phase 2.2)
+            commands::secrets::secret_set,
+            commands::secrets::secret_delete,
+            commands::secrets::secret_status,
             // Styling (Phase 5)
             commands::style::style_list_presets,
             // Burn-in + platform export (Phase 6.2 / 6.3)
