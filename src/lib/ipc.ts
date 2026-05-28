@@ -11,8 +11,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AppError, AsrOptions, BurnInOptions, Caption, ClaudeModel, ExportPreset, ExportWarning,
   FillerHit, FindMatch, FindOptions, GlossaryApplyResult, PolishEstimate, PolishResult,
-  Project, ReplaceResult, SilenceGap, StylePreset, VideoMetadata, WaveformData,
-  WhisperModel, WhisperModelInfo,
+  Project, ReplaceResult, SilenceGap, Strictness, Suggestion, StylePreset, VideoMetadata,
+  WaveformData, WhisperModel, WhisperModelInfo,
 } from "./bindings";
 
 export class IPCError extends Error {
@@ -141,4 +141,17 @@ export const polish = {
     call<PolishResult>("polish_captions", { project, model, apiKey: apiKey ?? null }),
 };
 
-export const ipc = { ops, exporters, project, asr, style, render, cleanup, polish };
+// ── AI smart suggestions (Phase 4.3) ─────────────────────────────────────────
+export const suggest = {
+  /** Pure cost/scope preview — no network. */
+  estimate: (project: Project, model: ClaudeModel, strictness: Strictness) =>
+    call<PolishEstimate>("suggest_estimate", { project, model, strictness }),
+  /** Run a Smart Suggest pass → review queue. Applies nothing. */
+  run: (project: Project, model: ClaudeModel, strictness: Strictness, apiKey?: string) =>
+    call<Suggestion[]>("suggest_captions", { project, model, strictness, apiKey: apiKey ?? null }),
+  /** Apply one accepted suggestion → updated project. */
+  apply: (project: Project, suggestion: Suggestion) =>
+    call<Project>("apply_suggestion", { project, suggestion }),
+};
+
+export const ipc = { ops, exporters, project, asr, style, render, cleanup, polish, suggest };

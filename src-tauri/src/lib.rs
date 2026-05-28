@@ -66,6 +66,10 @@ pub fn run() {
             // AI punctuation polish (Phase 4.1)
             commands::polish::polish_estimate,
             commands::polish::polish_captions,
+            // AI smart suggestions (Phase 4.3)
+            commands::suggest::suggest_estimate,
+            commands::suggest::suggest_captions,
+            commands::suggest::apply_suggestion,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

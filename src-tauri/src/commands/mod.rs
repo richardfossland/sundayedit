@@ -9,3 +9,4 @@ pub mod style;
 pub mod render;
 pub mod cleanup;
 pub mod polish;
+pub mod suggest;
