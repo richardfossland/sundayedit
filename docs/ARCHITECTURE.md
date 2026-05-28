@@ -155,7 +155,9 @@ Caveat for path-stability: if the user moves their video file, Verbatim detects 
 ## Phase status (May 2026)
 
 - [x] Phase 0 — Scaffold + design tokens + confidence color scale
-- [ ] Phase 1 — Video import + audio extraction + waveform + timeline
+- [x] Phase 1.1 — Video import: ffprobe metadata, format validation, content-hash relink, `.verbatim` SQLite file format
+- [x] Phase 1.2 — Audio extraction command + multi-zoom waveform peaks + Canvas waveform component
+- [ ] Phase 1.3 — Full timeline (caption track + ruler + J/K/L) — partial (waveform + click-seek done)
 - [ ] Phase 2 — Whisper-rs + per-word confidence + cloud fallback
 - [x] Phase 3.1 — Caption data model + operations *(in scaffold)*
 - [ ] Phase 3.2 — Editor UX

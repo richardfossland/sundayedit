@@ -8,7 +8,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { AppError, Project } from "./bindings";
+import type { AppError, Project, VideoMetadata, WaveformData } from "./bindings";
 
 export class IPCError extends Error {
   readonly code: AppError["code"];
@@ -60,4 +60,22 @@ export const exporters = {
     call<string>("export_txt", { project, includeSpeakers, stripEmpty }),
 };
 
-export const ipc = { ops, exporters };
+// ── Project lifecycle + video import (Phase 1) ───────────────────────────────
+export const project = {
+  probe: (path: string) =>
+    call<VideoMetadata>("video_probe", { path }),
+  createFromVideo: (path: string) =>
+    call<Project>("project_create_from_video", { path }),
+  save: (proj: Project, path: string) =>
+    call<void>("project_save", { project: proj, path }),
+  open: (path: string) =>
+    call<Project>("project_open", { path }),
+  waveform: (videoPath: string, cacheDir: string) =>
+    call<WaveformData>("waveform_compute", { videoPath, cacheDir }),
+  relink: (targetHash: string, searchDirs: string[], originalFilename?: string) =>
+    call<string | null>("project_relink", { targetHash, searchDirs, originalFilename }),
+  acceptedExtensions: () =>
+    call<string[]>("accepted_media_extensions"),
+};
+
+export const ipc = { ops, exporters, project };

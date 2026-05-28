@@ -7,9 +7,13 @@ export type { AlternateRead } from "./AlternateRead";
 export type { AnimationSpec } from "./AnimationSpec";
 export type { Caption }       from "./Caption";
 export type { GlossaryTerm }  from "./GlossaryTerm";
+export type { MediaKind }     from "./MediaKind";
+export type { Peak }          from "./Peak";
 export type { Project }       from "./Project";
 export type { Speaker }       from "./Speaker";
 export type { Style }         from "./Style";
+export type { VideoMetadata } from "./VideoMetadata";
+export type { WaveformData }  from "./WaveformData";
 export type { Word }          from "./Word";
 
 /** Error shape returned by every Tauri command (see error.rs). */

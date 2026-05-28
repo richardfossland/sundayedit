@@ -20,6 +20,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             // Caption operations (Phase 3.1)
             commands::operations::op_split_caption,
@@ -34,6 +35,14 @@ pub fn run() {
             commands::export::export_vtt,
             commands::export::export_ass,
             commands::export::export_txt,
+            // Project lifecycle + video import (Phase 1)
+            commands::project::video_probe,
+            commands::project::project_create_from_video,
+            commands::project::project_save,
+            commands::project::project_open,
+            commands::project::waveform_compute,
+            commands::project::project_relink,
+            commands::project::accepted_media_extensions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
