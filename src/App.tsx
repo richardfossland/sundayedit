@@ -85,7 +85,11 @@ function App() {
               <ModelPicker selected={model} onSelect={setModel} />
             </div>
           ) : tab === "editor" ? (
-            <CaptionEditor project={project} />
+            <CaptionEditor
+              key={project.id}
+              project={project}
+              onProjectChange={setProject}
+            />
           ) : (
             <ExportPanel exported={exported} onExport={doExport} />
           )}

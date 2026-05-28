@@ -30,6 +30,7 @@ pub fn run() {
             commands::operations::op_lock_word,
             commands::operations::op_accept_alternate,
             commands::operations::op_retime_word,
+            commands::operations::op_apply_glossary,
             // Export (Phase 6.1)
             commands::export::export_srt,
             commands::export::export_vtt,

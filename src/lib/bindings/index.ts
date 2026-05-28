@@ -8,6 +8,8 @@ export type { AnimationSpec }    from "./AnimationSpec";
 export type { AsrOptions }       from "./AsrOptions";
 export type { Caption }          from "./Caption";
 export type { CloudProvider }    from "./CloudProvider";
+export type { GlossaryCorrection } from "./GlossaryCorrection";
+export type { GlossaryApplyResult } from "./GlossaryApplyResult";
 export type { GlossaryTerm }     from "./GlossaryTerm";
 export type { MediaKind }        from "./MediaKind";
 export type { Peak }             from "./Peak";

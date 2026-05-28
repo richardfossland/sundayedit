@@ -9,8 +9,8 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  AppError, AsrOptions, Caption, Project, VideoMetadata, WaveformData,
-  WhisperModel, WhisperModelInfo,
+  AppError, AsrOptions, Caption, GlossaryApplyResult, Project, VideoMetadata,
+  WaveformData, WhisperModel, WhisperModelInfo,
 } from "./bindings";
 
 export class IPCError extends Error {
@@ -49,6 +49,9 @@ export const ops = {
     call<Project>("op_accept_alternate", { project, captionId, wordIndex, alternateIndex }),
   retimeWord: (project: Project, captionId: string, wordIndex: number, newStartMs: number, newEndMs: number) =>
     call<Project>("op_retime_word", { project, captionId, wordIndex, newStartMs, newEndMs }),
+  /** Killer feature #2 post-pass: apply glossary aliases → canonical terms. */
+  applyGlossary: (project: Project) =>
+    call<GlossaryApplyResult>("op_apply_glossary", { project }),
 };
 
 // ── Export ──────────────────────────────────────────────────────────────────

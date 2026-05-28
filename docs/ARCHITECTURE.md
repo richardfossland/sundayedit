@@ -161,10 +161,10 @@ Caveat for path-stability: if the user moves their video file, Verbatim detects 
 - [x] Phase 2.1 — ASR abstraction (`AsrProvider`), Whisper model registry, feature-gated `LocalWhisperProvider` (`--features whisper`), segment→caption captionizer
 - [x] Phase 2.2 — Cloud provider response normalization (OpenAI / AssemblyAI / Deepgram), confidence parity across backends
 - [x] Phase 2.3 — Per-word confidence normalization (logprob → 0..100, single calibrated curve) + `docs/CALIBRATION.md`
-- [x] Phase 3.1 — Caption data model + operations *(in scaffold)*
-- [ ] Phase 3.2 — Editor UX
-- [~] Phase 3.3 — Confidence highlighting (killer feature #1) — editor demo live; calibration pending real data
-- [ ] Phase 3.4 — Context priming + glossary (killer feature #2)
+- [x] Phase 3.1 — Caption data model + operations
+- [x] Phase 3.2 — Editor UX: inline word edit, alternate-picker popover, lock, undo/redo (op-based history), focus mode
+- [x] Phase 3.3 — Confidence highlighting (killer feature #1): 4-tier colours, Tab/Shift-Tab linear review, threshold control, review-progress. Calibration of the curve pending real labelled data (`docs/CALIBRATION.md`).
+- [~] Phase 3.4 — Context priming + glossary (killer feature #2): priming hook + auto-correction pass + "Fix terms" button done; glossary-editing UI + AI term-suggestion pending
 - [ ] Phase 4 — Polish + diarization + smart suggestions
 - [ ] Phase 5 — Styling system + presets
 - [x] Phase 6.1 — SRT / VTT / ASS export *(in scaffold)*

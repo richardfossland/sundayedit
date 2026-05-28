@@ -7,6 +7,7 @@
 //!   - `project_file` — .verbatim SQLite save/load (Phase 1.1)
 //!   - `waveform`     — audio extraction + multi-zoom peaks (Phase 1.2)
 //!   - `asr`          — speech recognition: confidence, models, cloud, local (Phase 2)
+//!   - `glossary`     — post-transcription auto-correction (Phase 3.4)
 
 pub mod operations;
 pub mod export;
@@ -14,3 +15,4 @@ pub mod video;
 pub mod project_file;
 pub mod waveform;
 pub mod asr;
+pub mod glossary;

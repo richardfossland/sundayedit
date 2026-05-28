@@ -6,9 +6,13 @@
 //! add SQLite project persistence, the renderer will push state changes
 //! through here for persistence too.
 
+use serde::Serialize;
+use ts_rs::TS;
+
 use crate::error::AppResult;
 use crate::model::Project;
-use crate::services::operations;
+use crate::services::{operations, glossary};
+use crate::services::glossary::GlossaryCorrection;
 
 fn now_ms() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -80,4 +84,19 @@ pub fn op_retime_word(
     new_end_ms: i64,
 ) -> AppResult<Project> {
     operations::retime_word(&project, &caption_id, word_index, new_start_ms, new_end_ms, now_ms())
+}
+
+/// Result of a glossary auto-correction pass: the new project plus the
+/// list of corrections so the UI can show "we fixed 4 terms — review?".
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/GlossaryApplyResult.ts")]
+pub struct GlossaryApplyResult {
+    pub project: Project,
+    pub corrections: Vec<GlossaryCorrection>,
+}
+
+#[tauri::command]
+pub fn op_apply_glossary(project: Project) -> AppResult<GlossaryApplyResult> {
+    let (project, corrections) = glossary::apply_glossary(&project, now_ms());
+    Ok(GlossaryApplyResult { project, corrections })
 }
