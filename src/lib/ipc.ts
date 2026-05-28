@@ -11,8 +11,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AppError, AsrOptions, BurnInOptions, Caption, ClaudeModel, ExportPreset, ExportWarning,
   FillerHit, FindMatch, FindOptions, GlossaryApplyResult, PolishEstimate, PolishResult,
-  Project, ReplaceResult, SilenceGap, Strictness, Suggestion, StylePreset, VideoMetadata,
-  WaveformData, WhisperModel, WhisperModelInfo,
+  Project, ReplaceResult, SilenceGap, Strictness, Suggestion, StylePreset, TranslationLanguage,
+  TranslationResult, VideoMetadata, WaveformData, WhisperModel, WhisperModelInfo,
 } from "./bindings";
 
 export class IPCError extends Error {
@@ -154,4 +154,15 @@ export const suggest = {
     call<Project>("apply_suggestion", { project, suggestion }),
 };
 
-export const ipc = { ops, exporters, project, asr, style, render, cleanup, polish, suggest };
+// ── AI translation (Phase 7.1) ───────────────────────────────────────────────
+export const translate = {
+  languages: () => call<TranslationLanguage[]>("translate_supported_languages"),
+  /** Pure cost/scope preview — no network. */
+  estimate: (project: Project, targetLanguage: string, model: ClaudeModel) =>
+    call<PolishEstimate>("translate_estimate", { project, targetLanguage, model }),
+  /** Translate the track → result (captions + warnings). Does not mutate. */
+  run: (project: Project, targetLanguage: string, model: ClaudeModel, apiKey?: string) =>
+    call<TranslationResult>("translate_captions", { project, targetLanguage, model, apiKey: apiKey ?? null }),
+};
+
+export const ipc = { ops, exporters, project, asr, style, render, cleanup, polish, suggest, translate };

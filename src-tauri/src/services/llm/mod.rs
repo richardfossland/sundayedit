@@ -19,6 +19,7 @@
 
 pub mod polish;
 pub mod suggest;
+pub mod translate;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

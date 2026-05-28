@@ -70,6 +70,10 @@ pub fn run() {
             commands::suggest::suggest_estimate,
             commands::suggest::suggest_captions,
             commands::suggest::apply_suggestion,
+            // AI translation (Phase 7.1)
+            commands::translate::translate_supported_languages,
+            commands::translate::translate_estimate,
+            commands::translate::translate_captions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
