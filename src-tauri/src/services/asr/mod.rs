@@ -12,6 +12,7 @@
 //!   - `cloud`       — cloud provider response normalization
 //!   - `local`       — LocalWhisperProvider (feature-gated on `whisper`)
 
+pub mod calibration;
 pub mod captionize;
 pub mod cloud;
 pub mod confidence;

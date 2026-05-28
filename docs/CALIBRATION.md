@@ -54,13 +54,23 @@ matters until we have labelled transcripts.
    Norwegian sermon, noisy recording) with the local Whisper model,
    word-level timestamps + token logprobs.
 2. Hand-label every word as correct / incorrect against ground truth.
-3. For a sweep of confidence thresholds T = 50, 55, …, 95:
+3. Put the labels in a JSON file (`{ "words": [ { "confidence": 95.0,
+"correct": true }, ... ] }`) and run the harness:
+
+   ```
+   cargo run --example calibrate -- path/to/labeled.json
+   ```
+
+   It prints precision/recall/F1 for a sweep of thresholds T = 50, 55, …, 95
+   and suggests the best-F1 cutoff. (`docs/calibration-sample.json` is a
+   demo dataset — replace it with real labels.) The math lives in
+   `src-tauri/src/services/asr/calibration.rs` and is unit-tested.
    - **precision** = of words below T, how many were actually wrong?
    - **recall** = of all wrong words, how many fell below T?
-4. Plot precision/recall. Choose the tier boundaries that give the
-   workflow we want — typically: tier-4 boundary at high recall (catch
-   nearly all errors), tier-2 boundary where false-positive rate becomes
-   annoying.
+
+4. From the table, choose the tier boundaries that give the workflow we
+   want — typically: tier-4 boundary at high recall (catch nearly all
+   errors), tier-2 boundary where the false-positive rate becomes annoying.
 5. Refit the `stretch()` anchors so the chosen probability cutoffs map to
    85 / 70 / 50.
 6. Record the resulting precision/recall here, e.g.:

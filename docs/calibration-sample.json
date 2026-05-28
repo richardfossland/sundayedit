@@ -1,0 +1,25 @@
+{
+  "_comment": "Illustrative demo data for `cargo run --example calibrate`. Replace with real hand-labelled words (confidence 0..100, correct against ground truth) per docs/CALIBRATION.md. Not real measurements.",
+  "words": [
+    { "confidence": 99.0, "correct": true },
+    { "confidence": 97.0, "correct": true },
+    { "confidence": 95.0, "correct": true },
+    { "confidence": 93.0, "correct": true },
+    { "confidence": 91.0, "correct": true },
+    { "confidence": 88.0, "correct": true },
+    { "confidence": 86.0, "correct": true },
+    { "confidence": 84.0, "correct": true },
+    { "confidence": 82.0, "correct": false },
+    { "confidence": 78.0, "correct": true },
+    { "confidence": 74.0, "correct": true },
+    { "confidence": 70.0, "correct": false },
+    { "confidence": 66.0, "correct": false },
+    { "confidence": 61.0, "correct": true },
+    { "confidence": 58.0, "correct": false },
+    { "confidence": 52.0, "correct": false },
+    { "confidence": 47.0, "correct": false },
+    { "confidence": 39.0, "correct": false },
+    { "confidence": 28.0, "correct": false },
+    { "confidence": 15.0, "correct": false }
+  ]
+}
