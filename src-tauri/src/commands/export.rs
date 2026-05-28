@@ -4,7 +4,8 @@
 use crate::error::AppResult;
 use crate::model::Project;
 use crate::services::export::{
-    write_ass, write_srt, write_txt, write_vtt, SrtOptions, TxtOptions, VttOptions,
+    write_ass, write_json, write_srt, write_txt, write_vtt, JsonOptions, SrtOptions, TxtOptions,
+    VttOptions,
 };
 
 #[tauri::command]
@@ -40,6 +41,11 @@ pub fn export_vtt(
 #[tauri::command]
 pub fn export_ass(project: Project) -> AppResult<String> {
     Ok(write_ass(&project))
+}
+
+#[tauri::command]
+pub fn export_json(project: Project, strip_empty: bool) -> AppResult<String> {
+    Ok(write_json(&project, JsonOptions { strip_empty }))
 }
 
 #[tauri::command]

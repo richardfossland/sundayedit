@@ -23,7 +23,7 @@ interface Props {
   project: Project;
 }
 
-type SidecarFormat = "srt" | "vtt" | "ass" | "txt";
+type SidecarFormat = "srt" | "vtt" | "ass" | "txt" | "json";
 
 export function ExportPanel({ project }: Props) {
   const [exported, setExported] = useState<{
@@ -72,7 +72,9 @@ export function ExportPanel({ project }: Props) {
           ? await ipc.exporters.vtt(project, true)
           : format === "ass"
             ? await ipc.exporters.ass(project)
-            : await ipc.exporters.txt(project, true);
+            : format === "json"
+              ? await ipc.exporters.json(project, true)
+              : await ipc.exporters.txt(project, true);
     setExported({ format, content });
   }
 
@@ -122,6 +124,11 @@ export function ExportPanel({ project }: Props) {
               desc: "Full styling — Aegisub, burn-in",
             },
             { id: "txt", label: "TXT", desc: "Ren transkripsjon" },
+            {
+              id: "json",
+              label: "JSON",
+              desc: "For utviklere — per-ord timing + confidence",
+            },
           ] as Array<{ id: SidecarFormat; label: string; desc: string }>
         ).map((f) => (
           <button

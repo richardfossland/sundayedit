@@ -14,6 +14,8 @@
 //! quirks (UTF-8 + appropriate line endings; SRT and VTT 0-padded;
 //! ASS-escaped `{}` in text).
 
+use serde::Serialize;
+
 use crate::model::{Caption, Project, Speaker, Style};
 
 // ── SRT ─────────────────────────────────────────────────────────────────────
@@ -299,6 +301,93 @@ pub struct TxtOptions {
     pub strip_empty: bool,
 }
 
+// ── JSON ──────────────────────────────────────────────────────────────────
+
+/// Developer-facing JSON export. A stable, documented schema kept separate
+/// from the internal `Project` so the export contract doesn't shift when
+/// internals change. Per-word timing + confidence are preserved.
+pub fn write_json(project: &Project, opts: JsonOptions) -> String {
+    let doc = JsonExport {
+        format: "verbatim-captions",
+        version: 1,
+        project: project.name.clone(),
+        language: project.language.clone(),
+        speakers: project
+            .speakers
+            .iter()
+            .map(|s| JsonSpeaker {
+                id: s.id.clone(),
+                name: s.display_name.clone(),
+                color: s.color_hex.clone(),
+            })
+            .collect(),
+        captions: project
+            .captions
+            .iter()
+            .filter(|c| !(opts.strip_empty && c.words.is_empty()))
+            .map(|c| JsonCaption {
+                id: c.id.clone(),
+                start_ms: c.start_ms,
+                end_ms: c.end_ms,
+                text: c.text(),
+                speaker_id: c.speaker_id.clone(),
+                words: c
+                    .words
+                    .iter()
+                    .map(|w| JsonWord {
+                        text: w.text.clone(),
+                        start_ms: w.start_ms,
+                        end_ms: w.end_ms,
+                        confidence: w.confidence,
+                    })
+                    .collect(),
+            })
+            .collect(),
+    };
+    // Serializing our own owned structs cannot fail.
+    serde_json::to_string_pretty(&doc).unwrap_or_else(|_| "{}".to_string())
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct JsonOptions {
+    pub strip_empty: bool,
+}
+
+#[derive(Serialize)]
+struct JsonExport {
+    format: &'static str,
+    version: u32,
+    project: String,
+    language: String,
+    speakers: Vec<JsonSpeaker>,
+    captions: Vec<JsonCaption>,
+}
+
+#[derive(Serialize)]
+struct JsonSpeaker {
+    id: String,
+    name: String,
+    color: Option<String>,
+}
+
+#[derive(Serialize)]
+struct JsonCaption {
+    id: String,
+    start_ms: i64,
+    end_ms: i64,
+    text: String,
+    speaker_id: Option<String>,
+    words: Vec<JsonWord>,
+}
+
+#[derive(Serialize)]
+struct JsonWord {
+    text: String,
+    start_ms: i64,
+    end_ms: i64,
+    confidence: f32,
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 fn speakers_by_id(speakers: &[Speaker]) -> std::collections::HashMap<String, String> {
@@ -395,6 +484,44 @@ mod tests {
         let out = write_srt(&p(), SrtOptions::default());
         assert!(out.starts_with("1\r\n00:00:01,500 --> 00:00:03,750\r\nHello world\r\n\r\n"));
         assert!(out.contains("2\r\n00:00:04,000 --> 00:00:07,250\r\nThis is two\r\n\r\n"));
+    }
+
+    #[test]
+    fn json_is_valid_and_preserves_words() {
+        let out = write_json(&p(), JsonOptions::default());
+        let v: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(v["format"], "verbatim-captions");
+        assert_eq!(v["version"], 1);
+        assert_eq!(v["language"], "en");
+        assert_eq!(v["captions"].as_array().unwrap().len(), 2);
+        let first = &v["captions"][0];
+        assert_eq!(first["text"], "Hello world");
+        assert_eq!(first["speaker_id"], "s1");
+        // Per-word timing + confidence are preserved (killer feature data).
+        assert_eq!(first["words"][0]["text"], "Hello");
+        assert_eq!(first["words"][0]["start_ms"], 1500);
+        assert_eq!(first["words"][1]["confidence"], 80.0);
+        // Speakers carried for cross-reference.
+        assert_eq!(v["speakers"][0]["name"], "Pastor Lars");
+    }
+
+    #[test]
+    fn json_strip_empty_drops_wordless_captions() {
+        let mut proj = p();
+        proj.captions.push(Caption {
+            id: "empty".into(),
+            start_ms: 8000,
+            end_ms: 9000,
+            words: vec![],
+            speaker_id: None,
+            style_id: None,
+            notes: None,
+            ai_generated: true,
+            last_edited_at: 0,
+        });
+        let out = write_json(&proj, JsonOptions { strip_empty: true });
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(v["captions"].as_array().unwrap().len(), 2);
     }
 
     #[test]

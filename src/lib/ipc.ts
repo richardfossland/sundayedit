@@ -122,6 +122,9 @@ export const exporters = {
   ass: (project: Project) => call<string>("export_ass", { project }),
   txt: (project: Project, includeSpeakers = false, stripEmpty = true) =>
     call<string>("export_txt", { project, includeSpeakers, stripEmpty }),
+  /** Developer-facing JSON: per-word timing + confidence, stable schema. */
+  json: (project: Project, stripEmpty = true) =>
+    call<string>("export_json", { project, stripEmpty }),
 };
 
 // ── Project lifecycle + video import (Phase 1) ───────────────────────────────
