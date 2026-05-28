@@ -77,15 +77,35 @@ public key, and update the `TAURI_SIGNING_PRIVATE_KEY` /
 apps signed with the old key won't accept updates signed with the new one —
 only do this before you have real users.
 
+## ffmpeg sidecar (wired)
+
+ffmpeg + ffprobe are bundled as Tauri `externalBin` sidecars, so import,
+waveform, and burn-in work without a system ffmpeg:
+
+- `bundle.externalBin` in `tauri.conf.json` lists `binaries/ffmpeg` +
+  `binaries/ffprobe`.
+- At runtime `services/video.rs` resolves the binary next to the app
+  executable first (the bundled sidecar), then falls back to PATH, with a
+  `VERBATIM_FFMPEG` / `VERBATIM_FFPROBE` env override for dev/tests.
+- The binaries are **not committed** (too large). Fetch them before every
+  build: `node scripts/fetch-ffmpeg.mjs` — it copies the `ffmpeg-static` +
+  `@ffprobe-installer/ffprobe` binaries into `src-tauri/binaries/` with the
+  Rust target-triple suffix. CI runs this automatically (see
+  `release.yml`); each runner fetches its own platform's binaries.
+
+> **Licensing:** these are GPL/LGPL ffmpeg builds. Before any *public*
+> release, confirm GPL compliance (offer the corresponding source) or swap to
+> an LGPL/own build. Fine for private test builds.
+
+> macOS builds are currently **arm64-only** (the fetch script + CI build the
+> runner's native arch). Intel/universal mac is a follow-up — it needs both
+> `ffmpeg-x86_64-apple-darwin` and `ffmpeg-aarch64-apple-darwin` present.
+
 ## Deferred — required before a real public 1.0
 
 These are intentionally **not** wired yet (they need binaries/infra, not just
 config):
 
-- **ffmpeg sidecar.** Burn-in/waveform shell out to `ffmpeg`. For a shippable
-  app, bundle per-platform ffmpeg binaries as a Tauri `externalBin` sidecar
-  (`bundle.externalBin` + `tauri.conf.json` resource wiring) so users don't
-  need ffmpeg on PATH.
 - **Whisper model download.** Models are 1–3 GB — too big to bundle. Ship a
   minimal installer and download the chosen model from a CDN on first run
   (see Phase 9.2 in the source plan). The model registry already exists in
@@ -103,6 +123,7 @@ config):
 
 ```bash
 npm ci
+node scripts/fetch-ffmpeg.mjs  # bundle ffmpeg/ffprobe (required by externalBin)
 npm run tauri build            # add --features llm,whisper,diarize for full native AI
 ```
 

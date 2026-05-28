@@ -27,6 +27,7 @@
     "active": true,
     "targets": ["app", "dmg", "nsis"],
     "createUpdaterArtifacts": true,
+    "externalBin": ["binaries/ffmpeg", "binaries/ffprobe"],
     "category": "Productivity",
     "shortDescription": "AI-assisted video captioning",
     "longDescription": "Verbatim turns raw video into broadcast-ready captions fast: local speech recognition with per-word confidence, context priming, AI polish, translation, speaker labels, styling, and burn-in export.",

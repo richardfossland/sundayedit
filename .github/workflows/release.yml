@@ -27,9 +27,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # macos-latest is Apple Silicon (arm64). Native-arch build so the
+          # fetched ffmpeg sidecar matches. (Intel-mac/universal is a
+          # follow-up — would need both-arch ffmpeg binaries.)
           - platform: macos-latest
-            args: "--target universal-apple-darwin"
-            rust-targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+            args: ""
+            rust-targets: ""
           - platform: windows-latest
             args: ""
             rust-targets: ""
@@ -56,6 +59,9 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Fetch bundled ffmpeg/ffprobe sidecars
+        run: node scripts/fetch-ffmpeg.mjs
 
       - name: Build, sign, and publish
         uses: tauri-apps/tauri-action@v0

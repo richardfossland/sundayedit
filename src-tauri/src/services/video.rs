@@ -286,16 +286,37 @@ pub fn find_relink_candidate(
 }
 
 // ── Binary resolution ──────────────────────────────────────────────────────────
+//
+// Resolution order (first hit wins):
+//   1. Env override (VERBATIM_FFMPEG / VERBATIM_FFPROBE) — dev + tests.
+//   2. Bundled sidecar next to the app executable — production. Tauri's
+//      `externalBin` drops `ffmpeg`/`ffprobe` into Contents/MacOS (or the
+//      install dir on Windows) with the target-triple suffix stripped.
+//   3. Bare name on PATH — a system ffmpeg, e.g. `brew install ffmpeg`.
 
-/// Path to the ffprobe binary. Production wires the Tauri sidecar; dev
-/// uses PATH or the VERBATIM_FFPROBE env override.
-fn ffprobe_path() -> String {
-    std::env::var("VERBATIM_FFPROBE").unwrap_or_else(|_| "ffprobe".to_string())
+/// Look for `name` (e.g. "ffmpeg") next to the current executable — that's
+/// where Tauri places bundled `externalBin` sidecars at runtime.
+fn sidecar_path(name: &str) -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    let file = if cfg!(windows) { format!("{name}.exe") } else { name.to_string() };
+    let candidate = dir.join(file);
+    candidate.is_file().then(|| candidate.to_string_lossy().into_owned())
 }
 
-/// Path to the ffmpeg binary (used by the waveform extractor).
+fn ffprobe_path() -> String {
+    if let Ok(p) = std::env::var("VERBATIM_FFPROBE") {
+        return p;
+    }
+    sidecar_path("ffprobe").unwrap_or_else(|| "ffprobe".to_string())
+}
+
+/// Path to the ffmpeg binary (used by the waveform extractor + burn-in).
 pub fn ffmpeg_path() -> String {
-    std::env::var("VERBATIM_FFMPEG").unwrap_or_else(|_| "ffmpeg".to_string())
+    if let Ok(p) = std::env::var("VERBATIM_FFMPEG") {
+        return p;
+    }
+    sidecar_path("ffmpeg").unwrap_or_else(|| "ffmpeg".to_string())
 }
 
 // ────────────────────────────────────────────────────────────────────────────
