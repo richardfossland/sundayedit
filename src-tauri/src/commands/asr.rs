@@ -14,6 +14,7 @@ use tauri::Emitter;
 use crate::error::AppResult;
 use crate::model::Caption;
 use crate::services::asr::captionize::{captionize, CaptionizeOptions};
+use crate::services::asr::cloud::{self, CloudCostEstimate, CloudProvider, CloudProviderInfo};
 use crate::services::asr::download::download_model;
 use crate::services::asr::local::LocalWhisperProvider;
 use crate::services::asr::model::{catalog, WhisperModel, WhisperModelInfo};
@@ -42,6 +43,18 @@ fn new_id() -> String {
 #[tauri::command]
 pub fn asr_list_models() -> Vec<WhisperModelInfo> {
     catalog()
+}
+
+/// The cloud-provider catalog for the picker (names, price/min, privacy URL).
+#[tauri::command]
+pub fn cloud_providers() -> Vec<CloudProviderInfo> {
+    cloud::catalog()
+}
+
+/// Pre-submit cost preview for a cloud provider over `duration_ms` of audio.
+#[tauri::command]
+pub fn cloud_cost_estimate(provider: CloudProvider, duration_ms: i64) -> CloudCostEstimate {
+    cloud::estimate_cost(provider, duration_ms)
 }
 
 /// Which models are already downloaded into `models_dir`.

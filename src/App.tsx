@@ -22,6 +22,7 @@ import { ContextPanel } from "@/features/context/ContextPanel";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { ImportScreen } from "@/features/project/ImportScreen";
 import { ModelPicker } from "@/features/transcribe/ModelPicker";
+import { CloudPanel } from "@/features/transcribe/CloudPanel";
 import { StyleEditor } from "@/features/style/StyleEditor";
 import { ExportPanel } from "@/features/export/ExportPanel";
 import { CleanupPanel } from "@/features/cleanup/CleanupPanel";
@@ -234,7 +235,7 @@ function App() {
         <ProjectHeader project={project} />
         <div className="flex-1 overflow-y-auto">
           {tab === "transcribe" ? (
-            <div className="p-6">
+            <div className="space-y-10 p-6">
               <ModelPicker
                 selected={model}
                 onSelect={setModel}
@@ -242,6 +243,7 @@ function App() {
                 downloading={downloading}
                 onDownload={handleDownloadModel}
               />
+              <CloudPanel project={project} />
             </div>
           ) : tab === "editor" ? (
             <CaptionEditor

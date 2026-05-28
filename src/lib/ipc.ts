@@ -15,6 +15,9 @@ import type {
   BurnInOptions,
   Caption,
   ClaudeModel,
+  CloudCostEstimate,
+  CloudProvider,
+  CloudProviderInfo,
   DownloadProgress,
   ExportPreset,
   ExportWarning,
@@ -156,6 +159,14 @@ export const project = {
 // ── ASR / transcription (Phase 2) ────────────────────────────────────────────
 export const asr = {
   listModels: () => call<WhisperModelInfo[]>("asr_list_models"),
+  /** Cloud provider catalog (names, price/min, privacy URL) — Phase 2.2. */
+  cloudProviders: () => call<CloudProviderInfo[]>("cloud_providers"),
+  /** Pre-submit cloud cost preview for `durationMs` of audio. */
+  cloudCostEstimate: (provider: CloudProvider, durationMs: number) =>
+    call<CloudCostEstimate>("cloud_cost_estimate", {
+      provider,
+      durationMs,
+    }),
   downloadedModels: (modelsDir: string) =>
     call<WhisperModel[]>("asr_downloaded_models", { modelsDir }),
   /** Fetch a model into `modelsDir`. Resolves when it's on disk. Listen for

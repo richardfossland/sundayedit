@@ -46,6 +46,89 @@ impl CloudProvider {
             self.display_name()
         )
     }
+
+    /// Approximate list price in USD per audio minute (pay-as-you-go, 2026).
+    /// Shown as a *ballpark* — providers change pricing, so the UI labels it
+    /// "estimated".
+    pub fn price_per_min_usd(&self) -> f64 {
+        match self {
+            CloudProvider::OpenaiWhisper => 0.006,
+            CloudProvider::AssemblyAi => 0.0062,
+            CloudProvider::Deepgram => 0.0043,
+        }
+    }
+
+    pub fn privacy_url(&self) -> &'static str {
+        match self {
+            CloudProvider::OpenaiWhisper => "https://openai.com/policies/privacy-policy",
+            CloudProvider::AssemblyAi => "https://www.assemblyai.com/legal/privacy-policy",
+            CloudProvider::Deepgram => "https://deepgram.com/privacy",
+        }
+    }
+
+    /// Whether the provider returns real per-word confidence (drives killer
+    /// feature #1). OpenAI's API only exposes segment-level avg_logprob, so we
+    /// can only *approximate* per-word confidence from it.
+    pub fn has_word_confidence(&self) -> bool {
+        match self {
+            CloudProvider::OpenaiWhisper => false,
+            CloudProvider::AssemblyAi | CloudProvider::Deepgram => true,
+        }
+    }
+
+    pub fn all() -> [CloudProvider; 3] {
+        [
+            CloudProvider::OpenaiWhisper,
+            CloudProvider::AssemblyAi,
+            CloudProvider::Deepgram,
+        ]
+    }
+
+    pub fn info(&self) -> CloudProviderInfo {
+        CloudProviderInfo {
+            provider: *self,
+            display_name: self.display_name().to_string(),
+            price_per_min_usd: self.price_per_min_usd(),
+            privacy_url: self.privacy_url().to_string(),
+            word_confidence: self.has_word_confidence(),
+            consent_text: self.consent_text(),
+        }
+    }
+}
+
+/// Catalog row for the cloud-provider picker.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/CloudProviderInfo.ts")]
+pub struct CloudProviderInfo {
+    pub provider: CloudProvider,
+    pub display_name: String,
+    pub price_per_min_usd: f64,
+    pub privacy_url: String,
+    pub word_confidence: bool,
+    pub consent_text: String,
+}
+
+/// A pre-submit cost preview, per the plan's cost-transparency requirement.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/CloudCostEstimate.ts")]
+pub struct CloudCostEstimate {
+    pub provider: CloudProvider,
+    pub minutes: f64,
+    pub estimated_usd: f64,
+}
+
+pub fn catalog() -> Vec<CloudProviderInfo> {
+    CloudProvider::all().iter().map(|p| p.info()).collect()
+}
+
+/// Estimate the cost of transcribing `duration_ms` of audio with `provider`.
+pub fn estimate_cost(provider: CloudProvider, duration_ms: i64) -> CloudCostEstimate {
+    let minutes = (duration_ms.max(0) as f64) / 60_000.0;
+    CloudCostEstimate {
+        provider,
+        minutes,
+        estimated_usd: minutes * provider.price_per_min_usd(),
+    }
 }
 
 fn sec_to_ms(sec: f64) -> i64 {
@@ -268,6 +351,38 @@ mod tests {
             .consent_text()
             .contains("AssemblyAI"));
         assert!(CloudProvider::Deepgram.consent_text().contains("Deepgram"));
+    }
+
+    #[test]
+    fn catalog_covers_every_provider_with_sane_fields() {
+        let c = catalog();
+        assert_eq!(c.len(), 3);
+        for info in &c {
+            assert!(info.price_per_min_usd > 0.0);
+            assert!(info.privacy_url.starts_with("https://"));
+            assert!(!info.consent_text.is_empty());
+        }
+    }
+
+    #[test]
+    fn only_word_level_providers_advertise_word_confidence() {
+        assert!(!CloudProvider::OpenaiWhisper.has_word_confidence());
+        assert!(CloudProvider::AssemblyAi.has_word_confidence());
+        assert!(CloudProvider::Deepgram.has_word_confidence());
+    }
+
+    #[test]
+    fn cost_scales_with_duration() {
+        // 10 minutes of audio.
+        let est = estimate_cost(CloudProvider::OpenaiWhisper, 600_000);
+        assert!((est.minutes - 10.0).abs() < 1e-9);
+        assert!((est.estimated_usd - 10.0 * 0.006).abs() < 1e-9);
+    }
+
+    #[test]
+    fn cost_of_zero_or_negative_duration_is_zero() {
+        assert_eq!(estimate_cost(CloudProvider::Deepgram, 0).estimated_usd, 0.0);
+        assert_eq!(estimate_cost(CloudProvider::Deepgram, -5).minutes, 0.0);
     }
 
     // ── OpenAI ─────────────────────────────────────────────────────────────

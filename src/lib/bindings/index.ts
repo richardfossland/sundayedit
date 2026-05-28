@@ -15,6 +15,8 @@ export type { ExportPreset }     from "./ExportPreset";
 export type { ExportWarning }    from "./ExportWarning";
 export type { VideoCodec }       from "./VideoCodec";
 export type { CloudProvider }    from "./CloudProvider";
+export type { CloudProviderInfo } from "./CloudProviderInfo";
+export type { CloudCostEstimate } from "./CloudCostEstimate";
 export type { ClaudeModel }      from "./ClaudeModel";
 export type { FillerHit }        from "./FillerHit";
 export type { FindMatch }        from "./FindMatch";
