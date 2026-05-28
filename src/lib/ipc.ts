@@ -9,8 +9,9 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  AppError, AsrOptions, Caption, GlossaryApplyResult, Project, StylePreset,
-  VideoMetadata, WaveformData, WhisperModel, WhisperModelInfo,
+  AppError, AsrOptions, BurnInOptions, Caption, ExportPreset, ExportWarning,
+  GlossaryApplyResult, Project, StylePreset, VideoMetadata, WaveformData,
+  WhisperModel, WhisperModelInfo,
 } from "./bindings";
 
 export class IPCError extends Error {
@@ -100,4 +101,15 @@ export const style = {
   listPresets: () => call<StylePreset[]>("style_list_presets"),
 };
 
-export const ipc = { ops, exporters, project, asr, style };
+// ── Burn-in + platform export (Phase 6.2 / 6.3) ──────────────────────────────
+export const render = {
+  listExportPresets: () => call<ExportPreset[]>("export_list_presets"),
+  validate: (project: Project, preset: ExportPreset) =>
+    call<ExportWarning[]>("export_validate", { project, preset }),
+  burnIn: (project: Project, output: string, options: BurnInOptions) =>
+    call<void>("burnin_render", { project, output, options }),
+  burnInPreset: (project: Project, output: string, preset: ExportPreset) =>
+    call<void>("burnin_render_preset", { project, output, preset }),
+};
+
+export const ipc = { ops, exporters, project, asr, style, render };

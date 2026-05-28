@@ -9,6 +9,8 @@
 //!   - `asr`          — speech recognition: confidence, models, cloud, local (Phase 2)
 //!   - `glossary`     — post-transcription auto-correction (Phase 3.4)
 //!   - `style_presets`— bundled subtitle style presets (Phase 5.1/5.3)
+//!   - `burnin`        — ffmpeg libass burn-in command (Phase 6.2)
+//!   - `export_presets`— platform export presets + validation (Phase 6.3)
 
 pub mod operations;
 pub mod export;
@@ -18,3 +20,5 @@ pub mod waveform;
 pub mod asr;
 pub mod glossary;
 pub mod style_presets;
+pub mod burnin;
+pub mod export_presets;

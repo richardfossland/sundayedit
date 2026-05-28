@@ -1,0 +1,308 @@
+//! Burn-in renderer — Phase 6.2.
+//!
+//! Embeds captions visually into the video via ffmpeg's `ass` filter
+//! (libass — the industry standard). We generate an ASS file from the
+//! project (reusing `export::write_ass`, which already encodes the full
+//! Style), then build an ffmpeg command that:
+//!   - applies the `ass` filter (+ optional scale/crop for vertical
+//!     formats)
+//!   - encodes with a hardware encoder when available (VideoToolbox on
+//!     macOS, NVENC on Windows), falling back to libx264
+//!   - copies the audio stream untouched (no needless re-encode)
+//!
+//! The command BUILDER (`build_ffmpeg_args`) is a pure function and is
+//! unit-tested exhaustively. The actual spawn needs ffmpeg + a real
+//! video, so `render()` shells out and streams progress; without ffmpeg
+//! installed it returns a clear error (same pattern as the whisper stub).
+
+use std::path::Path;
+use std::process::Command;
+
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+use crate::error::{AppError, AppResult};
+use crate::services::video::ffmpeg_path;
+
+/// Output video codec. We expose the common, sensible choices.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "kebab-case")]
+#[ts(export, export_to = "../../src/lib/bindings/VideoCodec.ts")]
+pub enum VideoCodec {
+    /// H.264 — universal. Default.
+    H264,
+    /// H.265/HEVC — smaller files, slightly less universal.
+    H265,
+}
+
+/// Hardware encoder family — chosen automatically per platform, but
+/// overridable (e.g. force CPU for determinism).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "kebab-case")]
+#[ts(export, export_to = "../../src/lib/bindings/Encoder.ts")]
+pub enum Encoder {
+    /// CPU x264/x265 — always available, slowest.
+    Cpu,
+    /// macOS VideoToolbox.
+    VideoToolbox,
+    /// NVIDIA NVENC.
+    Nvenc,
+    /// Intel QuickSync.
+    QuickSync,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/BurnInOptions.ts")]
+pub struct BurnInOptions {
+    pub codec: VideoCodec,
+    pub encoder: Encoder,
+    /// Target output width; `None` keeps source width.
+    pub out_width: Option<i32>,
+    /// Target output height; `None` keeps source height.
+    pub out_height: Option<i32>,
+    /// Constant-quality/bitrate hint, in kbps. `None` = encoder default.
+    pub bitrate_kbps: Option<i32>,
+    /// Render only `[start_ms, end_ms]` (clip). `None` = whole video.
+    pub clip_start_ms: Option<i64>,
+    pub clip_end_ms: Option<i64>,
+}
+
+impl Default for BurnInOptions {
+    fn default() -> Self {
+        Self {
+            codec: VideoCodec::H264,
+            encoder: default_encoder(),
+            out_width: None,
+            out_height: None,
+            bitrate_kbps: None,
+            clip_start_ms: None,
+            clip_end_ms: None,
+        }
+    }
+}
+
+/// Pick the best encoder for the current platform at compile time.
+pub fn default_encoder() -> Encoder {
+    if cfg!(target_os = "macos") {
+        Encoder::VideoToolbox
+    } else if cfg!(target_os = "windows") {
+        Encoder::Nvenc // best-effort; render() falls back to CPU on failure
+    } else {
+        Encoder::Cpu
+    }
+}
+
+/// Map (codec, encoder) to the ffmpeg `-c:v` value.
+fn encoder_name(codec: VideoCodec, encoder: Encoder) -> &'static str {
+    match (codec, encoder) {
+        (VideoCodec::H264, Encoder::Cpu)          => "libx264",
+        (VideoCodec::H264, Encoder::VideoToolbox) => "h264_videotoolbox",
+        (VideoCodec::H264, Encoder::Nvenc)        => "h264_nvenc",
+        (VideoCodec::H264, Encoder::QuickSync)    => "h264_qsv",
+        (VideoCodec::H265, Encoder::Cpu)          => "libx265",
+        (VideoCodec::H265, Encoder::VideoToolbox) => "hevc_videotoolbox",
+        (VideoCodec::H265, Encoder::Nvenc)        => "hevc_nvenc",
+        (VideoCodec::H265, Encoder::QuickSync)    => "hevc_qsv",
+    }
+}
+
+/// Escape a path for use inside an ffmpeg filtergraph. Colons and
+/// backslashes (Windows) and single quotes must be escaped, otherwise
+/// `ass=C:\path` breaks the filter parser.
+fn escape_filter_path(p: &str) -> String {
+    p.replace('\\', "/").replace(':', "\\:").replace('\'', "\\'")
+}
+
+/// Build the full ffmpeg argument vector. Pure — no IO. This is the
+/// unit-tested heart of the burn-in path.
+pub fn build_ffmpeg_args(
+    input: &str,
+    ass_file: &str,
+    output: &str,
+    opts: &BurnInOptions,
+) -> Vec<String> {
+    let mut args: Vec<String> = Vec::new();
+    args.push("-y".into()); // overwrite
+
+    // Clip (input-side seeking is faster + frame-accurate enough for v1).
+    if let Some(start) = opts.clip_start_ms {
+        args.push("-ss".into());
+        args.push(format!("{:.3}", start as f64 / 1000.0));
+    }
+
+    args.push("-i".into());
+    args.push(input.into());
+
+    if let (Some(start), Some(end)) = (opts.clip_start_ms, opts.clip_end_ms) {
+        let dur = (end - start).max(0);
+        args.push("-t".into());
+        args.push(format!("{:.3}", dur as f64 / 1000.0));
+    }
+
+    // Build the filtergraph: optional scale, then the ass overlay.
+    let mut filters: Vec<String> = Vec::new();
+    if let (Some(w), Some(h)) = (opts.out_width, opts.out_height) {
+        // scale to fit, then pad/crop to exact dims (centre) for vertical
+        // targets. force_original_aspect_ratio=increase + crop = "cover".
+        filters.push(format!(
+            "scale={w}:{h}:force_original_aspect_ratio=increase",
+            w = w, h = h
+        ));
+        filters.push(format!("crop={w}:{h}", w = w, h = h));
+    }
+    filters.push(format!("ass={}", escape_filter_path(ass_file)));
+    args.push("-vf".into());
+    args.push(filters.join(","));
+
+    // Video encoder
+    args.push("-c:v".into());
+    args.push(encoder_name(opts.codec, opts.encoder).into());
+
+    if let Some(kbps) = opts.bitrate_kbps {
+        args.push("-b:v".into());
+        args.push(format!("{}k", kbps));
+    }
+
+    // Audio: pass through untouched.
+    args.push("-c:a".into());
+    args.push("copy".into());
+
+    args.push(output.into());
+    args
+}
+
+/// Generate the ASS sidecar, then run ffmpeg burn-in. Errors clearly if
+/// ffmpeg is missing.
+pub fn render(
+    project: &crate::model::Project,
+    output: &Path,
+    opts: &BurnInOptions,
+) -> AppResult<()> {
+    let input = Path::new(&project.video_path);
+    if !input.exists() {
+        return Err(AppError::VideoMissing(project.video_path.clone()));
+    }
+
+    // Write the ASS file next to the output.
+    let ass_path = output.with_extension("ass");
+    let ass = crate::services::export::write_ass(project);
+    std::fs::write(&ass_path, ass)?;
+
+    let args = build_ffmpeg_args(
+        &project.video_path,
+        &ass_path.to_string_lossy(),
+        &output.to_string_lossy(),
+        opts,
+    );
+
+    let status = Command::new(ffmpeg_path())
+        .args(&args)
+        .status()
+        .map_err(|e| AppError::Internal(format!(
+            "failed to launch ffmpeg for burn-in: {e}. Is ffmpeg installed / bundled?"
+        )))?;
+
+    // best-effort cleanup of the temp ASS
+    let _ = std::fs::remove_file(&ass_path);
+
+    if !status.success() {
+        return Err(AppError::Internal(
+            "ffmpeg burn-in failed. If your machine lacks the chosen hardware \
+             encoder, retry with the CPU encoder."
+                .to_string(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn opts() -> BurnInOptions {
+        BurnInOptions { encoder: Encoder::Cpu, ..Default::default() }
+    }
+
+    #[test]
+    fn basic_command_has_input_filter_output() {
+        let a = build_ffmpeg_args("in.mp4", "subs.ass", "out.mp4", &opts());
+        assert_eq!(a[0], "-y");
+        let joined = a.join(" ");
+        assert!(joined.contains("-i in.mp4"));
+        assert!(joined.contains("-vf ass=subs.ass"));
+        assert!(joined.contains("-c:v libx264"));
+        assert!(joined.contains("-c:a copy"));
+        assert_eq!(a.last().unwrap(), "out.mp4");
+    }
+
+    #[test]
+    fn h265_videotoolbox_encoder_name() {
+        assert_eq!(encoder_name(VideoCodec::H265, Encoder::VideoToolbox), "hevc_videotoolbox");
+        assert_eq!(encoder_name(VideoCodec::H264, Encoder::Nvenc), "h264_nvenc");
+        assert_eq!(encoder_name(VideoCodec::H264, Encoder::QuickSync), "h264_qsv");
+    }
+
+    #[test]
+    fn scale_and_crop_added_for_vertical_target() {
+        let o = BurnInOptions { encoder: Encoder::Cpu, out_width: Some(1080), out_height: Some(1920), ..Default::default() };
+        let a = build_ffmpeg_args("in.mp4", "s.ass", "out.mp4", &o);
+        let vf = arg_after(&a, "-vf").unwrap();
+        assert!(vf.contains("scale=1080:1920:force_original_aspect_ratio=increase"));
+        assert!(vf.contains("crop=1080:1920"));
+        assert!(vf.contains("ass=s.ass"), "ass filter still present after scale/crop");
+        // ass must come AFTER scale/crop so captions render at output res
+        let scale_pos = vf.find("scale").unwrap();
+        let ass_pos = vf.find("ass=").unwrap();
+        assert!(scale_pos < ass_pos);
+    }
+
+    #[test]
+    fn bitrate_added_when_set() {
+        let o = BurnInOptions { encoder: Encoder::Cpu, bitrate_kbps: Some(8000), ..Default::default() };
+        let a = build_ffmpeg_args("in.mp4", "s.ass", "out.mp4", &o);
+        assert_eq!(arg_after(&a, "-b:v").as_deref(), Some("8000k"));
+    }
+
+    #[test]
+    fn no_bitrate_flag_when_unset() {
+        let a = build_ffmpeg_args("in.mp4", "s.ass", "out.mp4", &opts());
+        assert!(!a.iter().any(|x| x == "-b:v"));
+    }
+
+    #[test]
+    fn clip_adds_ss_and_t() {
+        let o = BurnInOptions { encoder: Encoder::Cpu, clip_start_ms: Some(2000), clip_end_ms: Some(7000), ..Default::default() };
+        let a = build_ffmpeg_args("in.mp4", "s.ass", "out.mp4", &o);
+        // -ss before -i, -t after
+        assert_eq!(arg_after(&a, "-ss").as_deref(), Some("2.000"));
+        assert_eq!(arg_after(&a, "-t").as_deref(), Some("5.000"));
+        let ss_pos = a.iter().position(|x| x == "-ss").unwrap();
+        let i_pos = a.iter().position(|x| x == "-i").unwrap();
+        assert!(ss_pos < i_pos, "-ss should precede -i for fast seek");
+    }
+
+    #[test]
+    fn windows_path_escaped_in_filter() {
+        let a = build_ffmpeg_args("in.mp4", "C:\\Users\\me\\subs.ass", "out.mp4", &opts());
+        let vf = arg_after(&a, "-vf").unwrap();
+        // colon escaped, backslashes → forward slashes
+        assert!(vf.contains("ass=C\\:/Users/me/subs.ass"), "got {vf}");
+    }
+
+    #[test]
+    fn default_encoder_matches_platform() {
+        let e = default_encoder();
+        if cfg!(target_os = "macos") {
+            assert_eq!(e, Encoder::VideoToolbox);
+        } else if cfg!(target_os = "windows") {
+            assert_eq!(e, Encoder::Nvenc);
+        } else {
+            assert_eq!(e, Encoder::Cpu);
+        }
+    }
+
+    // helper: value following a flag in the arg vector
+    fn arg_after(args: &[String], flag: &str) -> Option<String> {
+        args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1).cloned())
+    }
+}

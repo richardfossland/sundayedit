@@ -6,7 +6,13 @@
 export type { AlternateRead }    from "./AlternateRead";
 export type { AnimationSpec }    from "./AnimationSpec";
 export type { AsrOptions }       from "./AsrOptions";
+export type { Aspect }           from "./Aspect";
+export type { BurnInOptions }    from "./BurnInOptions";
 export type { Caption }          from "./Caption";
+export type { Encoder }          from "./Encoder";
+export type { ExportPreset }     from "./ExportPreset";
+export type { ExportWarning }    from "./ExportWarning";
+export type { VideoCodec }       from "./VideoCodec";
 export type { CloudProvider }    from "./CloudProvider";
 export type { GlossaryCorrection } from "./GlossaryCorrection";
 export type { GlossaryApplyResult } from "./GlossaryApplyResult";

@@ -50,6 +50,11 @@ pub fn run() {
             commands::asr::asr_transcribe_local,
             // Styling (Phase 5)
             commands::style::style_list_presets,
+            // Burn-in + platform export (Phase 6.2 / 6.3)
+            commands::render::export_list_presets,
+            commands::render::export_validate,
+            commands::render::burnin_render,
+            commands::render::burnin_render_preset,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -5,9 +5,9 @@ import { CaptionEditor } from "@/features/editor/CaptionEditor";
 import { ImportScreen } from "@/features/project/ImportScreen";
 import { ModelPicker } from "@/features/transcribe/ModelPicker";
 import { StyleEditor } from "@/features/style/StyleEditor";
+import { ExportPanel } from "@/features/export/ExportPanel";
 import { Waveform } from "@/components/Waveform";
 import { SAMPLE_PROJECT } from "@/lib/sampleProject";
-import { ipc } from "@/lib/ipc";
 import type { Project, Style, WaveformData, WhisperModel } from "@/lib/bindings";
 import { cn } from "@/lib/cn";
 
@@ -16,7 +16,6 @@ type Tab = "transcribe" | "editor" | "style" | "export";
 function App() {
   const [project, setProject] = useState<Project | null>(null);
   const [tab, setTab] = useState<Tab>("editor");
-  const [exported, setExported] = useState<{ format: string; content: string } | null>(null);
   const [model, setModel] = useState<WhisperModel | null>("large-v3-turbo");
 
   // Import screen until a project exists. "Try the demo" loads SAMPLE_PROJECT
@@ -38,16 +37,6 @@ function App() {
         </div>
       </div>
     );
-  }
-
-  async function doExport(format: "srt" | "vtt" | "ass" | "txt") {
-    if (!project) return;
-    const content =
-      format === "srt" ? await ipc.exporters.srt(project, true)
-      : format === "vtt" ? await ipc.exporters.vtt(project, true)
-      : format === "ass" ? await ipc.exporters.ass(project)
-      : await ipc.exporters.txt(project, true);
-    setExported({ format, content });
   }
 
   return (
@@ -100,7 +89,7 @@ function App() {
               onChange={(s: Style) => setProject({ ...project, default_style: s })}
             />
           ) : (
-            <ExportPanel exported={exported} onExport={doExport} />
+            <ExportPanel project={project} />
           )}
         </div>
       </main>
@@ -155,50 +144,6 @@ function NavIcon({
     >
       {children}
     </button>
-  );
-}
-
-function ExportPanel({
-  exported, onExport,
-}: {
-  exported: { format: string; content: string } | null;
-  onExport: (format: "srt" | "vtt" | "ass" | "txt") => void;
-}) {
-  const formats: Array<{ id: "srt" | "vtt" | "ass" | "txt"; label: string; desc: string }> = [
-    { id: "srt", label: "SRT", desc: "Universal — YouTube, de fleste spillere" },
-    { id: "vtt", label: "VTT", desc: "Web-standard, med talere" },
-    { id: "ass", label: "ASS", desc: "Full styling — Aegisub, burn-in" },
-    { id: "txt", label: "TXT", desc: "Ren transkripsjon, ingen tidskoder" },
-  ];
-  return (
-    <div className="flex h-full overflow-hidden">
-      <div className="w-72 shrink-0 space-y-2 border-r border-[var(--color-border)] p-4">
-        {formats.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => onExport(f.id)}
-            className="flex w-full flex-col rounded-md border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2.5 text-left transition-colors hover:border-[var(--color-accent-600)]"
-          >
-            <span className="font-mono text-[var(--text-ui-sm)] font-semibold text-[var(--color-accent-400)]">
-              {f.label}
-            </span>
-            <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">{f.desc}</span>
-          </button>
-        ))}
-      </div>
-      <div className="flex-1 overflow-auto p-4">
-        {exported ? (
-          <pre className="whitespace-pre-wrap rounded-md bg-[var(--color-bg-elevated)] p-4 font-mono text-[var(--text-ui-xs)] leading-relaxed">
-            {exported.content}
-          </pre>
-        ) : (
-          <div className="grid h-full place-items-center text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-            Velg et format til venstre for å se eksporten.
-          </div>
-        )}
-      </div>
-    </div>
   );
 }
 
