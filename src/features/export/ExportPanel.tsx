@@ -43,6 +43,7 @@ export function ExportPanel({ project }: Props) {
   const [warnings, setWarnings] = useState<ExportWarning[]>([]);
   const [rendering, setRendering] = useState(false);
   const [renderResult, setRenderResult] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   // Validate whenever the chosen platform changes.
   useEffect(() => {
@@ -76,6 +77,31 @@ export function ExportPanel({ project }: Props) {
               ? await ipc.exporters.json(project, true)
               : await ipc.exporters.txt(project, true);
     setExported({ format, content });
+  }
+
+  // DOCX is binary → save straight to disk; text formats preview first.
+  function handleFormat(format: SidecarFormat | "docx") {
+    if (format === "docx") {
+      void doSaveExport("docx");
+      return;
+    }
+    void doSidecar(format);
+  }
+
+  async function doSaveExport(format: string) {
+    const base = project.name.replace(/\.[^.]+$/, "");
+    const out = await saveDialog({
+      defaultPath: `${base}.${format}`,
+      filters: [{ name: format.toUpperCase(), extensions: [format] }],
+    });
+    if (typeof out !== "string") return;
+    setSaveMsg(null);
+    try {
+      await ipc.exporters.save(project, out, format);
+      setSaveMsg(`Lagret: ${out}`);
+    } catch (e) {
+      setSaveMsg(e instanceof IPCError ? `Feil: ${e.message}` : String(e));
+    }
   }
 
   async function doBurnIn() {
@@ -129,12 +155,21 @@ export function ExportPanel({ project }: Props) {
               label: "JSON",
               desc: "For utviklere — per-ord timing + confidence",
             },
-          ] as Array<{ id: SidecarFormat; label: string; desc: string }>
+            {
+              id: "docx",
+              label: "DOCX",
+              desc: "Word-dokument for korrektur (lagres direkte)",
+            },
+          ] as Array<{
+            id: SidecarFormat | "docx";
+            label: string;
+            desc: string;
+          }>
         ).map((f) => (
           <button
             key={f.id}
             type="button"
-            onClick={() => doSidecar(f.id)}
+            onClick={() => handleFormat(f.id)}
             className="flex w-full flex-col rounded-md border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 text-left transition-colors hover:border-[var(--color-accent-600)]"
           >
             <span className="font-mono text-[var(--text-ui-sm)] font-semibold text-[var(--color-accent-400)]">
@@ -237,9 +272,25 @@ export function ExportPanel({ project }: Props) {
             )}
           </div>
         ) : exported ? (
-          <pre className="whitespace-pre-wrap rounded-md bg-[var(--color-bg-elevated)] p-4 font-mono text-[var(--text-ui-xs)] leading-relaxed">
-            {exported.content}
-          </pre>
+          <div className="flex h-full flex-col">
+            <div className="mb-3 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => doSaveExport(exported.format)}
+                className="flex items-center gap-2 rounded-lg bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
+              >
+                <Download size={14} /> Lagre {exported.format.toUpperCase()}…
+              </button>
+              {saveMsg && (
+                <span className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
+                  {saveMsg}
+                </span>
+              )}
+            </div>
+            <pre className="flex-1 overflow-auto whitespace-pre-wrap rounded-md bg-[var(--color-bg-elevated)] p-4 font-mono text-[var(--text-ui-xs)] leading-relaxed">
+              {exported.content}
+            </pre>
+          </div>
         ) : (
           <div className="grid h-full place-items-center text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
             Velg et tekstformat eller en plattform til venstre.

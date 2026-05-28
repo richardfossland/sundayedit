@@ -51,6 +51,7 @@ pub fn run() {
             commands::export::export_ass,
             commands::export::export_txt,
             commands::export::export_json,
+            commands::export::save_export,
             // Project lifecycle + video import (Phase 1)
             commands::project::video_probe,
             commands::project::project_create_from_video,

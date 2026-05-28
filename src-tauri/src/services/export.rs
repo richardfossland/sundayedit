@@ -16,6 +16,7 @@
 
 use serde::Serialize;
 
+use crate::error::{AppError, AppResult};
 use crate::model::{Caption, Project, Speaker, Style};
 
 // ── SRT ─────────────────────────────────────────────────────────────────────
@@ -390,6 +391,77 @@ struct JsonWord {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
+// ── DOCX ──────────────────────────────────────────────────────────────────
+
+const DOCX_CONTENT_TYPES: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">\
+<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>\
+<Default Extension=\"xml\" ContentType=\"application/xml\"/>\
+<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/>\
+</Types>";
+
+const DOCX_RELS: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">\
+<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/>\
+</Relationships>";
+
+fn xml_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
+}
+
+fn docx_paragraph(text: &str) -> String {
+    format!(
+        "<w:p><w:r><w:t xml:space=\"preserve\">{}</w:t></w:r></w:p>",
+        xml_escape(text)
+    )
+}
+
+/// Build a minimal but valid .docx (OOXML) for non-technical review: the
+/// project name as a heading, then one paragraph per caption (optional
+/// "Speaker:" prefix). Returns the zip bytes. Pure — writes to an in-memory
+/// buffer — so it's testable offline.
+pub fn build_docx(project: &Project, opts: TxtOptions) -> AppResult<Vec<u8>> {
+    use std::io::Write;
+
+    let speakers = speakers_by_id(&project.speakers);
+    let mut body = docx_paragraph(&project.name);
+    for c in &project.captions {
+        if opts.strip_empty && c.words.is_empty() {
+            continue;
+        }
+        let text = if opts.include_speakers {
+            format_with_speaker(c, &speakers)
+        } else {
+            c.text()
+        };
+        body.push_str(&docx_paragraph(&text));
+    }
+
+    let document = format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
+         <w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">\
+         <w:body>{body}<w:sectPr/></w:body></w:document>"
+    );
+
+    let map_zip = |e: zip::result::ZipError| AppError::Internal(format!("docx zip: {e}"));
+    let mut zw = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let opt = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    zw.start_file("[Content_Types].xml", opt).map_err(map_zip)?;
+    zw.write_all(DOCX_CONTENT_TYPES.as_bytes())?;
+    zw.start_file("_rels/.rels", opt).map_err(map_zip)?;
+    zw.write_all(DOCX_RELS.as_bytes())?;
+    zw.start_file("word/document.xml", opt).map_err(map_zip)?;
+    zw.write_all(document.as_bytes())?;
+
+    Ok(zw.finish().map_err(map_zip)?.into_inner())
+}
+
 fn speakers_by_id(speakers: &[Speaker]) -> std::collections::HashMap<String, String> {
     speakers
         .iter()
@@ -503,6 +575,54 @@ mod tests {
         assert_eq!(first["words"][1]["confidence"], 80.0);
         // Speakers carried for cross-reference.
         assert_eq!(v["speakers"][0]["name"], "Pastor Lars");
+    }
+
+    #[test]
+    fn docx_is_a_valid_zip_with_required_parts_and_text() {
+        use std::io::Read;
+        let bytes = build_docx(&p(), TxtOptions::default()).unwrap();
+        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        assert!(zip.by_name("[Content_Types].xml").is_ok());
+        assert!(zip.by_name("_rels/.rels").is_ok());
+        let mut doc = String::new();
+        zip.by_name("word/document.xml")
+            .unwrap()
+            .read_to_string(&mut doc)
+            .unwrap();
+        assert!(doc.contains("Hello world"));
+        assert!(doc.contains("This is two"));
+        assert!(doc.contains("w:document"));
+    }
+
+    #[test]
+    fn docx_escapes_xml_special_chars() {
+        use std::io::Read;
+        let mut proj = p();
+        proj.captions = vec![Caption {
+            id: "c".into(),
+            start_ms: 0,
+            end_ms: 1000,
+            words: vec![
+                Word::new("a", 0, 300, 90.0),
+                Word::new("&", 300, 600, 90.0),
+                Word::new("<b>", 600, 1000, 90.0),
+            ],
+            speaker_id: None,
+            style_id: None,
+            notes: None,
+            ai_generated: true,
+            last_edited_at: 0,
+        }];
+        let bytes = build_docx(&proj, TxtOptions::default()).unwrap();
+        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+        let mut doc = String::new();
+        zip.by_name("word/document.xml")
+            .unwrap()
+            .read_to_string(&mut doc)
+            .unwrap();
+        assert!(doc.contains("&amp;"));
+        assert!(doc.contains("&lt;b&gt;"));
+        assert!(!doc.contains("<b>")); // raw tag must not leak into the body text
     }
 
     #[test]

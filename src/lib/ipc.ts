@@ -131,6 +131,21 @@ export const exporters = {
   /** Developer-facing JSON: per-word timing + confidence, stable schema. */
   json: (project: Project, stripEmpty = true) =>
     call<string>("export_json", { project, stripEmpty }),
+  /** Regenerate `format` (srt/vtt/ass/txt/json/docx) and write it to `path`. */
+  save: (
+    project: Project,
+    path: string,
+    format: string,
+    includeSpeakers = true,
+    stripEmpty = true,
+  ) =>
+    call<void>("save_export", {
+      project,
+      path,
+      format,
+      includeSpeakers,
+      stripEmpty,
+    }),
 };
 
 // ── Project lifecycle + video import (Phase 1) ───────────────────────────────

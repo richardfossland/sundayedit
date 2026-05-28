@@ -38,6 +38,9 @@ regex = "1"
 # never plaintext. Native stores per platform; Linux is contributor-only.
 keyring = { version = "3", features = ["apple-native", "windows-native"] }
 
+# Phase 6.1 — DOCX export is an OOXML zip; we hand-build a minimal valid one.
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
 # Type generation for the frontend
 ts-rs = { version = "11", features = ["serde-compat", "chrono-impl", "uuid-impl"] }
 tauri-plugin-dialog = "2.7.1"
