@@ -5,6 +5,7 @@ pub mod asr;
 pub mod cleanup;
 pub mod diarize;
 pub mod export;
+pub mod glossary;
 pub mod operations;
 pub mod polish;
 pub mod project;

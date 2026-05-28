@@ -42,6 +42,9 @@ pub fn run() {
             commands::operations::op_accept_alternate,
             commands::operations::op_retime_word,
             commands::operations::op_apply_glossary,
+            // AI glossary suggestions (Phase 3.4 mode 3)
+            commands::glossary::glossary_suggest_estimate,
+            commands::glossary::glossary_suggest,
             // Export (Phase 6.1)
             commands::export::export_srt,
             commands::export::export_vtt,

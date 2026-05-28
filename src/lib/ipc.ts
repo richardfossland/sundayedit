@@ -31,6 +31,7 @@ import type {
   SilenceGap,
   Strictness,
   Suggestion,
+  SuggestedTerm,
   StylePreset,
   TranslationLanguage,
   TranslationResult,
@@ -247,6 +248,20 @@ export const polish = {
     }),
 };
 
+// ── AI glossary suggestions (Phase 3.4 mode 3) ───────────────────────────────
+export const glossary = {
+  /** Pure cost/scope preview — no network. */
+  estimate: (project: Project, model: ClaudeModel) =>
+    call<PolishEstimate>("glossary_suggest_estimate", { project, model }),
+  /** Scan the transcript → candidate terms for review. Adds nothing. */
+  suggest: (project: Project, model: ClaudeModel, apiKey?: string) =>
+    call<SuggestedTerm[]>("glossary_suggest", {
+      project,
+      model,
+      apiKey: apiKey ?? null,
+    }),
+};
+
 // ── AI smart suggestions (Phase 4.3) ─────────────────────────────────────────
 export const suggest = {
   /** Pure cost/scope preview — no network. */
@@ -317,6 +332,7 @@ export const ipc = {
   secrets,
   render,
   cleanup,
+  glossary,
   polish,
   suggest,
   translate,

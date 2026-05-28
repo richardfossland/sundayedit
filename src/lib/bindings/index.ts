@@ -38,6 +38,7 @@ export type { Speaker }          from "./Speaker";
 export type { Strictness }       from "./Strictness";
 export type { Suggestion }       from "./Suggestion";
 export type { SuggestionKind }   from "./SuggestionKind";
+export type { SuggestedTerm }    from "./SuggestedTerm";
 export type { Style }            from "./Style";
 export type { StylePreset }      from "./StylePreset";
 export type { TranscribeProgress } from "./TranscribeProgress";

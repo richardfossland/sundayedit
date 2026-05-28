@@ -12,10 +12,10 @@
  */
 
 import { useState } from "react";
-import { BookText, Plus, Trash2, Wand2 } from "lucide-react";
+import { BookText, Plus, Trash2, Wand2, Sparkles, Loader2 } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
-import type { GlossaryTerm, Project } from "@/lib/bindings";
+import type { GlossaryTerm, Project, SuggestedTerm } from "@/lib/bindings";
 
 interface Props {
   project: Project;
@@ -24,6 +24,9 @@ interface Props {
 
 export function ContextPanel({ project, onProjectChange }: Props) {
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
+  const [suggested, setSuggested] = useState<SuggestedTerm[] | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestMsg, setSuggestMsg] = useState<string | null>(null);
 
   function setContext(value: string) {
     onProjectChange({
@@ -74,6 +77,49 @@ export function ContextPanel({ project, onProjectChange }: Props) {
     }
   }
 
+  // Killer feature #2, mode 3: ask the LLM to propose glossary terms from the
+  // transcript. Propose-and-approve — nothing is added until the user accepts.
+  async function runSuggest() {
+    setSuggesting(true);
+    setSuggestMsg(null);
+    setSuggested(null);
+    try {
+      const out = await ipc.glossary.suggest(project, "haiku45");
+      setSuggested(out);
+      if (out.length === 0) setSuggestMsg("Fant ingen nye termer å foreslå.");
+    } catch (e) {
+      // Most likely: no Anthropic key set.
+      setSuggestMsg(
+        e instanceof IPCError
+          ? `Feil: ${e.message} (legg inn Anthropic-nøkkel i Innstillinger?)`
+          : String(e),
+      );
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  function acceptSuggestion(s: SuggestedTerm) {
+    const exists = project.glossary.some(
+      (t) => t.term.toLowerCase() === s.term.toLowerCase(),
+    );
+    if (!exists) {
+      const term: GlossaryTerm = {
+        id: crypto.randomUUID(),
+        term: s.term,
+        aliases: s.aliases,
+        definition: s.reason.trim() || null,
+        pronunciation_hint: null,
+      };
+      onProjectChange({ ...project, glossary: [...project.glossary, term] });
+    }
+    setSuggested((cur) => cur?.filter((t) => t !== s) ?? null);
+  }
+
+  function dismissSuggestion(s: SuggestedTerm) {
+    setSuggested((cur) => cur?.filter((t) => t !== s) ?? null);
+  }
+
   return (
     <div className="mx-auto max-w-2xl p-6">
       <div className="mb-1 flex items-center gap-2">
@@ -105,14 +151,85 @@ export function ContextPanel({ project, onProjectChange }: Props) {
         <label className="text-[var(--text-ui-sm)] font-medium">
           Ordliste ({project.glossary.length})
         </label>
-        <button
-          type="button"
-          onClick={addTerm}
-          className="flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[var(--text-ui-xs)] font-medium hover:border-[var(--color-accent-600)]"
-        >
-          <Plus size={12} /> Legg til term
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={runSuggest}
+            disabled={suggesting}
+            title="La AI foreslå termer fra transkripsjonen"
+            className="flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[var(--text-ui-xs)] font-medium hover:border-[var(--color-accent-600)] disabled:opacity-50"
+          >
+            {suggesting ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <Sparkles size={12} />
+            )}
+            Foreslå termer (AI)
+          </button>
+          <button
+            type="button"
+            onClick={addTerm}
+            className="flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[var(--text-ui-xs)] font-medium hover:border-[var(--color-accent-600)]"
+          >
+            <Plus size={12} /> Legg til term
+          </button>
+        </div>
       </div>
+
+      {/* AI suggestion review queue — accept adds to the glossary above. */}
+      {suggestMsg && (
+        <p className="mb-3 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
+          {suggestMsg}
+        </p>
+      )}
+      {suggested && suggested.length > 0 && (
+        <div className="mb-4 rounded-lg border border-[var(--color-accent-600)]/40 bg-[var(--color-accent-500)]/5 p-3">
+          <p className="mb-2 flex items-center gap-1.5 text-[var(--text-ui-xs)] font-semibold text-[var(--color-accent-300)]">
+            <Sparkles size={12} /> {suggested.length} forslag — godta dem du vil
+            ha
+          </p>
+          <ul className="space-y-2">
+            {suggested.map((s, i) => (
+              <li
+                key={`${s.term}-${i}`}
+                className="flex items-start gap-2 rounded-md bg-[var(--color-bg-elevated)] px-3 py-2"
+              >
+                <div className="flex-1">
+                  <span className="font-mono text-[var(--text-ui-sm)] font-semibold">
+                    {s.term}
+                  </span>
+                  {s.aliases.length > 0 && (
+                    <span className="ml-2 text-[10px] text-[var(--color-fg-subtle)]">
+                      ↔ {s.aliases.join(", ")}
+                    </span>
+                  )}
+                  {s.reason && (
+                    <p className="mt-0.5 text-[10px] text-[var(--color-fg-muted)]">
+                      {s.reason}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => acceptSuggestion(s)}
+                  className="rounded-md bg-[var(--color-accent-600)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
+                >
+                  Legg til
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismissSuggestion(s)}
+                  title="Forkast"
+                  aria-label="Forkast forslag"
+                  className="rounded-md p-1 text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)]"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {project.glossary.length === 0 ? (
         <p className="rounded-lg border border-dashed border-[var(--color-border)] px-3 py-6 text-center text-[var(--text-ui-sm)] text-[var(--color-fg-subtle)]">
