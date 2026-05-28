@@ -8,7 +8,10 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import type { AppError, Project, VideoMetadata, WaveformData } from "./bindings";
+import type {
+  AppError, AsrOptions, Caption, Project, VideoMetadata, WaveformData,
+  WhisperModel, WhisperModelInfo,
+} from "./bindings";
 
 export class IPCError extends Error {
   readonly code: AppError["code"];
@@ -78,4 +81,15 @@ export const project = {
     call<string[]>("accepted_media_extensions"),
 };
 
-export const ipc = { ops, exporters, project };
+// ── ASR / transcription (Phase 2) ────────────────────────────────────────────
+export const asr = {
+  listModels: () =>
+    call<WhisperModelInfo[]>("asr_list_models"),
+  downloadedModels: (modelsDir: string) =>
+    call<WhisperModel[]>("asr_downloaded_models", { modelsDir }),
+  /** Listen for "transcribe-progress" events on the window while this runs. */
+  transcribeLocal: (audioPath: string, modelsDir: string, model: WhisperModel, options: AsrOptions) =>
+    call<Caption[]>("asr_transcribe_local", { audioPath, modelsDir, model, options }),
+};
+
+export const ipc = { ops, exporters, project, asr };

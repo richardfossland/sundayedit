@@ -3,18 +3,26 @@
  * `src-tauri/src/model.rs`. Regenerate via `cargo test export_bindings`.
  */
 
-export type { AlternateRead } from "./AlternateRead";
-export type { AnimationSpec } from "./AnimationSpec";
-export type { Caption }       from "./Caption";
-export type { GlossaryTerm }  from "./GlossaryTerm";
-export type { MediaKind }     from "./MediaKind";
-export type { Peak }          from "./Peak";
-export type { Project }       from "./Project";
-export type { Speaker }       from "./Speaker";
-export type { Style }         from "./Style";
-export type { VideoMetadata } from "./VideoMetadata";
-export type { WaveformData }  from "./WaveformData";
-export type { Word }          from "./Word";
+export type { AlternateRead }    from "./AlternateRead";
+export type { AnimationSpec }    from "./AnimationSpec";
+export type { AsrOptions }       from "./AsrOptions";
+export type { Caption }          from "./Caption";
+export type { CloudProvider }    from "./CloudProvider";
+export type { GlossaryTerm }     from "./GlossaryTerm";
+export type { MediaKind }        from "./MediaKind";
+export type { Peak }             from "./Peak";
+export type { Project }          from "./Project";
+export type { Segment }          from "./Segment";
+export type { Speaker }          from "./Speaker";
+export type { Style }            from "./Style";
+export type { TranscribeProgress } from "./TranscribeProgress";
+export type { TranscribedWord }  from "./TranscribedWord";
+export type { Transcript }       from "./Transcript";
+export type { VideoMetadata }    from "./VideoMetadata";
+export type { WaveformData }     from "./WaveformData";
+export type { WhisperModel }     from "./WhisperModel";
+export type { WhisperModelInfo } from "./WhisperModelInfo";
+export type { Word }             from "./Word";
 
 /** Error shape returned by every Tauri command (see error.rs). */
 export interface AppError {

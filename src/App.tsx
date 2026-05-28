@@ -1,20 +1,22 @@
 import { useState } from "react";
-import { Download, Settings as SettingsIcon, Captions, FileVideo, Clock } from "lucide-react";
+import { Download, Settings as SettingsIcon, Captions, FileVideo, Clock, Cpu } from "lucide-react";
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
 import { ImportScreen } from "@/features/project/ImportScreen";
+import { ModelPicker } from "@/features/transcribe/ModelPicker";
 import { Waveform } from "@/components/Waveform";
 import { SAMPLE_PROJECT } from "@/lib/sampleProject";
 import { ipc } from "@/lib/ipc";
-import type { Project, WaveformData } from "@/lib/bindings";
+import type { Project, WaveformData, WhisperModel } from "@/lib/bindings";
 import { cn } from "@/lib/cn";
 
-type Tab = "editor" | "export";
+type Tab = "transcribe" | "editor" | "export";
 
 function App() {
   const [project, setProject] = useState<Project | null>(null);
   const [tab, setTab] = useState<Tab>("editor");
   const [exported, setExported] = useState<{ format: string; content: string } | null>(null);
+  const [model, setModel] = useState<WhisperModel | null>("large-v3-turbo");
 
   // Import screen until a project exists. "Try the demo" loads SAMPLE_PROJECT
   // so the editor is explorable without a real video / ffmpeg.
@@ -59,6 +61,9 @@ function App() {
         >
           V
         </button>
+        <NavIcon active={tab === "transcribe"} onClick={() => setTab("transcribe")} title="Transkriber">
+          <Cpu size={18} />
+        </NavIcon>
         <NavIcon active={tab === "editor"} onClick={() => setTab("editor")} title="Editor">
           <Captions size={18} />
         </NavIcon>
@@ -74,8 +79,12 @@ function App() {
       {/* Main */}
       <main className="flex flex-1 flex-col overflow-hidden">
         <ProjectHeader project={project} />
-        <div className="flex-1 overflow-hidden">
-          {tab === "editor" ? (
+        <div className="flex-1 overflow-y-auto">
+          {tab === "transcribe" ? (
+            <div className="p-6">
+              <ModelPicker selected={model} onSelect={setModel} />
+            </div>
+          ) : tab === "editor" ? (
             <CaptionEditor project={project} />
           ) : (
             <ExportPanel exported={exported} onExport={doExport} />

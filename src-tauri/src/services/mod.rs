@@ -6,9 +6,11 @@
 //!   - `video`        — ffprobe metadata, format validation, content hash (Phase 1.1)
 //!   - `project_file` — .verbatim SQLite save/load (Phase 1.1)
 //!   - `waveform`     — audio extraction + multi-zoom peaks (Phase 1.2)
+//!   - `asr`          — speech recognition: confidence, models, cloud, local (Phase 2)
 
 pub mod operations;
 pub mod export;
 pub mod video;
 pub mod project_file;
 pub mod waveform;
+pub mod asr;

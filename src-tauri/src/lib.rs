@@ -43,6 +43,10 @@ pub fn run() {
             commands::project::waveform_compute,
             commands::project::project_relink,
             commands::project::accepted_media_extensions,
+            // ASR / transcription (Phase 2)
+            commands::asr::asr_list_models,
+            commands::asr::asr_downloaded_models,
+            commands::asr::asr_transcribe_local,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

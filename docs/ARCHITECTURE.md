@@ -158,10 +158,12 @@ Caveat for path-stability: if the user moves their video file, Verbatim detects 
 - [x] Phase 1.1 — Video import: ffprobe metadata, format validation, content-hash relink, `.verbatim` SQLite file format
 - [x] Phase 1.2 — Audio extraction command + multi-zoom waveform peaks + Canvas waveform component
 - [ ] Phase 1.3 — Full timeline (caption track + ruler + J/K/L) — partial (waveform + click-seek done)
-- [ ] Phase 2 — Whisper-rs + per-word confidence + cloud fallback
+- [x] Phase 2.1 — ASR abstraction (`AsrProvider`), Whisper model registry, feature-gated `LocalWhisperProvider` (`--features whisper`), segment→caption captionizer
+- [x] Phase 2.2 — Cloud provider response normalization (OpenAI / AssemblyAI / Deepgram), confidence parity across backends
+- [x] Phase 2.3 — Per-word confidence normalization (logprob → 0..100, single calibrated curve) + `docs/CALIBRATION.md`
 - [x] Phase 3.1 — Caption data model + operations *(in scaffold)*
 - [ ] Phase 3.2 — Editor UX
-- [ ] Phase 3.3 — Confidence highlighting (killer feature #1)
+- [~] Phase 3.3 — Confidence highlighting (killer feature #1) — editor demo live; calibration pending real data
 - [ ] Phase 3.4 — Context priming + glossary (killer feature #2)
 - [ ] Phase 4 — Polish + diarization + smart suggestions
 - [ ] Phase 5 — Styling system + presets
