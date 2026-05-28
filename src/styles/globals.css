@@ -1,0 +1,50 @@
+@import "./tokens.css";
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui-md);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+/* Inputs/text areas keep selectability */
+input, textarea, [contenteditable] {
+  user-select: text;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+::-webkit-scrollbar         { width: 10px; height: 10px; }
+::-webkit-scrollbar-track   { background: transparent; }
+::-webkit-scrollbar-thumb   { background: var(--color-neutral-800); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-700); }
+
+/* ── Word confidence highlighting ─────────────────────────────────────
+ * The single most important UI element in the entire app.
+ * Each .word also gets a tier class: .word-tier-1 ... .word-tier-4.
+ * Tier 1 has no visible style (the 92% you don't think about).
+ * Higher tiers get progressively more attention-grabbing.
+ *
+ * The underline is an accessibility fallback — color isn't enough.
+ */
+.word {
+  border-radius: 2px;
+  padding: 0 1px;
+  transition: background var(--duration-fast);
+}
+.word-tier-1 { background: var(--conf-1-bg); color: var(--conf-1-text); }
+.word-tier-2 { background: var(--conf-2-bg); color: var(--conf-2-text); }
+.word-tier-3 { background: var(--conf-3-bg); color: var(--conf-3-text); text-decoration: underline dotted var(--conf-3-mark); text-underline-offset: 4px; }
+.word-tier-4 { background: var(--conf-4-bg); color: var(--conf-4-text); text-decoration: underline wavy var(--conf-4-mark); text-underline-offset: 4px; }
+
+.word.is-edited::after  { content: "•"; color: var(--color-success); margin-left: 2px; }
+.word.is-locked         { background: transparent !important; text-decoration: none !important; }
