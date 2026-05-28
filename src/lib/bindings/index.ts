@@ -9,6 +9,7 @@ export type { AsrOptions }       from "./AsrOptions";
 export type { Aspect }           from "./Aspect";
 export type { BurnInOptions }    from "./BurnInOptions";
 export type { Caption }          from "./Caption";
+export type { DownloadProgress } from "./DownloadProgress";
 export type { Encoder }          from "./Encoder";
 export type { ExportPreset }     from "./ExportPreset";
 export type { ExportWarning }    from "./ExportWarning";
@@ -52,7 +53,7 @@ export type { Word }             from "./Word";
 export interface AppError {
   code:
     | "database" | "migration" | "not_found" | "invariant"
-    | "validation" | "io" | "json" | "video_missing" | "internal";
+    | "validation" | "io" | "json" | "network" | "video_missing" | "internal";
   message: string;
 }
 

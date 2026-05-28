@@ -15,6 +15,7 @@
 pub mod captionize;
 pub mod cloud;
 pub mod confidence;
+pub mod download;
 pub mod local;
 pub mod model;
 

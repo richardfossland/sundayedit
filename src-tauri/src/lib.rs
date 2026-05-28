@@ -20,7 +20,8 @@ pub fn run() {
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init());
+        .plugin(tauri_plugin_dialog::init())
+        .manage(commands::asr::DownloadControl::default());
 
     // Auto-update + relaunch are desktop-only (Phase 9.2).
     #[cfg(desktop)]
@@ -57,6 +58,8 @@ pub fn run() {
             // ASR / transcription (Phase 2)
             commands::asr::asr_list_models,
             commands::asr::asr_downloaded_models,
+            commands::asr::asr_download_model,
+            commands::asr::asr_cancel_download,
             commands::asr::asr_transcribe_local,
             // Styling (Phase 5)
             commands::style::style_list_presets,

@@ -30,6 +30,10 @@ pub enum AppError {
     #[error("invalid json: {0}")]
     Json(#[from] serde_json::Error),
 
+    /// Network failure (e.g. downloading a Whisper model).
+    #[error("network: {0}")]
+    Network(String),
+
     /// User's video file moved or was deleted between sessions.
     /// The renderer triggers the relink UI on this.
     #[error("video missing at {0}")]
@@ -49,6 +53,7 @@ impl AppError {
             AppError::Validation(_) => "validation",
             AppError::Io(_) => "io",
             AppError::Json(_) => "json",
+            AppError::Network(_) => "network",
             AppError::VideoMissing(_) => "video_missing",
             AppError::Internal(_) => "internal",
         }

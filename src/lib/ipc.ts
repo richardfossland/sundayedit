@@ -8,12 +8,14 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppError,
   AsrOptions,
   BurnInOptions,
   Caption,
   ClaudeModel,
+  DownloadProgress,
   ExportPreset,
   ExportWarning,
   FillerHit,
@@ -150,6 +152,16 @@ export const asr = {
   listModels: () => call<WhisperModelInfo[]>("asr_list_models"),
   downloadedModels: (modelsDir: string) =>
     call<WhisperModel[]>("asr_downloaded_models", { modelsDir }),
+  /** Fetch a model into `modelsDir`. Resolves when it's on disk. Listen for
+   *  progress via `onDownloadProgress`. */
+  downloadModel: (modelsDir: string, model: WhisperModel) =>
+    call<void>("asr_download_model", { modelsDir, model }),
+  cancelDownload: () => call<void>("asr_cancel_download"),
+  /** Subscribe to model-download progress. Returns an unlisten function. */
+  onDownloadProgress: (
+    cb: (p: DownloadProgress) => void,
+  ): Promise<UnlistenFn> =>
+    listen<DownloadProgress>("model-download-progress", (e) => cb(e.payload)),
   /** Listen for "transcribe-progress" events on the window while this runs. */
   transcribeLocal: (
     audioPath: string,

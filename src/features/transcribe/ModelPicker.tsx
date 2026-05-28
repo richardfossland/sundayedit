@@ -1,30 +1,34 @@
 /**
  * Model picker — Phase 2.1 first-run choice.
  *
- * Shows the Whisper model catalog with size/speed tradeoffs. The
- * recommended model (large-v3-turbo) is highlighted. Selecting a model
- * that isn't downloaded yet would trigger a download (wired to the
- * download command when the `whisper` feature build ships); for now this
- * is the catalog UI, which is real and data-driven from the Rust registry.
+ * Shows the Whisper model catalog with size/speed tradeoffs. The recommended
+ * model (large-v3-turbo) is highlighted. A model that isn't on disk yet shows
+ * a "Last ned" action that fetches it from Hugging Face (asr_download_model)
+ * with a live progress bar; the catalog itself is data-driven from the Rust
+ * registry.
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { Check, Download, Cpu, Star } from "lucide-react";
+import { Check, Download, Cpu, Star, X } from "lucide-react";
 
 import { ipc } from "@/lib/ipc";
-import type { WhisperModel } from "@/lib/bindings";
+import type { DownloadProgress, WhisperModel } from "@/lib/bindings";
 import { cn } from "@/lib/cn";
 
 interface Props {
   selected: WhisperModel | null;
   onSelect: (model: WhisperModel) => void;
   downloadedModels?: WhisperModel[];
+  downloading?: { model: WhisperModel; progress: DownloadProgress } | null;
+  onDownload?: (model: WhisperModel) => void;
 }
 
 export function ModelPicker({
   selected,
   onSelect,
   downloadedModels = [],
+  downloading = null,
+  onDownload,
 }: Props) {
   const modelsQuery = useQuery({
     queryKey: ["asr-models"],
@@ -50,13 +54,14 @@ export function ModelPicker({
         {models.map((m) => {
           const isSelected = selected === m.model;
           const isDownloaded = downloadedModels.includes(m.model);
+          const isDownloading = downloading?.model === m.model;
           return (
-            <li key={m.model}>
+            <li key={m.model} className="flex items-stretch gap-2">
               <button
                 type="button"
                 onClick={() => onSelect(m.model)}
                 className={cn(
-                  "flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
+                  "flex flex-1 items-start gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
                   isSelected
                     ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/8"
                     : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]",
@@ -97,10 +102,54 @@ export function ModelPicker({
                   </p>
                 </div>
               </button>
+
+              {!isDownloaded && (
+                <div className="flex w-32 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] px-2">
+                  {isDownloading ? (
+                    <DownloadStatus progress={downloading.progress} />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onDownload?.(m.model)}
+                      disabled={!onDownload || !!downloading}
+                      className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-3 py-1.5 text-[var(--text-ui-xs)] font-semibold text-[var(--color-neutral-950)] transition-colors hover:bg-[var(--color-accent-500)] disabled:opacity-40"
+                    >
+                      <Download size={12} /> Last ned
+                    </button>
+                  )}
+                </div>
+              )}
             </li>
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+function DownloadStatus({ progress }: { progress: DownloadProgress }) {
+  const pct =
+    progress.fraction != null ? Math.round(progress.fraction * 100) : null;
+  return (
+    <div className="w-full">
+      <div className="mb-1 flex items-center justify-between text-[10px] text-[var(--color-fg-muted)]">
+        <span>{pct != null ? `${pct}%` : "Laster ned…"}</span>
+        <button
+          type="button"
+          onClick={() => void ipc.asr.cancelDownload()}
+          title="Avbryt"
+          aria-label="Avbryt nedlasting"
+          className="opacity-70 hover:opacity-100"
+        >
+          <X size={12} />
+        </button>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-surface)]">
+        <div
+          className="h-full bg-[var(--color-accent-500)] transition-[width]"
+          style={{ width: pct != null ? `${pct}%` : "40%" }}
+        />
+      </div>
     </div>
   );
 }

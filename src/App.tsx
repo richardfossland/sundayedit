@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { appDataDir, join } from "@tauri-apps/api/path";
 import {
   Download,
   Settings as SettingsIcon,
@@ -27,7 +28,9 @@ import { TranslatePanel } from "@/features/translate/TranslatePanel";
 import { SpeakersPanel } from "@/features/speakers/SpeakersPanel";
 import { Waveform } from "@/components/Waveform";
 import { SAMPLE_PROJECT } from "@/lib/sampleProject";
+import { ipc } from "@/lib/ipc";
 import type {
+  DownloadProgress,
   Project,
   Style,
   WaveformData,
@@ -52,12 +55,55 @@ function App() {
   const [tab, setTab] = useState<Tab>("editor");
   const [model, setModel] = useState<WhisperModel | null>("large-v3-turbo");
   const [update, setUpdate] = useState<Update | null>(null);
+  const [downloadedModels, setDownloadedModels] = useState<WhisperModel[]>([]);
+  const [downloading, setDownloading] = useState<{
+    model: WhisperModel;
+    progress: DownloadProgress;
+  } | null>(null);
 
   // Check for a newer signed build once on launch (no-op outside Tauri /
   // before any release exists).
   useEffect(() => {
     checkForUpdate().then(setUpdate);
   }, []);
+
+  const refreshDownloaded = useCallback(async () => {
+    try {
+      const dir = await join(await appDataDir(), "models");
+      setDownloadedModels(await ipc.asr.downloadedModels(dir));
+    } catch {
+      // Not in Tauri (browser dev) — no local models dir; leave empty.
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshDownloaded();
+  }, [refreshDownloaded]);
+
+  // Fetch the chosen Whisper model on first use. Streams progress; refreshes
+  // the downloaded set on completion.
+  async function handleDownloadModel(m: WhisperModel) {
+    let unlisten: (() => void) | undefined;
+    try {
+      const dir = await join(await appDataDir(), "models");
+      setDownloading({
+        model: m,
+        progress: { downloaded_bytes: 0, total_bytes: null, fraction: null },
+      });
+      unlisten = await ipc.asr.onDownloadProgress((progress) =>
+        setDownloading((d) =>
+          d && d.model === m ? { model: m, progress } : d,
+        ),
+      );
+      await ipc.asr.downloadModel(dir, m);
+      await refreshDownloaded();
+    } catch (e) {
+      console.error("model download failed", e);
+    } finally {
+      unlisten?.();
+      setDownloading(null);
+    }
+  }
 
   // Import screen until a project exists. "Try the demo" loads SAMPLE_PROJECT
   // so the editor is explorable without a real video / ffmpeg.
@@ -173,7 +219,13 @@ function App() {
         <div className="flex-1 overflow-y-auto">
           {tab === "transcribe" ? (
             <div className="p-6">
-              <ModelPicker selected={model} onSelect={setModel} />
+              <ModelPicker
+                selected={model}
+                onSelect={setModel}
+                downloadedModels={downloadedModels}
+                downloading={downloading}
+                onDownload={handleDownloadModel}
+              />
             </div>
           ) : tab === "editor" ? (
             <CaptionEditor

@@ -6,15 +6,25 @@
 //! confidence already populated.
 
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use tauri::Emitter;
 
 use crate::error::AppResult;
 use crate::model::Caption;
 use crate::services::asr::captionize::{captionize, CaptionizeOptions};
+use crate::services::asr::download::download_model;
 use crate::services::asr::local::LocalWhisperProvider;
 use crate::services::asr::model::{catalog, WhisperModel, WhisperModelInfo};
 use crate::services::asr::{AsrOptions, AsrProvider, TranscribeProgress};
+
+/// Shared cancel flag for the in-flight model download (one at a time —
+/// the picker only downloads one model). Managed by the Tauri runtime.
+#[derive(Default)]
+pub struct DownloadControl {
+    cancel: Arc<AtomicBool>,
+}
 
 fn now_ms() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -42,6 +52,31 @@ pub fn asr_downloaded_models(models_dir: String) -> Vec<WhisperModel> {
         .into_iter()
         .filter(|m| m.is_downloaded(dir))
         .collect()
+}
+
+/// Download `model` into `models_dir`, streaming `model-download-progress`
+/// events to the window. Resolves when the model is on disk (or no-ops if it
+/// already was). Cancellable via `asr_cancel_download`.
+#[tauri::command]
+pub async fn asr_download_model(
+    window: tauri::Window,
+    control: tauri::State<'_, DownloadControl>,
+    models_dir: String,
+    model: WhisperModel,
+) -> AppResult<()> {
+    let cancel = control.cancel.clone();
+    cancel.store(false, Ordering::Relaxed);
+    download_model(model, Path::new(&models_dir), &cancel, |p| {
+        let _ = window.emit("model-download-progress", &p);
+    })
+    .await?;
+    Ok(())
+}
+
+/// Cancel the in-flight model download, if any.
+#[tauri::command]
+pub fn asr_cancel_download(control: tauri::State<'_, DownloadControl>) {
+    control.cancel.store(true, Ordering::Relaxed);
 }
 
 /// Transcribe an audio WAV with the local model and return editor-ready
