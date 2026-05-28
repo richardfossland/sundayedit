@@ -31,9 +31,14 @@ const ext = host.includes("windows") ? ".exe" : "";
 
 mkdirSync(outDir, { recursive: true });
 
-for (const [name, src] of [["ffmpeg", ffmpegSrc], ["ffprobe", ffprobeSrc]]) {
+for (const [name, src] of [
+  ["ffmpeg", ffmpegSrc],
+  ["ffprobe", ffprobeSrc],
+]) {
   if (!src || !existsSync(src)) {
-    console.error(`✗ ${name}: source binary missing (${src}). Run \`npm install\` first.`);
+    console.error(
+      `✗ ${name}: source binary missing (${src}). Run \`npm install\` first.`,
+    );
     process.exit(1);
   }
   const dest = join(outDir, `${name}-${host}${ext}`);

@@ -7,23 +7,25 @@ AI-assisted video captioning for desktop. Standalone product — own brand. Opti
 ## Two genuine innovations
 
 ### #1 — Confidence highlighting
+
 Every word gets a confidence score from the ASR model. Verbatim shows them as colour-coded highlights. The 92% the AI is sure about, you don't touch. You fix only the 8% that are amber. **Human review at 10× speed.**
 
 The editor demo (`npm run tauri dev` → Editor tab) shows this against sample data: high-confidence words look like normal text, while "kerigma" (38% — a misheard theological term) lights up red-orange with `kerygma` as a one-click alternate.
 
 ### #2 — Context priming + glossary
+
 Tell Verbatim what the video is about before transcribing. Whisper biases recognition toward your names, jargon, and foreign words. "Han snakker om kerigma" becomes "Han snakker om kerygma" with no manual correction.
 
 ## Competitive positioning
 
-| | Premiere Pro | Descript | CapCut | **Verbatim** |
-|---|---|---|---|---|
-| Price | $23/mo | $24/mo | Free-ish | **~$9/mo Pro** |
-| Focus | Everything | Doc + video | TikTok-first | **Captions only** |
-| Confidence highlighting | No | No | No | **Yes** |
-| Context priming | No | No | No | **Yes** |
-| Works offline | Partial | No | No | **Yes (local Whisper)** |
-| Video never uploaded | — | Uploads | Uploads | **Local by default** |
+|                         | Premiere Pro | Descript    | CapCut       | **Verbatim**            |
+| ----------------------- | ------------ | ----------- | ------------ | ----------------------- |
+| Price                   | $23/mo       | $24/mo      | Free-ish     | **~$9/mo Pro**          |
+| Focus                   | Everything   | Doc + video | TikTok-first | **Captions only**       |
+| Confidence highlighting | No           | No          | No           | **Yes**                 |
+| Context priming         | No           | No          | No           | **Yes**                 |
+| Works offline           | Partial      | No          | No           | **Yes (local Whisper)** |
+| Video never uploaded    | —            | Uploads     | Uploads      | **Local by default**    |
 
 ## Stack
 
@@ -43,6 +45,7 @@ Tell Verbatim what the video is about before transcribing. Whisper biases recogn
 ## What's next
 
 See `docs/ARCHITECTURE.md` phase-status table. Highlights:
+
 - **Phase 1** — Video import + audio extraction + waveform + timeline
 - **Phase 2** — whisper-rs integration + per-word confidence extraction + cloud fallback
 - **Phase 2.3** — confidence calibration suite (the empirical backing for the killer feature)

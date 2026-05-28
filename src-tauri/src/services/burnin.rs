@@ -95,14 +95,14 @@ pub fn default_encoder() -> Encoder {
 /// Map (codec, encoder) to the ffmpeg `-c:v` value.
 fn encoder_name(codec: VideoCodec, encoder: Encoder) -> &'static str {
     match (codec, encoder) {
-        (VideoCodec::H264, Encoder::Cpu)          => "libx264",
+        (VideoCodec::H264, Encoder::Cpu) => "libx264",
         (VideoCodec::H264, Encoder::VideoToolbox) => "h264_videotoolbox",
-        (VideoCodec::H264, Encoder::Nvenc)        => "h264_nvenc",
-        (VideoCodec::H264, Encoder::QuickSync)    => "h264_qsv",
-        (VideoCodec::H265, Encoder::Cpu)          => "libx265",
+        (VideoCodec::H264, Encoder::Nvenc) => "h264_nvenc",
+        (VideoCodec::H264, Encoder::QuickSync) => "h264_qsv",
+        (VideoCodec::H265, Encoder::Cpu) => "libx265",
         (VideoCodec::H265, Encoder::VideoToolbox) => "hevc_videotoolbox",
-        (VideoCodec::H265, Encoder::Nvenc)        => "hevc_nvenc",
-        (VideoCodec::H265, Encoder::QuickSync)    => "hevc_qsv",
+        (VideoCodec::H265, Encoder::Nvenc) => "hevc_nvenc",
+        (VideoCodec::H265, Encoder::QuickSync) => "hevc_qsv",
     }
 }
 
@@ -110,7 +110,9 @@ fn encoder_name(codec: VideoCodec, encoder: Encoder) -> &'static str {
 /// backslashes (Windows) and single quotes must be escaped, otherwise
 /// `ass=C:\path` breaks the filter parser.
 fn escape_filter_path(p: &str) -> String {
-    p.replace('\\', "/").replace(':', "\\:").replace('\'', "\\'")
+    p.replace('\\', "/")
+        .replace(':', "\\:")
+        .replace('\'', "\\'")
 }
 
 /// Build the full ffmpeg argument vector. Pure — no IO. This is the
@@ -146,7 +148,8 @@ pub fn build_ffmpeg_args(
         // targets. force_original_aspect_ratio=increase + crop = "cover".
         filters.push(format!(
             "scale={w}:{h}:force_original_aspect_ratio=increase",
-            w = w, h = h
+            w = w,
+            h = h
         ));
         filters.push(format!("crop={w}:{h}", w = w, h = h));
     }
@@ -198,9 +201,11 @@ pub fn render(
     let status = Command::new(ffmpeg_path())
         .args(&args)
         .status()
-        .map_err(|e| AppError::Internal(format!(
-            "failed to launch ffmpeg for burn-in: {e}. Is ffmpeg installed / bundled?"
-        )))?;
+        .map_err(|e| {
+            AppError::Internal(format!(
+                "failed to launch ffmpeg for burn-in: {e}. Is ffmpeg installed / bundled?"
+            ))
+        })?;
 
     // best-effort cleanup of the temp ASS
     let _ = std::fs::remove_file(&ass_path);
@@ -220,7 +225,10 @@ mod tests {
     use super::*;
 
     fn opts() -> BurnInOptions {
-        BurnInOptions { encoder: Encoder::Cpu, ..Default::default() }
+        BurnInOptions {
+            encoder: Encoder::Cpu,
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -237,19 +245,33 @@ mod tests {
 
     #[test]
     fn h265_videotoolbox_encoder_name() {
-        assert_eq!(encoder_name(VideoCodec::H265, Encoder::VideoToolbox), "hevc_videotoolbox");
+        assert_eq!(
+            encoder_name(VideoCodec::H265, Encoder::VideoToolbox),
+            "hevc_videotoolbox"
+        );
         assert_eq!(encoder_name(VideoCodec::H264, Encoder::Nvenc), "h264_nvenc");
-        assert_eq!(encoder_name(VideoCodec::H264, Encoder::QuickSync), "h264_qsv");
+        assert_eq!(
+            encoder_name(VideoCodec::H264, Encoder::QuickSync),
+            "h264_qsv"
+        );
     }
 
     #[test]
     fn scale_and_crop_added_for_vertical_target() {
-        let o = BurnInOptions { encoder: Encoder::Cpu, out_width: Some(1080), out_height: Some(1920), ..Default::default() };
+        let o = BurnInOptions {
+            encoder: Encoder::Cpu,
+            out_width: Some(1080),
+            out_height: Some(1920),
+            ..Default::default()
+        };
         let a = build_ffmpeg_args("in.mp4", "s.ass", "out.mp4", &o);
         let vf = arg_after(&a, "-vf").unwrap();
         assert!(vf.contains("scale=1080:1920:force_original_aspect_ratio=increase"));
         assert!(vf.contains("crop=1080:1920"));
-        assert!(vf.contains("ass=s.ass"), "ass filter still present after scale/crop");
+        assert!(
+            vf.contains("ass=s.ass"),
+            "ass filter still present after scale/crop"
+        );
         // ass must come AFTER scale/crop so captions render at output res
         let scale_pos = vf.find("scale").unwrap();
         let ass_pos = vf.find("ass=").unwrap();
@@ -258,7 +280,11 @@ mod tests {
 
     #[test]
     fn bitrate_added_when_set() {
-        let o = BurnInOptions { encoder: Encoder::Cpu, bitrate_kbps: Some(8000), ..Default::default() };
+        let o = BurnInOptions {
+            encoder: Encoder::Cpu,
+            bitrate_kbps: Some(8000),
+            ..Default::default()
+        };
         let a = build_ffmpeg_args("in.mp4", "s.ass", "out.mp4", &o);
         assert_eq!(arg_after(&a, "-b:v").as_deref(), Some("8000k"));
     }
@@ -271,7 +297,12 @@ mod tests {
 
     #[test]
     fn clip_adds_ss_and_t() {
-        let o = BurnInOptions { encoder: Encoder::Cpu, clip_start_ms: Some(2000), clip_end_ms: Some(7000), ..Default::default() };
+        let o = BurnInOptions {
+            encoder: Encoder::Cpu,
+            clip_start_ms: Some(2000),
+            clip_end_ms: Some(7000),
+            ..Default::default()
+        };
         let a = build_ffmpeg_args("in.mp4", "s.ass", "out.mp4", &o);
         // -ss before -i, -t after
         assert_eq!(arg_after(&a, "-ss").as_deref(), Some("2.000"));
@@ -303,6 +334,8 @@ mod tests {
 
     // helper: value following a flag in the arg vector
     fn arg_after(args: &[String], flag: &str) -> Option<String> {
-        args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1).cloned())
+        args.iter()
+            .position(|a| a == flag)
+            .and_then(|i| args.get(i + 1).cloned())
     }
 }

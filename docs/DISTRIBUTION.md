@@ -28,21 +28,21 @@ Settings → Secrets and variables → Actions → New repository secret.
 
 ### Updater (required — without these the release build fails)
 
-| Secret | Value |
-| --- | --- |
-| `TAURI_SIGNING_PRIVATE_KEY` | Contents of `~/.tauri/verbatim_updater.key`. Copy without echoing it: `cat ~/.tauri/verbatim_updater.key \| pbcopy`, then paste. |
+| Secret                               | Value                                                                                                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TAURI_SIGNING_PRIVATE_KEY`          | Contents of `~/.tauri/verbatim_updater.key`. Copy without echoing it: `cat ~/.tauri/verbatim_updater.key \| pbcopy`, then paste.                                   |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | The password for that key. It was generated with an **empty** password, so set this secret to an empty string (or regenerate the key with a password — see below). |
 
 ### macOS code signing + notarization (you already do this for SundayRec)
 
-| Secret | Value |
-| --- | --- |
-| `APPLE_CERTIFICATE` | Base64 of your "Developer ID Application" cert exported as `.p12`: `base64 -i cert.p12 \| pbcopy`. |
-| `APPLE_CERTIFICATE_PASSWORD` | The password you set when exporting the `.p12`. |
-| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Richard Fossland (TEAMID)`. Find it with `security find-identity -v -p codesigning`. |
-| `APPLE_ID` | Your Apple Developer account email. |
-| `APPLE_PASSWORD` | An **app-specific password** (appleid.apple.com → Sign-In and Security → App-Specific Passwords), not your account password. |
-| `APPLE_TEAM_ID` | Your 10-character Apple Team ID. |
+| Secret                       | Value                                                                                                                        |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `APPLE_CERTIFICATE`          | Base64 of your "Developer ID Application" cert exported as `.p12`: `base64 -i cert.p12 \| pbcopy`.                           |
+| `APPLE_CERTIFICATE_PASSWORD` | The password you set when exporting the `.p12`.                                                                              |
+| `APPLE_SIGNING_IDENTITY`     | e.g. `Developer ID Application: Richard Fossland (TEAMID)`. Find it with `security find-identity -v -p codesigning`.         |
+| `APPLE_ID`                   | Your Apple Developer account email.                                                                                          |
+| `APPLE_PASSWORD`             | An **app-specific password** (appleid.apple.com → Sign-In and Security → App-Specific Passwords), not your account password. |
+| `APPLE_TEAM_ID`              | Your 10-character Apple Team ID.                                                                                             |
 
 ### Windows code signing (deferred — see below)
 
@@ -63,7 +63,7 @@ Watch the `release` workflow, then publish the draft Release it created.
 
 > First release: there is no `latest.json` yet, so `checkForUpdate()` simply
 > returns null in older builds — expected. Auto-update kicks in from the
-> release *after* the first one.
+> release _after_ the first one.
 
 ## Regenerating the updater key with a password (optional, recommended)
 
@@ -93,7 +93,7 @@ waveform, and burn-in work without a system ffmpeg:
   Rust target-triple suffix. CI runs this automatically (see
   `release.yml`); each runner fetches its own platform's binaries.
 
-> **Licensing:** these are GPL/LGPL ffmpeg builds. Before any *public*
+> **Licensing:** these are GPL/LGPL ffmpeg builds. Before any _public_
 > release, confirm GPL compliance (offer the corresponding source) or swap to
 > an LGPL/own build. Fine for private test builds.
 

@@ -5,6 +5,7 @@ Verbatim is a desktop AI captioning application. Mac and Windows, equal first-cl
 ## Target user
 
 A content creator, video editor, podcaster, educator, journalist, marketer, or church volunteer who:
+
 - Records or edits video with spoken content
 - Currently uses Premiere Pro, Descript, CapCut, or Veed.io for captions
 - Is frustrated by either price (Adobe), bloat (Descript), or quality (free tools)
@@ -21,9 +22,11 @@ A content creator, video editor, podcaster, educator, journalist, marketer, or c
 ## The two genuine innovations
 
 ### #1 — Confidence highlighting
+
 Every word gets a confidence score from the ASR model. Verbatim shows them to you as colour-coded highlights in the editor. The 92% the AI is sure about, you don't touch. You fix only the 8% that are amber. **This makes human review 10× faster.**
 
 ### #2 — Context priming + glossary
+
 Before transcription you tell Verbatim what the video is about: names of people, technical terms, foreign words. Whisper biases recognition toward these terms. The same video goes from "Han snakker om kerigma og frelse" to "Han snakker om kerygma og frelse" without manual correction.
 
 ## Competitive positioning
@@ -83,6 +86,7 @@ tests/fixtures/       Test video files (Creative Commons)
 ## Project file format
 
 `.verbatim` files are SQLite databases with a JSON-compatible schema, or compressed JSON — final decision in Phase 3.1. Containing:
+
 - Reference to source video (absolute path + content hash for path stability)
 - Project settings
 - Caption data (with per-word timing + confidence)
@@ -93,6 +97,7 @@ tests/fixtures/       Test video files (Creative Commons)
 ## Calibration discipline
 
 Confidence highlighting is the killer feature. It MUST be calibrated empirically:
+
 - Take 10 real transcripts, label every word manually as correct/incorrect
 - Plot precision/recall against confidence thresholds
 - Choose tier boundaries based on real data

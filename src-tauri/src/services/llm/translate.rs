@@ -94,7 +94,12 @@ pub fn supported_languages() -> Vec<TranslationLanguage> {
         ("ko", "한국어"),
         ("hi", "हिन्दी"),
     ];
-    L.iter().map(|(c, n)| TranslationLanguage { code: c.to_string(), name: n.to_string() }).collect()
+    L.iter()
+        .map(|(c, n)| TranslationLanguage {
+            code: c.to_string(),
+            name: n.to_string(),
+        })
+        .collect()
 }
 
 pub fn language_name(code: &str) -> String {
@@ -112,7 +117,10 @@ fn caption_inputs(project: &Project) -> Vec<TranslateInput<'_>> {
         .captions
         .iter()
         .filter(|c| !c.words.is_empty())
-        .map(|c| TranslateInput { caption_id: &c.id, text: c.text() })
+        .map(|c| TranslateInput {
+            caption_id: &c.id,
+            text: c.text(),
+        })
         .collect()
 }
 
@@ -171,8 +179,9 @@ fn extract_json_array(s: &str) -> Option<&str> {
 pub fn parse_translation_response(response: &str) -> AppResult<Vec<TranslatedCaption>> {
     let slice = extract_json_array(response)
         .ok_or_else(|| AppError::Validation("translation response had no JSON array".into()))?;
-    let items: Vec<TranslatedCaption> = serde_json::from_str(slice)
-        .map_err(|e| AppError::Validation(format!("translation response was not valid JSON: {e}")))?;
+    let items: Vec<TranslatedCaption> = serde_json::from_str(slice).map_err(|e| {
+        AppError::Validation(format!("translation response was not valid JSON: {e}"))
+    })?;
     Ok(items)
 }
 
@@ -182,7 +191,10 @@ pub fn parse_translation_response(response: &str) -> AppResult<Vec<TranslatedCap
 /// Monotonic; last word ends exactly at `end_ms`; words marked `edited`.
 fn retime_words(texts: &[&str], start_ms: i64, end_ms: i64) -> Vec<Word> {
     let span = (end_ms - start_ms).max(1);
-    let lens: Vec<i64> = texts.iter().map(|t| t.chars().count().max(1) as i64).collect();
+    let lens: Vec<i64> = texts
+        .iter()
+        .map(|t| t.chars().count().max(1) as i64)
+        .collect();
     let total: i64 = lens.iter().sum::<i64>().max(1);
 
     let mut words = Vec::with_capacity(texts.len());
@@ -191,7 +203,11 @@ fn retime_words(texts: &[&str], start_ms: i64, end_ms: i64) -> Vec<Word> {
     let last = texts.len().saturating_sub(1);
     for (i, t) in texts.iter().enumerate() {
         acc += lens[i];
-        let boundary = if i == last { end_ms } else { start_ms + span * acc / total };
+        let boundary = if i == last {
+            end_ms
+        } else {
+            start_ms + span * acc / total
+        };
         let end = boundary.max(prev + 1).min(end_ms);
         let mut w = Word::new(*t, prev, end.max(prev + 1), 100.0);
         w.edited = true;
@@ -212,15 +228,21 @@ pub fn translate_to_captions(
     now_ms: i64,
 ) -> TranslationResult {
     use std::collections::HashMap;
-    let by_id: HashMap<&str, &str> =
-        translated.iter().map(|t| (t.caption_id.as_str(), t.text.as_str())).collect();
+    let by_id: HashMap<&str, &str> = translated
+        .iter()
+        .map(|t| (t.caption_id.as_str(), t.text.as_str()))
+        .collect();
 
     let mut out = Vec::with_capacity(project.captions.len());
     let mut warnings = Vec::new();
 
     for cap in &project.captions {
         let mut next = cap.clone();
-        if let Some(text) = by_id.get(cap.id.as_str()).map(|t| t.trim()).filter(|t| !t.is_empty()) {
+        if let Some(text) = by_id
+            .get(cap.id.as_str())
+            .map(|t| t.trim())
+            .filter(|t| !t.is_empty())
+        {
             let tokens: Vec<&str> = text.split_whitespace().collect();
             if !tokens.is_empty() {
                 let original_chars = cap.text().chars().count();
@@ -291,7 +313,10 @@ mod tests {
     }
 
     fn tc(id: &str, text: &str) -> TranslatedCaption {
-        TranslatedCaption { caption_id: id.into(), text: text.into() }
+        TranslatedCaption {
+            caption_id: id.into(),
+            text: text.into(),
+        }
     }
 
     #[test]
@@ -308,8 +333,11 @@ mod tests {
     #[test]
     fn system_prompt_names_target_and_glossary() {
         let g = vec![GlossaryTerm {
-            id: "g1".into(), term: "kerygma".into(), aliases: vec![],
-            definition: None, pronunciation_hint: None,
+            id: "g1".into(),
+            term: "kerygma".into(),
+            aliases: vec![],
+            definition: None,
+            pronunciation_hint: None,
         }];
         let p = build_translate_system_prompt("en", &g);
         assert!(p.contains("English"));
@@ -319,7 +347,15 @@ mod tests {
 
     #[test]
     fn user_prompt_lists_captions() {
-        let p = project_with(vec![caption("c1", 0, 1000, vec![Word::new("hei", 0, 1000, 80.0)])], vec![]);
+        let p = project_with(
+            vec![caption(
+                "c1",
+                0,
+                1000,
+                vec![Word::new("hei", 0, 1000, 80.0)],
+            )],
+            vec![],
+        );
         let prompt = build_translate_user_prompt(&p);
         assert!(prompt.contains("c1"));
         assert!(prompt.contains("hei"));
@@ -346,7 +382,10 @@ mod tests {
                 "c1",
                 1000,
                 4000,
-                vec![Word::new("Hei", 1000, 2500, 90.0), Word::new("verden", 2500, 4000, 90.0)],
+                vec![
+                    Word::new("Hei", 1000, 2500, 90.0),
+                    Word::new("verden", 2500, 4000, 90.0),
+                ],
             )],
             vec![],
         );
@@ -371,21 +410,32 @@ mod tests {
         let p = project_with(
             vec![
                 caption("c1", 0, 1000, vec![Word::new("hei", 0, 1000, 80.0)]),
-                caption("c2", 2000, 3000, vec![Word::new("verden", 2000, 3000, 80.0)]),
+                caption(
+                    "c2",
+                    2000,
+                    3000,
+                    vec![Word::new("verden", 2000, 3000, 80.0)],
+                ),
             ],
             vec![],
         );
         // Only c1 translated.
         let res = translate_to_captions(&p, &[tc("c1", "hi")], "en", 1);
         assert_eq!(res.captions[0].words[0].text, "hi");
-        assert_eq!(res.captions[1].words[0].text, "verden", "untranslated caption preserved");
+        assert_eq!(
+            res.captions[1].words[0].text, "verden",
+            "untranslated caption preserved"
+        );
         assert!(!res.captions[1].words[0].edited);
     }
 
     #[test]
     fn flags_overlong_translation() {
         // Source "ja" (2 chars) → a long German translation triggers warning.
-        let p = project_with(vec![caption("c1", 0, 2000, vec![Word::new("ja", 0, 2000, 90.0)])], vec![]);
+        let p = project_with(
+            vec![caption("c1", 0, 2000, vec![Word::new("ja", 0, 2000, 90.0)])],
+            vec![],
+        );
         let long = "selbstverständlich auf jeden Fall ganz bestimmt";
         let res = translate_to_captions(&p, &[tc("c1", long)], "de", 1);
         assert_eq!(res.warnings.len(), 1);
@@ -395,14 +445,30 @@ mod tests {
 
     #[test]
     fn similar_length_translation_has_no_warning() {
-        let p = project_with(vec![caption("c1", 0, 2000, vec![Word::new("hello", 0, 2000, 90.0)])], vec![]);
+        let p = project_with(
+            vec![caption(
+                "c1",
+                0,
+                2000,
+                vec![Word::new("hello", 0, 2000, 90.0)],
+            )],
+            vec![],
+        );
         let res = translate_to_captions(&p, &[tc("c1", "hallo")], "de", 1);
         assert!(res.warnings.is_empty());
     }
 
     #[test]
     fn empty_translation_text_keeps_original() {
-        let p = project_with(vec![caption("c1", 0, 1000, vec![Word::new("hei", 0, 1000, 80.0)])], vec![]);
+        let p = project_with(
+            vec![caption(
+                "c1",
+                0,
+                1000,
+                vec![Word::new("hei", 0, 1000, 80.0)],
+            )],
+            vec![],
+        );
         let res = translate_to_captions(&p, &[tc("c1", "   ")], "en", 1);
         assert_eq!(res.captions[0].words[0].text, "hei");
     }

@@ -70,7 +70,11 @@ pub async fn polish_captions(
 ) -> AppResult<PolishResult> {
     let items = build_polish_items(&project);
     if items.is_empty() {
-        return Ok(PolishResult { project, changes: vec![], rejected: vec![] });
+        return Ok(PolishResult {
+            project,
+            changes: vec![],
+            rejected: vec![],
+        });
     }
 
     let system = build_polish_system_prompt(&project.language);
@@ -81,7 +85,10 @@ pub async fn polish_captions(
         .filter(|k| !k.trim().is_empty())
         .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
         .unwrap_or_default();
-    let config = LlmConfig { model, api_key: key };
+    let config = LlmConfig {
+        model,
+        api_key: key,
+    };
 
     let response = llm::complete(&config, &system, &user, max_tokens).await?;
     let parsed = polish::parse_polish_response(&response)?;

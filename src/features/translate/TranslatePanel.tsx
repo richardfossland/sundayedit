@@ -16,7 +16,11 @@ import { Languages, ArrowRight, AlertTriangle } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
 import type {
-  ClaudeModel, PolishEstimate, Project, TranslationLanguage, TranslationResult,
+  ClaudeModel,
+  PolishEstimate,
+  Project,
+  TranslationLanguage,
+  TranslationResult,
 } from "@/lib/bindings";
 import { cn } from "@/lib/cn";
 
@@ -46,7 +50,10 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    ipc.translate.languages().then(setLanguages).catch(() => setLanguages([]));
+    ipc.translate
+      .languages()
+      .then(setLanguages)
+      .catch(() => setLanguages([]));
   }, []);
 
   useEffect(() => {
@@ -55,7 +62,9 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
       .estimate(project, target, model)
       .then((e) => !cancelled && setEstimate(e))
       .catch(() => !cancelled && setEstimate(null));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [project, target, model]);
 
   const warnedIds = useMemo(
@@ -72,7 +81,12 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
     setResult(null);
     setRunning(true);
     try {
-      const res = await ipc.translate.run(project, target, model, apiKey || undefined);
+      const res = await ipc.translate.run(
+        project,
+        target,
+        model,
+        apiKey || undefined,
+      );
       setResult(res);
     } catch (e) {
       setError(e instanceof IPCError ? e.message : String(e));
@@ -98,11 +112,12 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
     <div className="mx-auto max-w-2xl space-y-6 p-6">
       <header>
         <h2 className="mb-1 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
-          <Languages size={16} className="text-[var(--color-accent-400)]" /> Oversett undertekster
+          <Languages size={16} className="text-[var(--color-accent-400)]" />{" "}
+          Oversett undertekster
         </h2>
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-          Oversetter til et annet språk med bevart timing. Ordlistetermer holdes konsistente.
-          Forhåndsvis før du erstatter sporet.
+          Oversetter til et annet språk med bevart timing. Ordlistetermer holdes
+          konsistente. Forhåndsvis før du erstatter sporet.
         </p>
       </header>
 
@@ -115,7 +130,9 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
             className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg-input)] px-2 py-1.5 text-[var(--text-ui-sm)] outline-none focus:border-[var(--color-accent-500)]"
           >
             {languages.map((l) => (
-              <option key={l.code} value={l.code}>{l.name}</option>
+              <option key={l.code} value={l.code}>
+                {l.name}
+              </option>
             ))}
           </select>
         </label>
@@ -153,11 +170,15 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
           disabled={running || !estimate || estimate.caption_count === 0}
           className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
         >
-          <Languages size={14} /> {running ? `Oversetter til ${targetName}…` : `Oversett til ${targetName}`}
+          <Languages size={14} />{" "}
+          {running
+            ? `Oversetter til ${targetName}…`
+            : `Oversett til ${targetName}`}
         </button>
         {estimate && (
           <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-            {estimate.caption_count} undertekster · ~{formatCost(estimate.estimated_cost_usd)}
+            {estimate.caption_count} undertekster · ~
+            {formatCost(estimate.estimated_cost_usd)}
           </span>
         )}
       </div>
@@ -191,8 +212,9 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
             <div className="flex items-start gap-2 rounded-md border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-3 py-2 text-[var(--text-ui-sm)] text-[var(--color-warning)]">
               <AlertTriangle size={15} className="mt-0.5 shrink-0" />
               <span>
-                {result.warnings.length} undertekst{result.warnings.length === 1 ? "" : "er"} ble
-                vesentlig lengre enn originalen — lesehastigheten kan bli høy. Vurder å forkorte.
+                {result.warnings.length} undertekst
+                {result.warnings.length === 1 ? "" : "er"} ble vesentlig lengre
+                enn originalen — lesehastigheten kan bli høy. Vurder å forkorte.
               </span>
             </div>
           )}
@@ -206,12 +228,20 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
                   warnedIds.has(c.id) && "bg-[var(--color-warning)]/5",
                 )}
               >
-                <p className="text-[var(--color-fg-subtle)]">{originalById.get(c.id) ?? ""}</p>
+                <p className="text-[var(--color-fg-subtle)]">
+                  {originalById.get(c.id) ?? ""}
+                </p>
                 <p className="flex items-start gap-1.5">
-                  <ArrowRight size={13} className="mt-1 shrink-0 text-[var(--color-accent-400)]" />
+                  <ArrowRight
+                    size={13}
+                    className="mt-1 shrink-0 text-[var(--color-accent-400)]"
+                  />
                   <span>{capText(c)}</span>
                   {warnedIds.has(c.id) && (
-                    <AlertTriangle size={12} className="mt-1 shrink-0 text-[var(--color-warning)]" />
+                    <AlertTriangle
+                      size={12}
+                      className="mt-1 shrink-0 text-[var(--color-warning)]"
+                    />
                   )}
                 </p>
               </li>

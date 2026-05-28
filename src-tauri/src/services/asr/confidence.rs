@@ -60,7 +60,11 @@ fn stretch_probability(p: f32) -> f32 {
         let (x0, y0) = win[0];
         let (x1, y1) = win[1];
         if p <= x1 {
-            let t = if (x1 - x0).abs() < f32::EPSILON { 0.0 } else { (p - x0) / (x1 - x0) };
+            let t = if (x1 - x0).abs() < f32::EPSILON {
+                0.0
+            } else {
+                (p - x0) / (x1 - x0)
+            };
             return (y0 + t * (y1 - y0)).clamp(0.0, 1.0);
         }
     }
@@ -126,7 +130,10 @@ mod tests {
 
         // A mediocre word (prob ~0.75) → tier 3 band (50..70)
         let mid = logprob_to_confidence((0.75f32).ln());
-        assert!((50.0..70.0).contains(&mid), "0.75 prob should be tier 3, got {mid}");
+        assert!(
+            (50.0..70.0).contains(&mid),
+            "0.75 prob should be tier 3, got {mid}"
+        );
 
         // A coin-flip word (prob ~0.5) → tier 4 (< 50)
         let low = logprob_to_confidence((0.5f32).ln());
@@ -161,7 +168,10 @@ mod tests {
         // must land in the same tier.
         let cloud = provider_confidence_to_scale(0.75);
         let whisper = logprob_to_confidence((0.75f32).ln());
-        assert!((cloud - whisper).abs() < 0.5, "cloud {cloud} vs whisper {whisper}");
+        assert!(
+            (cloud - whisper).abs() < 0.5,
+            "cloud {cloud} vs whisper {whisper}"
+        );
     }
 
     #[test]

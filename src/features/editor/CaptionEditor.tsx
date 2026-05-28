@@ -18,10 +18,23 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Eye, Sparkles, Undo2, Redo2, Lock, Check, ChevronRight, WandSparkles,
+  Eye,
+  Sparkles,
+  Undo2,
+  Redo2,
+  Lock,
+  Check,
+  ChevronRight,
+  WandSparkles,
 } from "lucide-react";
 
-import { confidenceTier, type Caption, type Project, type Speaker, type Word } from "@/lib/bindings";
+import {
+  confidenceTier,
+  type Caption,
+  type Project,
+  type Speaker,
+  type Word,
+} from "@/lib/bindings";
 import { ipc } from "@/lib/ipc";
 import { useEditorHistory } from "@/lib/useEditorHistory";
 import { cn } from "@/lib/cn";
@@ -31,10 +44,18 @@ interface Props {
   onProjectChange?: (project: Project) => void;
 }
 
-interface WordRef { captionId: string; wordIndex: number }
-function sameRef(a: WordRef, b: WordRef) { return a.captionId === b.captionId && a.wordIndex === b.wordIndex; }
+interface WordRef {
+  captionId: string;
+  wordIndex: number;
+}
+function sameRef(a: WordRef, b: WordRef) {
+  return a.captionId === b.captionId && a.wordIndex === b.wordIndex;
+}
 
-export function CaptionEditor({ project: initialProject, onProjectChange }: Props) {
+export function CaptionEditor({
+  project: initialProject,
+  onProjectChange,
+}: Props) {
   const editor = useEditorHistory(initialProject);
   const project = editor.project;
 
@@ -44,14 +65,18 @@ export function CaptionEditor({ project: initialProject, onProjectChange }: Prop
   const [editing, setEditing] = useState<WordRef | null>(null);
   const [glossaryToast, setGlossaryToast] = useState<string | null>(null);
 
-  useEffect(() => { onProjectChange?.(project); }, [project, onProjectChange]);
+  useEffect(() => {
+    onProjectChange?.(project);
+  }, [project, onProjectChange]);
 
   const stats = useMemo(() => {
-    let uncertain = 0, total = 0;
+    let uncertain = 0,
+      total = 0;
     for (const c of project.captions) {
       for (const word of c.words) {
         total++;
-        if (!word.locked && !word.edited && word.confidence < threshold) uncertain++;
+        if (!word.locked && !word.edited && word.confidence < threshold)
+          uncertain++;
       }
     }
     return { uncertain, total };
@@ -77,9 +102,13 @@ export function CaptionEditor({ project: initialProject, onProjectChange }: Prop
       if (t && (t.tagName === "INPUT" || t.isContentEditable)) return;
       if (uncertainRefs.length === 0) return;
       e.preventDefault();
-      const curIdx = cursor ? uncertainRefs.findIndex((r) => sameRef(r, cursor)) : -1;
+      const curIdx = cursor
+        ? uncertainRefs.findIndex((r) => sameRef(r, cursor))
+        : -1;
       const nextIdx = e.shiftKey
-        ? (curIdx <= 0 ? uncertainRefs.length - 1 : curIdx - 1)
+        ? curIdx <= 0
+          ? uncertainRefs.length - 1
+          : curIdx - 1
         : (curIdx + 1) % uncertainRefs.length;
       setCursor(uncertainRefs[nextIdx]);
     }
@@ -90,13 +119,19 @@ export function CaptionEditor({ project: initialProject, onProjectChange }: Prop
   async function editWord(ref: WordRef, newText: string) {
     setEditing(null);
     if (newText.trim().length === 0) return;
-    await editor.run((p) => ipc.ops.editWord(p, ref.captionId, ref.wordIndex, newText));
+    await editor.run((p) =>
+      ipc.ops.editWord(p, ref.captionId, ref.wordIndex, newText),
+    );
   }
   async function lockWord(ref: WordRef) {
-    await editor.run((p) => ipc.ops.lockWord(p, ref.captionId, ref.wordIndex, true));
+    await editor.run((p) =>
+      ipc.ops.lockWord(p, ref.captionId, ref.wordIndex, true),
+    );
   }
   async function acceptAlternate(ref: WordRef, altIndex: number) {
-    await editor.run((p) => ipc.ops.acceptAlternate(p, ref.captionId, ref.wordIndex, altIndex));
+    await editor.run((p) =>
+      ipc.ops.acceptAlternate(p, ref.captionId, ref.wordIndex, altIndex),
+    );
   }
   async function applyGlossary() {
     await editor.run(async (p) => {
@@ -122,10 +157,18 @@ export function CaptionEditor({ project: initialProject, onProjectChange }: Prop
       <header className="flex items-center gap-3 border-b border-[var(--color-border)] px-5 py-3">
         <h1 className="text-[var(--text-ui-lg)] font-semibold">Editor</h1>
         <div className="flex items-center gap-0.5">
-          <IconBtn title="Angre (⌘Z)" disabled={!editor.canUndo || editor.busy} onClick={editor.undo}>
+          <IconBtn
+            title="Angre (⌘Z)"
+            disabled={!editor.canUndo || editor.busy}
+            onClick={editor.undo}
+          >
             <Undo2 size={15} />
           </IconBtn>
-          <IconBtn title="Gjør om (⌘⇧Z)" disabled={!editor.canRedo || editor.busy} onClick={editor.redo}>
+          <IconBtn
+            title="Gjør om (⌘⇧Z)"
+            disabled={!editor.canRedo || editor.busy}
+            onClick={editor.redo}
+          >
             <Redo2 size={15} />
           </IconBtn>
         </div>
@@ -146,7 +189,10 @@ export function CaptionEditor({ project: initialProject, onProjectChange }: Prop
         <label className="flex items-center gap-2 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
           <span>Terskel</span>
           <input
-            type="range" min={40} max={95} value={threshold}
+            type="range"
+            min={40}
+            max={95}
+            value={threshold}
             onChange={(e) => setThreshold(Number(e.target.value))}
             className="accent-[var(--color-accent-500)]"
           />
@@ -171,17 +217,26 @@ export function CaptionEditor({ project: initialProject, onProjectChange }: Prop
       <div className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-5 py-2">
         <Sparkles size={14} className="text-[var(--color-accent-400)]" />
         <span className="text-[var(--text-ui-sm)]">
-          <strong className="font-semibold tabular-nums">{stats.uncertain}</strong>{" "}
-          <span className="text-[var(--color-fg-muted)]">usikre ord av {stats.total}</span>
+          <strong className="font-semibold tabular-nums">
+            {stats.uncertain}
+          </strong>{" "}
+          <span className="text-[var(--color-fg-muted)]">
+            usikre ord av {stats.total}
+          </span>
         </span>
         <div className="ml-2 h-1.5 w-40 overflow-hidden rounded-full bg-[var(--color-bg-surface)]">
           <div
             className="h-full bg-[var(--color-accent-500)] transition-all"
-            style={{ width: `${100 - (stats.uncertain / Math.max(1, stats.total)) * 100}%` }}
+            style={{
+              width: `${100 - (stats.uncertain / Math.max(1, stats.total)) * 100}%`,
+            }}
           />
         </div>
         <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-          <kbd className="rounded border border-[var(--color-border)] px-1 font-mono">Tab</kbd> til neste usikre
+          <kbd className="rounded border border-[var(--color-border)] px-1 font-mono">
+            Tab
+          </kbd>{" "}
+          til neste usikre
         </span>
         <ConfidenceLegend />
       </div>
@@ -195,7 +250,9 @@ export function CaptionEditor({ project: initialProject, onProjectChange }: Prop
               caption={caption}
               speaker={
                 project.speakers.length >= 2 && caption.speaker_id
-                  ? project.speakers.find((s) => s.id === caption.speaker_id) ?? null
+                  ? (project.speakers.find(
+                      (s) => s.id === caption.speaker_id,
+                    ) ?? null)
                   : null
               }
               threshold={threshold}
@@ -223,8 +280,18 @@ export function CaptionEditor({ project: initialProject, onProjectChange }: Prop
 }
 
 function CaptionRow({
-  caption, speaker, threshold, dimmed, cursor, editing, busy,
-  onCursor, onStartEdit, onCommitEdit, onLock, onAcceptAlternate,
+  caption,
+  speaker,
+  threshold,
+  dimmed,
+  cursor,
+  editing,
+  busy,
+  onCursor,
+  onStartEdit,
+  onCommitEdit,
+  onLock,
+  onAcceptAlternate,
 }: {
   caption: Caption;
   speaker: Speaker | null;
@@ -257,7 +324,9 @@ function CaptionRow({
           >
             <span
               className="inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: speaker.color_hex ?? "var(--color-accent-400)" }}
+              style={{
+                backgroundColor: speaker.color_hex ?? "var(--color-accent-400)",
+              }}
             />
             {speaker.display_name}:
           </span>
@@ -286,8 +355,16 @@ function CaptionRow({
 }
 
 function WordSpan({
-  word, threshold, isCursor, isEditing, busy,
-  onFocus, onStartEdit, onCommitEdit, onLock, onAcceptAlternate,
+  word,
+  threshold,
+  isCursor,
+  isEditing,
+  busy,
+  onFocus,
+  onStartEdit,
+  onCommitEdit,
+  onLock,
+  onAcceptAlternate,
 }: {
   word: Word;
   threshold: number;
@@ -315,8 +392,14 @@ function WordSpan({
         defaultValue={word.text}
         onBlur={(e) => onCommitEdit(e.currentTarget.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); onCommitEdit(e.currentTarget.value); }
-          if (e.key === "Escape") { e.preventDefault(); onCommitEdit(word.text); }
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onCommitEdit(e.currentTarget.value);
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            onCommitEdit(word.text);
+          }
         }}
         className="mx-0.5 inline rounded border border-[var(--color-accent-500)] bg-[var(--color-bg-input)] px-1 text-[var(--text-ui-md)] outline-none"
         style={{ width: `${Math.max(2, word.text.length + 1)}ch` }}
@@ -329,14 +412,18 @@ function WordSpan({
       <span
         role="button"
         tabIndex={0}
-        onClick={() => { onFocus(); onStartEdit(); }}
+        onClick={() => {
+          onFocus();
+          onStartEdit();
+        }}
         onFocus={onFocus}
         className={cn(
           "word cursor-text",
           `word-tier-${effectiveTier}`,
           word.edited && "is-edited",
           word.locked && "is-locked",
-          isCursor && "ring-2 ring-[var(--color-accent-500)] ring-offset-1 ring-offset-[var(--color-bg)]",
+          isCursor &&
+            "ring-2 ring-[var(--color-accent-500)] ring-offset-1 ring-offset-[var(--color-bg)]",
         )}
         title={`${word.confidence.toFixed(0)}% sikkerhet`}
       >
@@ -357,7 +444,10 @@ function WordSpan({
           title="Vis alternativer"
           aria-label="Vis alternativer"
         >
-          <ChevronRight size={12} className={cn("transition-transform", popoverOpen && "rotate-90")} />
+          <ChevronRight
+            size={12}
+            className={cn("transition-transform", popoverOpen && "rotate-90")}
+          />
         </button>
       )}
       {popoverOpen && (
@@ -370,7 +460,10 @@ function WordSpan({
               <button
                 key={ai}
                 type="button"
-                onClick={() => { setPopoverOpen(false); onAcceptAlternate(ai); }}
+                onClick={() => {
+                  setPopoverOpen(false);
+                  onAcceptAlternate(ai);
+                }}
                 className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-[var(--text-ui-sm)] hover:bg-[var(--color-bg-surface)]"
               >
                 <span>{alt.text}</span>
@@ -387,14 +480,20 @@ function WordSpan({
           <span className="my-1 block h-px bg-[var(--color-border)]" />
           <button
             type="button"
-            onClick={() => { setPopoverOpen(false); onLock(); }}
+            onClick={() => {
+              setPopoverOpen(false);
+              onLock();
+            }}
             className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[var(--text-ui-sm)] text-[var(--color-success)] hover:bg-[var(--color-bg-surface)]"
           >
             <Check size={13} /> Marker som riktig
           </button>
           <button
             type="button"
-            onClick={() => { setPopoverOpen(false); onStartEdit(); }}
+            onClick={() => {
+              setPopoverOpen(false);
+              onStartEdit();
+            }}
             className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[var(--text-ui-sm)] hover:bg-[var(--color-bg-surface)]"
           >
             <Lock size={13} /> Rediger manuelt…
@@ -416,7 +515,12 @@ function ConfidenceLegend() {
     <div className="ml-auto flex items-center gap-3 text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
       {tiers.map((t) => (
         <span key={t.tier} className="flex items-center gap-1.5">
-          <span className={cn("word inline-block h-3 w-4 rounded", `word-tier-${t.tier}`)} />
+          <span
+            className={cn(
+              "word inline-block h-3 w-4 rounded",
+              `word-tier-${t.tier}`,
+            )}
+          />
           {t.label}
         </span>
       ))}
@@ -425,7 +529,9 @@ function ConfidenceLegend() {
 }
 
 function allConfident(caption: Caption, threshold: number): boolean {
-  return caption.words.every((w) => w.locked || w.edited || w.confidence >= threshold);
+  return caption.words.every(
+    (w) => w.locked || w.edited || w.confidence >= threshold,
+  );
 }
 
 function fmtTime(ms: number): string {
@@ -437,8 +543,16 @@ function fmtTime(ms: number): string {
 }
 
 function IconBtn({
-  title, disabled, onClick, children,
-}: { title: string; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
+  title,
+  disabled,
+  onClick,
+  children,
+}: {
+  title: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"

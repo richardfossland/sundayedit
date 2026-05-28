@@ -44,11 +44,19 @@ function FindReplace({ project, onProjectChange }: Props) {
   const [count, setCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const opts = () => ({ query, case_sensitive: caseSensitive, whole_word: wholeWord, regex });
+  const opts = () => ({
+    query,
+    case_sensitive: caseSensitive,
+    whole_word: wholeWord,
+    regex,
+  });
 
   async function doFind() {
     setError(null);
-    if (!query) { setCount(null); return; }
+    if (!query) {
+      setCount(null);
+      return;
+    }
     try {
       const matches = await ipc.cleanup.find(project, opts());
       setCount(matches.length);
@@ -74,19 +82,24 @@ function FindReplace({ project, onProjectChange }: Props) {
   return (
     <section>
       <h2 className="mb-3 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
-        <Search size={16} className="text-[var(--color-accent-400)]" /> Søk og erstatt
+        <Search size={16} className="text-[var(--color-accent-400)]" /> Søk og
+        erstatt
       </h2>
       <div className="space-y-2">
         <div className="flex gap-2">
           <input
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setCount(null); }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setCount(null);
+            }}
             onKeyDown={(e) => e.key === "Enter" && doFind()}
             placeholder="Søk…"
             className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-input)] px-3 py-1.5 text-[var(--text-ui-sm)] outline-none focus:border-[var(--color-accent-500)]"
           />
           <button
-            type="button" onClick={doFind}
+            type="button"
+            onClick={doFind}
             className="rounded-md bg-[var(--color-bg-surface)] px-3 py-1.5 text-[var(--text-ui-sm)] hover:text-[var(--color-accent-400)]"
           >
             Finn
@@ -100,19 +113,39 @@ function FindReplace({ project, onProjectChange }: Props) {
             className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-input)] px-3 py-1.5 text-[var(--text-ui-sm)] outline-none focus:border-[var(--color-accent-500)]"
           />
           <button
-            type="button" onClick={doReplace}
+            type="button"
+            onClick={doReplace}
             className="rounded-md bg-[var(--color-accent-600)] px-3 py-1.5 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
           >
             Erstatt alle
           </button>
         </div>
         <div className="flex items-center gap-4 text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-          <Toggle label="Aa" title="Skill store/små" on={caseSensitive} onChange={setCaseSensitive} />
-          <Toggle label="Ord" title="Kun hele ord" on={wholeWord} onChange={setWholeWord} />
-          <Toggle label=".*" title="Regulært uttrykk" on={regex} onChange={setRegex} />
+          <Toggle
+            label="Aa"
+            title="Skill store/små"
+            on={caseSensitive}
+            onChange={setCaseSensitive}
+          />
+          <Toggle
+            label="Ord"
+            title="Kun hele ord"
+            on={wholeWord}
+            onChange={setWholeWord}
+          />
+          <Toggle
+            label=".*"
+            title="Regulært uttrykk"
+            on={regex}
+            onChange={setRegex}
+          />
           {count !== null && <span className="ml-auto">{count} treff</span>}
         </div>
-        {error && <p className="text-[var(--text-ui-xs)] text-[var(--color-danger)]">{error}</p>}
+        {error && (
+          <p className="text-[var(--text-ui-xs)] text-[var(--color-danger)]">
+            {error}
+          </p>
+        )}
       </div>
     </section>
   );
@@ -144,22 +177,26 @@ function FillerRemoval({ project, onProjectChange }: Props) {
   return (
     <section>
       <h2 className="mb-3 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
-        <Wand2 size={16} className="text-[var(--color-accent-400)]" /> Fjern fyllord
+        <Wand2 size={16} className="text-[var(--color-accent-400)]" /> Fjern
+        fyllord
       </h2>
       <p className="mb-3 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-        Finn «eh», «øh», «um», «liksom» osv. Godkjente klipp fjernes og
-        resten av tidslinjen forskyves tidligere (ripple).
+        Finn «eh», «øh», «um», «liksom» osv. Godkjente klipp fjernes og resten
+        av tidslinjen forskyves tidligere (ripple).
       </p>
 
       {hits === null ? (
         <button
-          type="button" onClick={detect}
+          type="button"
+          onClick={detect}
           className="rounded-md bg-[var(--color-bg-surface)] px-4 py-2 text-[var(--text-ui-sm)] font-medium hover:text-[var(--color-accent-400)]"
         >
           Finn fyllord
         </button>
       ) : hits.length === 0 ? (
-        <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">Ingen fyllord funnet 🎉</p>
+        <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
+          Ingen fyllord funnet 🎉
+        </p>
       ) : (
         <div className="space-y-3">
           <ul className="max-h-64 space-y-1 overflow-y-auto rounded-md border border-[var(--color-border)] p-2">
@@ -171,7 +208,8 @@ function FillerRemoval({ project, onProjectChange }: Props) {
                     checked={approved.has(i)}
                     onChange={(e) => {
                       const next = new Set(approved);
-                      if (e.target.checked) next.add(i); else next.delete(i);
+                      if (e.target.checked) next.add(i);
+                      else next.delete(i);
                       setApproved(next);
                     }}
                     className="accent-[var(--color-accent-500)]"
@@ -186,13 +224,18 @@ function FillerRemoval({ project, onProjectChange }: Props) {
           </ul>
           <div className="flex items-center gap-3">
             <button
-              type="button" onClick={removeApproved}
+              type="button"
+              onClick={removeApproved}
               className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
             >
               <Scissors size={14} /> Fjern {approved.size} valgte
             </button>
             <button
-              type="button" onClick={() => { setHits(null); setApproved(new Set()); }}
+              type="button"
+              onClick={() => {
+                setHits(null);
+                setApproved(new Set());
+              }}
               className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
             >
               Avbryt
@@ -208,8 +251,16 @@ function FillerRemoval({ project, onProjectChange }: Props) {
 }
 
 function Toggle({
-  label, title, on, onChange,
-}: { label: string; title: string; on: boolean; onChange: (v: boolean) => void }) {
+  label,
+  title,
+  on,
+  onChange,
+}: {
+  label: string;
+  title: string;
+  on: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <button
       type="button"

@@ -23,6 +23,9 @@ pub struct StylePreset {
     pub description: String,
 }
 
+// Internal preset-builder: a flat positional constructor keeps the preset
+// table below readable; not a public API.
+#[allow(clippy::too_many_arguments)]
 fn style(
     id: &str,
     name: &str,
@@ -66,7 +69,11 @@ fn style(
 }
 
 fn fade() -> Option<AnimationSpec> {
-    Some(AnimationSpec { kind: "fade".into(), duration_ms: 200, per_word_delay_ms: 0 })
+    Some(AnimationSpec {
+        kind: "fade".into(),
+        duration_ms: 200,
+        per_word_delay_ms: 0,
+    })
 }
 
 /// The full preset catalog for the gallery.
@@ -84,8 +91,19 @@ pub fn catalog() -> Vec<StylePreset> {
             description: "Calm and very readable. Generous for longer lines.".into(),
             style: {
                 let mut s = style(
-                    "preset:education", "Education", "Open Sans", 40, 500,
-                    "#FFFFFF", "#1A1A1A", 2, Some("#000000B0"), "bc", "center", "bottom", fade(),
+                    "preset:education",
+                    "Education",
+                    "Open Sans",
+                    40,
+                    500,
+                    "#FFFFFF",
+                    "#1A1A1A",
+                    2,
+                    Some("#000000B0"),
+                    "bc",
+                    "center",
+                    "bottom",
+                    fade(),
                 );
                 s.line_spacing = 1.25;
                 s.max_width_pct = 86.0;
@@ -97,9 +115,23 @@ pub fn catalog() -> Vec<StylePreset> {
             category: "Social".into(),
             description: "Bold, high-contrast, attention-grabbing. Vertical-first.".into(),
             style: style(
-                "preset:tiktok_bold", "TikTok Bold", "Montserrat", 64, 800,
-                "#FFFFFF", "#000000", 5, None, "mc", "center", "middle",
-                Some(AnimationSpec { kind: "popup".into(), duration_ms: 150, per_word_delay_ms: 0 }),
+                "preset:tiktok_bold",
+                "TikTok Bold",
+                "Montserrat",
+                64,
+                800,
+                "#FFFFFF",
+                "#000000",
+                5,
+                None,
+                "mc",
+                "center",
+                "middle",
+                Some(AnimationSpec {
+                    kind: "popup".into(),
+                    duration_ms: 150,
+                    per_word_delay_ms: 0,
+                }),
             ),
         },
         StylePreset {
@@ -107,9 +139,23 @@ pub fn catalog() -> Vec<StylePreset> {
             description: "Yellow word-pop, the classic creator look.".into(),
             style: {
                 let mut s = style(
-                    "preset:creator_yellow", "Creator Yellow", "Montserrat", 58, 800,
-                    "#FFE600", "#000000", 6, None, "mc", "center", "middle",
-                    Some(AnimationSpec { kind: "karaoke".into(), duration_ms: 120, per_word_delay_ms: 60 }),
+                    "preset:creator_yellow",
+                    "Creator Yellow",
+                    "Montserrat",
+                    58,
+                    800,
+                    "#FFE600",
+                    "#000000",
+                    6,
+                    None,
+                    "mc",
+                    "center",
+                    "middle",
+                    Some(AnimationSpec {
+                        kind: "karaoke".into(),
+                        duration_ms: 120,
+                        per_word_delay_ms: 60,
+                    }),
                 );
                 s.letter_spacing = 0.5;
                 s
@@ -120,9 +166,23 @@ pub fn catalog() -> Vec<StylePreset> {
             category: "Music".into(),
             description: "Word-by-word highlight for sing-along.".into(),
             style: style(
-                "preset:karaoke", "Karaoke", "Arial", 52, 700,
-                "#FFFFFF", "#202080", 4, Some("#000000A0"), "bc", "center", "bottom",
-                Some(AnimationSpec { kind: "karaoke".into(), duration_ms: 100, per_word_delay_ms: 80 }),
+                "preset:karaoke",
+                "Karaoke",
+                "Arial",
+                52,
+                700,
+                "#FFFFFF",
+                "#202080",
+                4,
+                Some("#000000A0"),
+                "bc",
+                "center",
+                "bottom",
+                Some(AnimationSpec {
+                    kind: "karaoke".into(),
+                    duration_ms: 100,
+                    per_word_delay_ms: 80,
+                }),
             ),
         },
         // ── Cinema ──
@@ -131,8 +191,19 @@ pub fn catalog() -> Vec<StylePreset> {
             description: "Traditional movie subtitles, lower-third.".into(),
             style: {
                 let mut s = style(
-                    "preset:cinema", "Cinema Subtitles", "Helvetica Neue", 38, 500,
-                    "#F2F2F2", "#000000", 2, None, "bc", "center", "bottom", fade(),
+                    "preset:cinema",
+                    "Cinema Subtitles",
+                    "Helvetica Neue",
+                    38,
+                    500,
+                    "#F2F2F2",
+                    "#000000",
+                    2,
+                    None,
+                    "bc",
+                    "center",
+                    "bottom",
+                    fade(),
                 );
                 s.max_width_pct = 70.0;
                 s
@@ -143,8 +214,19 @@ pub fn catalog() -> Vec<StylePreset> {
             category: "Cinema".into(),
             description: "Subtle, cinematic, restrained.".into(),
             style: style(
-                "preset:documentary", "Documentary", "Georgia", 36, 400,
-                "#FFFFFF", "#000000", 1, Some("#00000080"), "bc", "center", "bottom", fade(),
+                "preset:documentary",
+                "Documentary",
+                "Georgia",
+                36,
+                400,
+                "#FFFFFF",
+                "#000000",
+                1,
+                Some("#00000080"),
+                "bc",
+                "center",
+                "bottom",
+                fade(),
             ),
         },
         // ── Corporate ──
@@ -152,8 +234,19 @@ pub fn catalog() -> Vec<StylePreset> {
             category: "Corporate".into(),
             description: "Professional and restrained for business video.".into(),
             style: style(
-                "preset:corporate", "Corporate", "Inter", 40, 600,
-                "#FFFFFF", "#0F2A54", 0, Some("#0F2A54E0"), "bc", "center", "bottom", fade(),
+                "preset:corporate",
+                "Corporate",
+                "Inter",
+                40,
+                600,
+                "#FFFFFF",
+                "#0F2A54",
+                0,
+                Some("#0F2A54E0"),
+                "bc",
+                "center",
+                "bottom",
+                fade(),
             ),
         },
         // ── Minimal ──
@@ -161,8 +254,19 @@ pub fn catalog() -> Vec<StylePreset> {
             category: "Minimal".into(),
             description: "No outline, no box — just clean type. Use over calm footage.".into(),
             style: style(
-                "preset:minimal", "Minimal", "Inter", 42, 500,
-                "#FFFFFF", "#000000", 0, None, "bc", "center", "bottom", fade(),
+                "preset:minimal",
+                "Minimal",
+                "Inter",
+                42,
+                500,
+                "#FFFFFF",
+                "#000000",
+                0,
+                None,
+                "bc",
+                "center",
+                "bottom",
+                fade(),
             ),
         },
     ]
@@ -171,8 +275,8 @@ pub fn catalog() -> Vec<StylePreset> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::export::write_ass;
     use crate::model::{Caption, Project, Word};
+    use crate::services::export::write_ass;
 
     #[test]
     fn catalog_has_presets() {
@@ -189,7 +293,8 @@ mod tests {
     #[test]
     fn preset_names_are_distinct() {
         let cat = catalog();
-        let names: std::collections::HashSet<_> = cat.iter().map(|p| p.style.name.clone()).collect();
+        let names: std::collections::HashSet<_> =
+            cat.iter().map(|p| p.style.name.clone()).collect();
         assert_eq!(names.len(), cat.len());
     }
 
@@ -197,24 +302,40 @@ mod tests {
     fn every_preset_has_category_and_description() {
         for p in catalog() {
             assert!(!p.category.is_empty(), "{} missing category", p.style.id);
-            assert!(!p.description.is_empty(), "{} missing description", p.style.id);
+            assert!(
+                !p.description.is_empty(),
+                "{} missing description",
+                p.style.id
+            );
         }
     }
 
     #[test]
     fn anchors_are_valid_9grid() {
-        let valid = ["tl","tc","tr","ml","mc","mr","bl","bc","br"];
+        let valid = ["tl", "tc", "tr", "ml", "mc", "mr", "bl", "bc", "br"];
         for p in catalog() {
-            assert!(valid.contains(&p.style.anchor.as_str()),
-                "{} has invalid anchor {}", p.style.id, p.style.anchor);
+            assert!(
+                valid.contains(&p.style.anchor.as_str()),
+                "{} has invalid anchor {}",
+                p.style.id,
+                p.style.anchor
+            );
         }
     }
 
     #[test]
     fn colors_are_hex() {
         for p in catalog() {
-            assert!(p.style.color_fg.starts_with('#'), "{} fg not hex", p.style.id);
-            assert!(p.style.outline_color.starts_with('#'), "{} outline not hex", p.style.id);
+            assert!(
+                p.style.color_fg.starts_with('#'),
+                "{} fg not hex",
+                p.style.id
+            );
+            assert!(
+                p.style.outline_color.starts_with('#'),
+                "{} outline not hex",
+                p.style.id
+            );
         }
     }
 
@@ -223,24 +344,40 @@ mod tests {
     fn every_preset_renders_to_ass() {
         for p in catalog() {
             let project = Project {
-                id: "p".into(), name: "t".into(),
-                video_path: "/x".into(), video_content_hash: "h".into(),
-                video_duration_ms: 1000, video_width: 1920, video_height: 1080, video_fps: 30.0,
-                audio_wav_path: None, language: "en".into(),
+                id: "p".into(),
+                name: "t".into(),
+                video_path: "/x".into(),
+                video_content_hash: "h".into(),
+                video_duration_ms: 1000,
+                video_width: 1920,
+                video_height: 1080,
+                video_fps: 30.0,
+                audio_wav_path: None,
+                language: "en".into(),
                 default_style: p.style.clone(),
                 context_description: None,
                 captions: vec![Caption {
-                    id: "c1".into(), start_ms: 0, end_ms: 1000,
+                    id: "c1".into(),
+                    start_ms: 0,
+                    end_ms: 1000,
                     words: vec![Word::new("Hello", 0, 1000, 95.0)],
-                    speaker_id: None, style_id: None, notes: None,
-                    ai_generated: true, last_edited_at: 0,
+                    speaker_id: None,
+                    style_id: None,
+                    notes: None,
+                    ai_generated: true,
+                    last_edited_at: 0,
                 }],
-                speakers: vec![], glossary: vec![],
-                created_at: 0, updated_at: 0,
+                speakers: vec![],
+                glossary: vec![],
+                created_at: 0,
+                updated_at: 0,
             };
             let ass = write_ass(&project);
-            assert!(ass.contains(&format!("Style: Default,{}", p.style.font_family)),
-                "preset {} did not render its font into ASS", p.style.id);
+            assert!(
+                ass.contains(&format!("Style: Default,{}", p.style.font_family)),
+                "preset {} did not render its font into ASS",
+                p.style.id
+            );
             assert!(ass.contains("Dialogue:"));
         }
     }

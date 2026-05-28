@@ -49,83 +49,83 @@ erDiagram
 
 ### Project
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | UUIDv7 | |
-| `name` | string | derived from video filename initially |
-| `video_path` | string | absolute path |
-| `video_content_hash` | string | sha-256, for relink on path break |
-| `video_duration_ms` | i64 | |
-| `video_width`, `video_height` | i32 | |
-| `video_fps` | f32 | |
-| `audio_wav_path` | string | cached extracted audio |
-| `language` | string | ISO 639-1; `auto` for autodetect |
-| `default_style_id` | UUIDv7? | |
-| `context_description` | string? | freeform — used as Whisper initial_prompt seed |
-| `created_at`, `updated_at` | i64 | unix ms |
+| Field                         | Type    | Notes                                          |
+| ----------------------------- | ------- | ---------------------------------------------- |
+| `id`                          | UUIDv7  |                                                |
+| `name`                        | string  | derived from video filename initially          |
+| `video_path`                  | string  | absolute path                                  |
+| `video_content_hash`          | string  | sha-256, for relink on path break              |
+| `video_duration_ms`           | i64     |                                                |
+| `video_width`, `video_height` | i32     |                                                |
+| `video_fps`                   | f32     |                                                |
+| `audio_wav_path`              | string  | cached extracted audio                         |
+| `language`                    | string  | ISO 639-1; `auto` for autodetect               |
+| `default_style_id`            | UUIDv7? |                                                |
+| `context_description`         | string? | freeform — used as Whisper initial_prompt seed |
+| `created_at`, `updated_at`    | i64     | unix ms                                        |
 
 ### Caption (one displayed subtitle line)
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | UUIDv7 | |
-| `project_id` | FK | |
-| `start_ms`, `end_ms` | i64 | invariant: `start < end` |
-| `text` | string | derived: `words.map(w=>w.text).join(" ")` |
-| `speaker_id` | UUIDv7? | when diarization is on |
-| `style_id` | UUIDv7? | per-caption override |
-| `notes` | string? | editor note |
-| `ai_generated` | bool | from ASR vs hand-typed |
-| `last_edited_at` | i64 | |
-| **Invariants** | | Captions never overlap; sorted by `start_ms` |
+| Field                | Type    | Notes                                        |
+| -------------------- | ------- | -------------------------------------------- |
+| `id`                 | UUIDv7  |                                              |
+| `project_id`         | FK      |                                              |
+| `start_ms`, `end_ms` | i64     | invariant: `start < end`                     |
+| `text`               | string  | derived: `words.map(w=>w.text).join(" ")`    |
+| `speaker_id`         | UUIDv7? | when diarization is on                       |
+| `style_id`           | UUIDv7? | per-caption override                         |
+| `notes`              | string? | editor note                                  |
+| `ai_generated`       | bool    | from ASR vs hand-typed                       |
+| `last_edited_at`     | i64     |                                              |
+| **Invariants**       |         | Captions never overlap; sorted by `start_ms` |
 
 ### Word
 
-| Field | Type | Notes |
-|---|---|---|
-| `text` | string | |
-| `start_ms`, `end_ms` | i64 | derived from Whisper |
-| `confidence` | f32 | 0..100 normalized |
-| `edited` | bool | user has changed this from ASR |
-| `locked` | bool | user has confirmed (don't flag as uncertain anymore) |
-| `alternates` | `AlternateRead[]` | top-3 Whisper alternates with their probs |
+| Field                | Type              | Notes                                                |
+| -------------------- | ----------------- | ---------------------------------------------------- |
+| `text`               | string            |                                                      |
+| `start_ms`, `end_ms` | i64               | derived from Whisper                                 |
+| `confidence`         | f32               | 0..100 normalized                                    |
+| `edited`             | bool              | user has changed this from ASR                       |
+| `locked`             | bool              | user has confirmed (don't flag as uncertain anymore) |
+| `alternates`         | `AlternateRead[]` | top-3 Whisper alternates with their probs            |
 
 ### GlossaryTerm
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | UUIDv7 | |
-| `project_id` | FK | |
-| `term` | string | canonical form |
-| `aliases` | `string[]` | misrecognitions auto-corrected to `term` |
-| `definition` | string? | hover-display |
-| `pronunciation_hint` | string? | for Whisper context |
+| Field                | Type       | Notes                                    |
+| -------------------- | ---------- | ---------------------------------------- |
+| `id`                 | UUIDv7     |                                          |
+| `project_id`         | FK         |                                          |
+| `term`               | string     | canonical form                           |
+| `aliases`            | `string[]` | misrecognitions auto-corrected to `term` |
+| `definition`         | string?    | hover-display                            |
+| `pronunciation_hint` | string?    | for Whisper context                      |
 
 ### Style
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | UUIDv7 | |
-| `font_family`, `font_size`, `font_weight`, `italic` | | |
-| `color_fg`, `outline_color`, `outline_width` | | |
-| `shadow_color`, `shadow_offset_x`, `shadow_offset_y`, `shadow_blur` | | |
-| `background_color`, `background_padding`, `background_radius` | | |
-| `align_h`, `align_v` | | left/center/right × top/middle/bottom |
-| `anchor` | string | 9-grid position |
-| `max_width_pct` | f32 | |
-| `line_spacing`, `letter_spacing` | | |
-| `animation` | `AnimationSpec?` | fade, slide, karaoke, popup, none |
+| Field                                                               | Type             | Notes                                 |
+| ------------------------------------------------------------------- | ---------------- | ------------------------------------- |
+| `id`                                                                | UUIDv7           |                                       |
+| `font_family`, `font_size`, `font_weight`, `italic`                 |                  |                                       |
+| `color_fg`, `outline_color`, `outline_width`                        |                  |                                       |
+| `shadow_color`, `shadow_offset_x`, `shadow_offset_y`, `shadow_blur` |                  |                                       |
+| `background_color`, `background_padding`, `background_radius`       |                  |                                       |
+| `align_h`, `align_v`                                                |                  | left/center/right × top/middle/bottom |
+| `anchor`                                                            | string           | 9-grid position                       |
+| `max_width_pct`                                                     | f32              |                                       |
+| `line_spacing`, `letter_spacing`                                    |                  |                                       |
+| `animation`                                                         | `AnimationSpec?` | fade, slide, karaoke, popup, none     |
 
 ## Confidence tiers — the killer feature
 
 Per-word confidence comes from the ASR model (log-probability of the chosen token, normalized to 0–100). The renderer assigns each word to one of four tiers:
 
-| Tier | Range | Visual | Meaning |
-|------|-------|--------|---------|
-| 1 (high) | 85–100 | No highlight | The 92% you don't touch |
-| 2 (medium) | 70–84 | Subtle amber background | Skimmable |
-| 3 (low) | 50–69 | Clear amber + dotted underline | Demands a glance |
-| 4 (very low) | 0–49 | Red-orange + wavy underline | Demands attention |
+| Tier         | Range  | Visual                         | Meaning                 |
+| ------------ | ------ | ------------------------------ | ----------------------- |
+| 1 (high)     | 85–100 | No highlight                   | The 92% you don't touch |
+| 2 (medium)   | 70–84  | Subtle amber background        | Skimmable               |
+| 3 (low)      | 50–69  | Clear amber + dotted underline | Demands a glance        |
+| 4 (very low) | 0–49   | Red-orange + wavy underline    | Demands attention       |
 
 **Underlines are an accessibility fallback** — color alone isn't enough. Colorblind users still see SOMETHING.
 
@@ -133,16 +133,16 @@ Tier boundaries are NOT defaults pulled from thin air — they're calibrated aga
 
 ## Operations (pure functions over Project state)
 
-| Function | Signature | Notes |
-|----------|-----------|-------|
-| `splitCaption` | `(project, caption_id, at_word_index)` | one caption → two |
-| `mergeCaptions` | `(project, [caption_ids])` | adjacent only |
-| `shiftAllCaptions` | `(project, offset_ms)` | bulk nudge |
-| `editWord` | `(project, caption_id, word_index, new_text)` | marks `edited` |
-| `retimeWord` | `(project, caption_id, word_index, start, end)` | manual timing |
-| `lockWord` | `(project, caption_id, word_index)` | removes confidence highlight |
-| `acceptAlternate` | `(project, caption_id, word_index, alternate_index)` | from tooltip |
-| `regenerateCaption` | `(project, caption_id)` | re-run ASR on this caption's time range |
+| Function            | Signature                                            | Notes                                   |
+| ------------------- | ---------------------------------------------------- | --------------------------------------- |
+| `splitCaption`      | `(project, caption_id, at_word_index)`               | one caption → two                       |
+| `mergeCaptions`     | `(project, [caption_ids])`                           | adjacent only                           |
+| `shiftAllCaptions`  | `(project, offset_ms)`                               | bulk nudge                              |
+| `editWord`          | `(project, caption_id, word_index, new_text)`        | marks `edited`                          |
+| `retimeWord`        | `(project, caption_id, word_index, start, end)`      | manual timing                           |
+| `lockWord`          | `(project, caption_id, word_index)`                  | removes confidence highlight            |
+| `acceptAlternate`   | `(project, caption_id, word_index, alternate_index)` | from tooltip                            |
+| `regenerateCaption` | `(project, caption_id)`                              | re-run ASR on this caption's time range |
 
 All operations validate invariants and return a new `Project` state. Undo is trivial: keep the previous state. History is capped (default 100).
 

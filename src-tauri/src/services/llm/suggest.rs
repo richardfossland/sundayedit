@@ -40,19 +40,14 @@ pub enum SuggestionKind {
     Shorten,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "kebab-case")]
 #[ts(export, export_to = "../../src/lib/bindings/Strictness.ts")]
 pub enum Strictness {
     Conservative,
+    #[default]
     Balanced,
     Aggressive,
-}
-
-impl Default for Strictness {
-    fn default() -> Self {
-        Strictness::Balanced
-    }
 }
 
 impl Strictness {
@@ -101,7 +96,10 @@ fn caption_inputs(project: &Project) -> Vec<SuggestInput<'_>> {
         .captions
         .iter()
         .filter(|c| !c.words.is_empty())
-        .map(|c| SuggestInput { caption_id: &c.id, text: c.text() })
+        .map(|c| SuggestInput {
+            caption_id: &c.id,
+            text: c.text(),
+        })
         .collect()
 }
 
@@ -166,10 +164,14 @@ fn extract_json_array(s: &str) -> Option<&str> {
 pub fn parse_suggestions_response(response: &str) -> AppResult<Vec<Suggestion>> {
     let slice = extract_json_array(response)
         .ok_or_else(|| AppError::Validation("suggestion response had no JSON array".into()))?;
-    let items: Vec<Suggestion> = serde_json::from_str(slice)
-        .map_err(|e| AppError::Validation(format!("suggestion response was not valid JSON: {e}")))?;
+    let items: Vec<Suggestion> = serde_json::from_str(slice).map_err(|e| {
+        AppError::Validation(format!("suggestion response was not valid JSON: {e}"))
+    })?;
     // Drop empty suggestions defensively — apply would reject them anyway.
-    Ok(items.into_iter().filter(|s| !s.suggestion.trim().is_empty()).collect())
+    Ok(items
+        .into_iter()
+        .filter(|s| !s.suggestion.trim().is_empty())
+        .collect())
 }
 
 // ── Applying one accepted suggestion ──────────────────────────────────────────
@@ -181,7 +183,10 @@ pub fn parse_suggestions_response(response: &str) -> AppResult<Vec<Suggestion>> 
 /// at full confidence.
 fn retime_words(texts: &[&str], start_ms: i64, end_ms: i64) -> Vec<Word> {
     let span = (end_ms - start_ms).max(1);
-    let lens: Vec<i64> = texts.iter().map(|t| t.chars().count().max(1) as i64).collect();
+    let lens: Vec<i64> = texts
+        .iter()
+        .map(|t| t.chars().count().max(1) as i64)
+        .collect();
     let total: i64 = lens.iter().sum::<i64>().max(1);
 
     let mut words = Vec::with_capacity(texts.len());
@@ -190,7 +195,11 @@ fn retime_words(texts: &[&str], start_ms: i64, end_ms: i64) -> Vec<Word> {
     let last = texts.len().saturating_sub(1);
     for (i, t) in texts.iter().enumerate() {
         acc += lens[i];
-        let boundary = if i == last { end_ms } else { start_ms + span * acc / total };
+        let boundary = if i == last {
+            end_ms
+        } else {
+            start_ms + span * acc / total
+        };
         let end = boundary.max(prev + 1).min(end_ms);
         let mut w = Word::new(*t, prev, end.max(prev + 1), 100.0);
         w.edited = true;
@@ -203,7 +212,11 @@ fn retime_words(texts: &[&str], start_ms: i64, end_ms: i64) -> Vec<Word> {
 /// Apply a single accepted suggestion. Replaces the target caption's words
 /// with the proposed text (re-timed within the caption span). Errors if the
 /// caption is gone or the suggestion is empty.
-pub fn apply_suggestion(project: &Project, suggestion: &Suggestion, now_ms: i64) -> AppResult<Project> {
+pub fn apply_suggestion(
+    project: &Project,
+    suggestion: &Suggestion,
+    now_ms: i64,
+) -> AppResult<Project> {
     let text = suggestion.suggestion.trim();
     if text.is_empty() {
         return Err(AppError::Validation("suggestion text is empty".into()));
@@ -218,7 +231,10 @@ pub fn apply_suggestion(project: &Project, suggestion: &Suggestion, now_ms: i64)
         .captions
         .iter_mut()
         .find(|c| c.id == suggestion.caption_id)
-        .ok_or_else(|| AppError::NotFound { entity: "caption", id: suggestion.caption_id.clone() })?;
+        .ok_or_else(|| AppError::NotFound {
+            entity: "caption",
+            id: suggestion.caption_id.clone(),
+        })?;
 
     cap.words = retime_words(&tokens, cap.start_ms, cap.end_ms);
     cap.ai_generated = false; // it's now a human-approved edit
@@ -269,7 +285,12 @@ mod tests {
     }
 
     fn sug(id: &str, kind: SuggestionKind, text: &str) -> Suggestion {
-        Suggestion { caption_id: id.into(), kind, suggestion: text.into(), reasoning: "r".into() }
+        Suggestion {
+            caption_id: id.into(),
+            kind,
+            suggestion: text.into(),
+            reasoning: "r".into(),
+        }
     }
 
     // ── prompts ──────────────────────────────────────────────────────────────
@@ -283,7 +304,12 @@ mod tests {
 
     #[test]
     fn user_prompt_lists_captions() {
-        let p = project_with(vec![caption("c1", 0, 1000, vec![Word::new("hei", 0, 1000, 80.0)])]);
+        let p = project_with(vec![caption(
+            "c1",
+            0,
+            1000,
+            vec![Word::new("hei", 0, 1000, 80.0)],
+        )]);
         let prompt = build_suggest_user_prompt(&p);
         assert!(prompt.contains("caption_id"));
         assert!(prompt.contains("c1"));
@@ -303,7 +329,8 @@ mod tests {
 
     #[test]
     fn parser_accepts_id_alias() {
-        let r = r#"[{"id":"c9","kind":"fix-transcription","suggestion":"kerygma","reasoning":"term"}]"#;
+        let r =
+            r#"[{"id":"c9","kind":"fix-transcription","suggestion":"kerygma","reasoning":"term"}]"#;
         let s = parse_suggestions_response(r).unwrap();
         assert_eq!(s[0].caption_id, "c9");
         assert_eq!(s[0].kind, SuggestionKind::FixTranscription);
@@ -355,8 +382,17 @@ mod tests {
 
     #[test]
     fn apply_word_timings_are_monotonic_and_in_bounds() {
-        let p = project_with(vec![caption("c1", 0, 1000, vec![Word::new("a", 0, 1000, 50.0)])]);
-        let s = sug("c1", SuggestionKind::Rephrase, "one two three four five six seven");
+        let p = project_with(vec![caption(
+            "c1",
+            0,
+            1000,
+            vec![Word::new("a", 0, 1000, 50.0)],
+        )]);
+        let s = sug(
+            "c1",
+            SuggestionKind::Rephrase,
+            "one two three four five six seven",
+        );
         let out = apply_suggestion(&p, &s, 1).unwrap();
         let cap = &out.captions[0];
         let mut prev = cap.start_ms;
@@ -371,7 +407,12 @@ mod tests {
 
     #[test]
     fn apply_unknown_caption_errors() {
-        let p = project_with(vec![caption("c1", 0, 1000, vec![Word::new("hi", 0, 1000, 90.0)])]);
+        let p = project_with(vec![caption(
+            "c1",
+            0,
+            1000,
+            vec![Word::new("hi", 0, 1000, 90.0)],
+        )]);
         let s = sug("nope", SuggestionKind::Rephrase, "Hello.");
         let err = apply_suggestion(&p, &s, 1).unwrap_err();
         assert_eq!(err.code(), "not_found");
@@ -379,7 +420,12 @@ mod tests {
 
     #[test]
     fn apply_empty_suggestion_errors() {
-        let p = project_with(vec![caption("c1", 0, 1000, vec![Word::new("hi", 0, 1000, 90.0)])]);
+        let p = project_with(vec![caption(
+            "c1",
+            0,
+            1000,
+            vec![Word::new("hi", 0, 1000, 90.0)],
+        )]);
         let s = sug("c1", SuggestionKind::Rephrase, "   ");
         assert!(apply_suggestion(&p, &s, 1).is_err());
     }
@@ -388,7 +434,12 @@ mod tests {
     fn applying_one_leaves_other_captions_untouched() {
         let p = project_with(vec![
             caption("c1", 0, 1000, vec![Word::new("hei", 0, 1000, 80.0)]),
-            caption("c2", 2000, 4000, vec![Word::new("verden", 2000, 4000, 80.0)]),
+            caption(
+                "c2",
+                2000,
+                4000,
+                vec![Word::new("verden", 2000, 4000, 80.0)],
+            ),
         ]);
         let out = apply_suggestion(&p, &sug("c1", SuggestionKind::Rephrase, "Hei!"), 5).unwrap();
         assert_eq!(out.captions[1].words[0].text, "verden");

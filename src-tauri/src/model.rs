@@ -61,12 +61,14 @@ impl Word {
     /// table. Tier 1 = high confidence (don't touch). Tier 4 = very low
     /// (demands attention).
     pub fn confidence_tier(&self) -> u8 {
-        if self.locked || self.edited { return 1; }
+        if self.locked || self.edited {
+            return 1;
+        }
         match self.confidence {
             c if c >= 85.0 => 1,
             c if c >= 70.0 => 2,
             c if c >= 50.0 => 3,
-            _              => 4,
+            _ => 4,
         }
     }
 }
@@ -95,7 +97,8 @@ impl Caption {
     /// convenience but never persisted as a separate field; words are
     /// the source of truth.
     pub fn text(&self) -> String {
-        self.words.iter()
+        self.words
+            .iter()
             .map(|w| w.text.as_str())
             .collect::<Vec<_>>()
             .join(" ")
@@ -104,7 +107,8 @@ impl Caption {
     /// Number of words below the given confidence threshold (excluding
     /// locked/edited words — those are trusted).
     pub fn uncertain_word_count(&self, threshold: f32) -> usize {
-        self.words.iter()
+        self.words
+            .iter()
             .filter(|w| !w.locked && !w.edited && w.confidence < threshold)
             .count()
     }
@@ -145,7 +149,7 @@ pub struct Style {
     pub font_size_px: i32,
     pub font_weight: i32,
     pub italic: bool,
-    pub color_fg: String,        // hex
+    pub color_fg: String, // hex
     pub outline_color: String,
     pub outline_width_px: i32,
     pub shadow_color: String,

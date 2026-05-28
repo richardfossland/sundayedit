@@ -27,13 +27,16 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
 
   const counts = new Map<string, number>();
   for (const c of project.captions) {
-    if (c.speaker_id) counts.set(c.speaker_id, (counts.get(c.speaker_id) ?? 0) + 1);
+    if (c.speaker_id)
+      counts.set(c.speaker_id, (counts.get(c.speaker_id) ?? 0) + 1);
   }
 
   async function detect() {
     setError(null);
     if (!project.audio_wav_path) {
-      setError("Ingen lyd er hentet ut ennå. Importer en video og kjør waveform/transkripsjon først.");
+      setError(
+        "Ingen lyd er hentet ut ennå. Importer en video og kjør waveform/transkripsjon først.",
+      );
       return;
     }
     setRunning(true);
@@ -48,16 +51,27 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
   }
 
   async function rename(id: string, name: string) {
-    try { onProjectChange(await ipc.diarize.renameSpeaker(project, id, name)); }
-    catch (e) { setError(e instanceof IPCError ? e.message : String(e)); }
+    try {
+      onProjectChange(await ipc.diarize.renameSpeaker(project, id, name));
+    } catch (e) {
+      setError(e instanceof IPCError ? e.message : String(e));
+    }
   }
   async function setColor(id: string, color: string) {
-    try { onProjectChange(await ipc.diarize.setSpeakerColor(project, id, color)); }
-    catch (e) { setError(e instanceof IPCError ? e.message : String(e)); }
+    try {
+      onProjectChange(await ipc.diarize.setSpeakerColor(project, id, color));
+    } catch (e) {
+      setError(e instanceof IPCError ? e.message : String(e));
+    }
   }
   async function merge(removeId: string, keepId: string) {
-    try { onProjectChange(await ipc.diarize.mergeSpeakers(project, keepId, removeId)); }
-    catch (e) { setError(e instanceof IPCError ? e.message : String(e)); }
+    try {
+      onProjectChange(
+        await ipc.diarize.mergeSpeakers(project, keepId, removeId),
+      );
+    } catch (e) {
+      setError(e instanceof IPCError ? e.message : String(e));
+    }
   }
 
   return (
@@ -72,10 +86,13 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
       </header>
 
       <div className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-surface)] px-3 py-2 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-        <Info size={15} className="mt-0.5 shrink-0 text-[var(--color-accent-400)]" />
+        <Info
+          size={15}
+          className="mt-0.5 shrink-0 text-[var(--color-accent-400)]"
+        />
         <span>
-          Talergjenkjenning er et beste-forsøk. Kontroller tilordningene før du eksporterer —
-          slå sammen talere som ble delt opp, eller gi nytt navn.
+          Talergjenkjenning er et beste-forsøk. Kontroller tilordningene før du
+          eksporterer — slå sammen talere som ble delt opp, eller gi nytt navn.
         </span>
       </div>
 
@@ -95,7 +112,9 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
       )}
 
       {project.speakers.length === 0 ? (
-        <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-subtle)]">Ingen talere ennå.</p>
+        <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-subtle)]">
+          Ingen talere ennå.
+        </p>
       ) : (
         <ul className="space-y-2">
           {project.speakers.map((s) => (
@@ -112,8 +131,16 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
               />
               <input
                 defaultValue={s.display_name}
-                onBlur={(e) => { if (e.target.value.trim() && e.target.value !== s.display_name) rename(s.id, e.target.value.trim()); }}
-                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                onBlur={(e) => {
+                  if (
+                    e.target.value.trim() &&
+                    e.target.value !== s.display_name
+                  )
+                    rename(s.id, e.target.value.trim());
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                }}
                 className="flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-[var(--text-ui-sm)] font-medium outline-none hover:border-[var(--color-border)] focus:border-[var(--color-accent-500)]"
               />
               <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
@@ -124,14 +151,20 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
                   <Merge size={12} />
                   <select
                     value=""
-                    onChange={(e) => { if (e.target.value) merge(s.id, e.target.value); }}
+                    onChange={(e) => {
+                      if (e.target.value) merge(s.id, e.target.value);
+                    }}
                     title="Slå denne taleren sammen med en annen"
                     className="rounded border border-[var(--color-border)] bg-[var(--color-bg-input)] px-1 py-0.5 outline-none focus:border-[var(--color-accent-500)]"
                   >
                     <option value="">Slå sammen…</option>
-                    {project.speakers.filter((o) => o.id !== s.id).map((o) => (
-                      <option key={o.id} value={o.id}>→ {o.display_name}</option>
-                    ))}
+                    {project.speakers
+                      .filter((o) => o.id !== s.id)
+                      .map((o) => (
+                        <option key={o.id} value={o.id}>
+                          → {o.display_name}
+                        </option>
+                      ))}
                   </select>
                 </label>
               )}

@@ -12,11 +12,11 @@
 //!   - `cloud`       — cloud provider response normalization
 //!   - `local`       — LocalWhisperProvider (feature-gated on `whisper`)
 
-pub mod confidence;
-pub mod model;
 pub mod captionize;
 pub mod cloud;
+pub mod confidence;
 pub mod local;
+pub mod model;
 
 use std::path::Path;
 
@@ -101,13 +101,19 @@ impl AsrOptions {
         }
         if !self.priming_terms.is_empty() {
             // Cap the term list so we stay well under Whisper's prompt window.
-            let terms: Vec<&str> = self.priming_terms.iter()
+            let terms: Vec<&str> = self
+                .priming_terms
+                .iter()
                 .map(|s| s.as_str())
                 .take(48)
                 .collect();
             parts.push(format!("Names and terms to expect: {}.", terms.join(", ")));
         }
-        if parts.is_empty() { None } else { Some(parts.join(" ")) }
+        if parts.is_empty() {
+            None
+        } else {
+            Some(parts.join(" "))
+        }
     }
 }
 
@@ -186,7 +192,10 @@ mod tests {
     #[test]
     fn initial_prompt_caps_term_count() {
         let terms: Vec<String> = (0..100).map(|i| format!("term{i}")).collect();
-        let o = AsrOptions { priming_terms: terms, ..Default::default() };
+        let o = AsrOptions {
+            priming_terms: terms,
+            ..Default::default()
+        };
         let prompt = o.initial_prompt().unwrap();
         // 48-term cap → term0..term47 present, term48 absent
         assert!(prompt.contains("term47"));

@@ -39,10 +39,7 @@ pub struct GlossaryCorrection {
 
 /// Apply the glossary to a project. Returns the updated project and the
 /// list of corrections made.
-pub fn apply_glossary(
-    project: &Project,
-    now_ms: i64,
-) -> (Project, Vec<GlossaryCorrection>) {
+pub fn apply_glossary(project: &Project, now_ms: i64) -> (Project, Vec<GlossaryCorrection>) {
     let mut next = project.clone();
     let mut corrections = Vec::new();
 
@@ -125,7 +122,10 @@ fn normalize(s: &str) -> String {
 fn split_affixes(s: &str) -> (&str, &str, &str) {
     let is_word_char = |c: char| c.is_alphanumeric() || c == '\'' || c == '-';
     let start = s.find(is_word_char).unwrap_or(s.len());
-    let end = s.rfind(is_word_char).map(|i| i + s[i..].chars().next().unwrap().len_utf8()).unwrap_or(start);
+    let end = s
+        .rfind(is_word_char)
+        .map(|i| i + s[i..].chars().next().unwrap().len_utf8())
+        .unwrap_or(start);
     (&s[..start], &s[start..end], &s[end..])
 }
 
@@ -136,20 +136,33 @@ mod tests {
 
     fn project_with(words: Vec<Word>, glossary: Vec<GlossaryTerm>) -> Project {
         Project {
-            id: "p".into(), name: "t".into(),
-            video_path: "/x".into(), video_content_hash: "h".into(),
-            video_duration_ms: 1000, video_width: 0, video_height: 0, video_fps: 0.0,
-            audio_wav_path: None, language: "no".into(),
+            id: "p".into(),
+            name: "t".into(),
+            video_path: "/x".into(),
+            video_content_hash: "h".into(),
+            video_duration_ms: 1000,
+            video_width: 0,
+            video_height: 0,
+            video_fps: 0.0,
+            audio_wav_path: None,
+            language: "no".into(),
             default_style: Style::broadcast_news(),
             context_description: None,
             captions: vec![Caption {
-                id: "c1".into(), start_ms: 0, end_ms: 1000, words,
-                speaker_id: None, style_id: None, notes: None,
-                ai_generated: true, last_edited_at: 0,
+                id: "c1".into(),
+                start_ms: 0,
+                end_ms: 1000,
+                words,
+                speaker_id: None,
+                style_id: None,
+                notes: None,
+                ai_generated: true,
+                last_edited_at: 0,
             }],
             speakers: vec![],
             glossary,
-            created_at: 0, updated_at: 0,
+            created_at: 0,
+            updated_at: 0,
         }
     }
 
@@ -227,7 +240,10 @@ mod tests {
         w.edited = true; // user already touched it
         let p = project_with(vec![w], vec![term("g1", "kerygma", &["kerigma"])]);
         let (out, corr) = apply_glossary(&p, 100);
-        assert_eq!(out.captions[0].words[0].text, "kerigma", "don't override user edits");
+        assert_eq!(
+            out.captions[0].words[0].text, "kerigma",
+            "don't override user edits"
+        );
         assert!(corr.is_empty());
     }
 
@@ -271,11 +287,11 @@ mod tests {
 
     #[test]
     fn split_affixes_works() {
-        assert_eq!(split_affixes("word"),       ("", "word", ""));
-        assert_eq!(split_affixes("word,"),      ("", "word", ","));
-        assert_eq!(split_affixes("(word)."),    ("(", "word", ")."));
-        assert_eq!(split_affixes("\"word\""),   ("\"", "word", "\""));
-        assert_eq!(split_affixes("don't"),      ("", "don't", ""));
-        assert_eq!(split_affixes("..."),        ("...", "", ""));
+        assert_eq!(split_affixes("word"), ("", "word", ""));
+        assert_eq!(split_affixes("word,"), ("", "word", ","));
+        assert_eq!(split_affixes("(word)."), ("(", "word", ")."));
+        assert_eq!(split_affixes("\"word\""), ("\"", "word", "\""));
+        assert_eq!(split_affixes("don't"), ("", "don't", ""));
+        assert_eq!(split_affixes("..."), ("...", "", ""));
     }
 }

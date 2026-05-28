@@ -12,7 +12,7 @@
 //! editor's highlighting works immediately on a fresh transcript.
 
 use crate::model::{Caption, Word};
-use crate::services::asr::{Transcript, TranscribedWord};
+use crate::services::asr::{TranscribedWord, Transcript};
 
 /// Subtitle-breaking parameters. Defaults follow broadcast conventions.
 #[derive(Debug, Clone, Copy)]
@@ -28,7 +28,7 @@ pub struct CaptionizeOptions {
 impl Default for CaptionizeOptions {
     fn default() -> Self {
         Self {
-            max_chars: 84,         // ~2 lines × 42 chars
+            max_chars: 84, // ~2 lines × 42 chars
             max_caption_ms: 6_000,
             min_caption_ms: 800,
         }
@@ -37,8 +37,11 @@ impl Default for CaptionizeOptions {
 
 /// Characters that end a sentence — preferred break points.
 fn ends_sentence(text: &str) -> bool {
-    text.ends_with('.') || text.ends_with('!') || text.ends_with('?')
-        || text.ends_with('。') || text.ends_with('…')
+    text.ends_with('.')
+        || text.ends_with('!')
+        || text.ends_with('?')
+        || text.ends_with('。')
+        || text.ends_with('…')
 }
 
 /// Convert a transcript into captions. `id_for` generates a stable id for
@@ -65,7 +68,10 @@ pub fn captionize(
     let mut current_chars = 0usize;
     let mut caption_index = 0usize;
 
-    let flush = |captions: &mut Vec<Caption>, words: &mut Vec<Word>, index: &mut usize, id_for: &mut dyn FnMut(usize) -> String| {
+    let flush = |captions: &mut Vec<Caption>,
+                 words: &mut Vec<Word>,
+                 index: &mut usize,
+                 id_for: &mut dyn FnMut(usize) -> String| {
         if words.is_empty() {
             return;
         }
@@ -145,10 +151,15 @@ fn merge_too_short(captions: Vec<Caption>, min_caption_ms: i64) -> Vec<Caption> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::asr::{Segment, Transcript, TranscribedWord};
+    use crate::services::asr::{Segment, TranscribedWord, Transcript};
 
     fn tw(text: &str, start: i64, end: i64, conf: f32) -> TranscribedWord {
-        TranscribedWord { text: text.into(), start_ms: start, end_ms: end, confidence: conf }
+        TranscribedWord {
+            text: text.into(),
+            start_ms: start,
+            end_ms: end,
+            confidence: conf,
+        }
     }
 
     fn transcript(words: Vec<TranscribedWord>) -> Transcript {
@@ -169,7 +180,11 @@ mod tests {
 
     #[test]
     fn empty_transcript_yields_no_captions() {
-        let t = Transcript { language: "en".into(), backend: "t".into(), segments: vec![] };
+        let t = Transcript {
+            language: "en".into(),
+            backend: "t".into(),
+            segments: vec![],
+        };
         let caps = captionize(&t, CaptionizeOptions::default(), 0, counter_ids());
         assert!(caps.is_empty());
     }
@@ -190,10 +205,11 @@ mod tests {
 
     #[test]
     fn confidence_carries_through() {
-        let t = transcript(vec![
-            tw("kerygma", 0, 800, 38.0),
-        ]);
-        let opts = CaptionizeOptions { min_caption_ms: 0, ..Default::default() };
+        let t = transcript(vec![tw("kerygma", 0, 800, 38.0)]);
+        let opts = CaptionizeOptions {
+            min_caption_ms: 0,
+            ..Default::default()
+        };
         let caps = captionize(&t, opts, 0, counter_ids());
         assert_eq!(caps[0].words[0].confidence, 38.0);
         assert_eq!(caps[0].words[0].confidence_tier(), 4); // very low
@@ -207,12 +223,20 @@ mod tests {
             words.push(tw("word", i * 300, i * 300 + 250, 90.0));
         }
         let t = transcript(words);
-        let opts = CaptionizeOptions { max_chars: 40, min_caption_ms: 0, ..Default::default() };
+        let opts = CaptionizeOptions {
+            max_chars: 40,
+            min_caption_ms: 0,
+            ..Default::default()
+        };
         let caps = captionize(&t, opts, 0, counter_ids());
         assert!(caps.len() > 1, "long run must split into multiple captions");
         // No caption exceeds the char budget by more than one word
         for c in &caps {
-            assert!(c.text().chars().count() <= 45, "caption too long: {}", c.text());
+            assert!(
+                c.text().chars().count() <= 45,
+                "caption too long: {}",
+                c.text()
+            );
         }
     }
 
@@ -228,7 +252,11 @@ mod tests {
             tw("two.", 1700, 2100, 95.0),
         ]);
         // Small max_chars so the half-budget sentence-break triggers
-        let opts = CaptionizeOptions { max_chars: 16, min_caption_ms: 0, ..Default::default() };
+        let opts = CaptionizeOptions {
+            max_chars: 16,
+            min_caption_ms: 0,
+            ..Default::default()
+        };
         let caps = captionize(&t, opts, 0, counter_ids());
         assert!(caps.len() >= 2);
         // First caption should end on a sentence
@@ -243,7 +271,11 @@ mod tests {
             tw("start", 0, 500, 95.0),
             tw("end", 10_000, 10_500, 95.0),
         ]);
-        let opts = CaptionizeOptions { max_caption_ms: 4_000, min_caption_ms: 0, max_chars: 100 };
+        let opts = CaptionizeOptions {
+            max_caption_ms: 4_000,
+            min_caption_ms: 0,
+            max_chars: 100,
+        };
         let caps = captionize(&t, opts, 0, counter_ids());
         assert_eq!(caps.len(), 2);
     }
@@ -252,11 +284,15 @@ mod tests {
     fn merges_too_short_captions() {
         // A 200ms fragment should merge into its neighbour.
         let t = transcript(vec![
-            tw("Hi.", 0, 200, 95.0),       // 200ms — below min
+            tw("Hi.", 0, 200, 95.0), // 200ms — below min
             tw("There", 1000, 1400, 95.0),
             tw("friend.", 1400, 2000, 95.0),
         ]);
-        let opts = CaptionizeOptions { max_chars: 8, min_caption_ms: 800, max_caption_ms: 6000 };
+        let opts = CaptionizeOptions {
+            max_chars: 8,
+            min_caption_ms: 800,
+            max_caption_ms: 6000,
+        };
         let caps = captionize(&t, opts, 0, counter_ids());
         // "Hi." alone is 200ms < 800ms min, so it merges forward.
         // Verify no caption is below the min after merging (except possibly merged ones span more).
@@ -270,11 +306,12 @@ mod tests {
 
     #[test]
     fn ids_are_assigned_in_order() {
-        let t = transcript(vec![
-            tw("a.", 0, 300, 95.0),
-            tw("b.", 5000, 5300, 95.0),
-        ]);
-        let opts = CaptionizeOptions { max_caption_ms: 1000, min_caption_ms: 0, max_chars: 100 };
+        let t = transcript(vec![tw("a.", 0, 300, 95.0), tw("b.", 5000, 5300, 95.0)]);
+        let opts = CaptionizeOptions {
+            max_caption_ms: 1000,
+            min_caption_ms: 0,
+            max_chars: 100,
+        };
         let caps = captionize(&t, opts, 0, counter_ids());
         assert_eq!(caps[0].id, "c0");
         assert_eq!(caps[1].id, "c1");

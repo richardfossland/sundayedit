@@ -21,7 +21,13 @@ interface Props {
   onSeek?: (ms: number) => void;
 }
 
-export function Waveform({ data, durationMs, playheadMs, height = 96, onSeek }: Props) {
+export function Waveform({
+  data,
+  durationMs,
+  playheadMs,
+  height = 96,
+  onSeek,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 

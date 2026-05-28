@@ -7,13 +7,16 @@ use std::path::{Path, PathBuf};
 
 use crate::error::{AppError, AppResult};
 use crate::model::{Project, Style};
-use crate::services::{project_file, video, waveform};
 use crate::services::video::VideoMetadata;
 use crate::services::waveform::WaveformData;
+use crate::services::{project_file, video, waveform};
 
 fn now_ms() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 fn new_id() -> String {
@@ -34,7 +37,8 @@ pub fn project_create_from_video(path: String) -> AppResult<Project> {
     let p = Path::new(&path);
     let meta = video::probe(p)?;
     let hash = video::content_hash(p)?;
-    let name = p.file_name()
+    let name = p
+        .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Untitled")
         .to_string();
@@ -82,10 +86,7 @@ pub async fn project_open(path: String) -> AppResult<Project> {
 #[tauri::command]
 pub fn waveform_compute(video_path: String, cache_dir: String) -> AppResult<WaveformData> {
     let input = Path::new(&video_path);
-    let wav = Path::new(&cache_dir).join(format!(
-        "{}.wav",
-        video::content_hash(input)?,
-    ));
+    let wav = Path::new(&cache_dir).join(format!("{}.wav", video::content_hash(input)?,));
     if !wav.exists() {
         waveform::extract_audio_wav(input, &wav)?;
     }
@@ -110,5 +111,8 @@ pub fn project_relink(
 /// native open-file dialog filter.
 #[tauri::command]
 pub fn accepted_media_extensions() -> Vec<String> {
-    video::accepted_extensions().into_iter().map(String::from).collect()
+    video::accepted_extensions()
+        .into_iter()
+        .map(String::from)
+        .collect()
 }

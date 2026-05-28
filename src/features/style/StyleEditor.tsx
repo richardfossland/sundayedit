@@ -24,9 +24,15 @@ interface Props {
 }
 
 const ANCHORS: Array<{ key: string; label: string }> = [
-  { key: "tl", label: "↖" }, { key: "tc", label: "↑" }, { key: "tr", label: "↗" },
-  { key: "ml", label: "←" }, { key: "mc", label: "•" }, { key: "mr", label: "→" },
-  { key: "bl", label: "↙" }, { key: "bc", label: "↓" }, { key: "br", label: "↘" },
+  { key: "tl", label: "↖" },
+  { key: "tc", label: "↑" },
+  { key: "tr", label: "↗" },
+  { key: "ml", label: "←" },
+  { key: "mc", label: "•" },
+  { key: "mr", label: "→" },
+  { key: "bl", label: "↙" },
+  { key: "bc", label: "↓" },
+  { key: "br", label: "↘" },
 ];
 
 export function StyleEditor({ style, onChange }: Props) {
@@ -46,7 +52,10 @@ export function StyleEditor({ style, onChange }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  const css = useMemo(() => styleToCss(style, frameHeight), [style, frameHeight]);
+  const css = useMemo(
+    () => styleToCss(style, frameHeight),
+    [style, frameHeight],
+  );
 
   function patch(p: Partial<Style>) {
     onChange({ ...style, ...p });
@@ -74,7 +83,8 @@ export function StyleEditor({ style, onChange }: Props) {
           </div>
         </div>
         <p className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-          Forhåndsvisning bruker samme stil som burn-in — det du ser er det du får.
+          Forhåndsvisning bruker samme stil som burn-in — det du ser er det du
+          får.
         </p>
       </div>
 
@@ -99,8 +109,12 @@ export function StyleEditor({ style, onChange }: Props) {
                 )}
                 title={p.description}
               >
-                <div className="text-[var(--text-ui-sm)] font-medium">{p.style.name}</div>
-                <div className="text-[10px] text-[var(--color-fg-subtle)]">{p.category}</div>
+                <div className="text-[var(--text-ui-sm)] font-medium">
+                  {p.style.name}
+                </div>
+                <div className="text-[10px] text-[var(--color-fg-subtle)]">
+                  {p.category}
+                </div>
               </button>
             ))}
           </div>
@@ -109,7 +123,10 @@ export function StyleEditor({ style, onChange }: Props) {
         {/* Font size */}
         <Control label={`Skriftstørrelse (${style.font_size_px}px)`}>
           <input
-            type="range" min={20} max={120} value={style.font_size_px}
+            type="range"
+            min={20}
+            max={120}
+            value={style.font_size_px}
             onChange={(e) => patch({ font_size_px: Number(e.target.value) })}
             className="w-full accent-[var(--color-accent-500)]"
           />
@@ -118,16 +135,29 @@ export function StyleEditor({ style, onChange }: Props) {
         {/* Colours */}
         <Control label="Farger">
           <div className="flex items-center gap-4">
-            <ColorField label="Tekst" value={style.color_fg} onChange={(v) => patch({ color_fg: v })} />
-            <ColorField label="Kontur" value={style.outline_color} onChange={(v) => patch({ outline_color: v })} />
+            <ColorField
+              label="Tekst"
+              value={style.color_fg}
+              onChange={(v) => patch({ color_fg: v })}
+            />
+            <ColorField
+              label="Kontur"
+              value={style.outline_color}
+              onChange={(v) => patch({ outline_color: v })}
+            />
           </div>
         </Control>
 
         {/* Outline width */}
         <Control label={`Konturbredde (${style.outline_width_px}px)`}>
           <input
-            type="range" min={0} max={10} value={style.outline_width_px}
-            onChange={(e) => patch({ outline_width_px: Number(e.target.value) })}
+            type="range"
+            min={0}
+            max={10}
+            value={style.outline_width_px}
+            onChange={(e) =>
+              patch({ outline_width_px: Number(e.target.value) })
+            }
             className="w-full accent-[var(--color-accent-500)]"
           />
         </Control>
@@ -139,11 +169,23 @@ export function StyleEditor({ style, onChange }: Props) {
               <button
                 key={a.key}
                 type="button"
-                onClick={() => patch({
-                  anchor: a.key,
-                  align_v: a.key[0] === "t" ? "top" : a.key[0] === "b" ? "bottom" : "middle",
-                  align_h: a.key[1] === "l" ? "left" : a.key[1] === "r" ? "right" : "center",
-                })}
+                onClick={() =>
+                  patch({
+                    anchor: a.key,
+                    align_v:
+                      a.key[0] === "t"
+                        ? "top"
+                        : a.key[0] === "b"
+                          ? "bottom"
+                          : "middle",
+                    align_h:
+                      a.key[1] === "l"
+                        ? "left"
+                        : a.key[1] === "r"
+                          ? "right"
+                          : "center",
+                  })
+                }
                 className={cn(
                   "grid h-8 w-8 place-items-center rounded text-[var(--text-ui-sm)]",
                   style.anchor === a.key
@@ -164,7 +206,9 @@ export function StyleEditor({ style, onChange }: Props) {
               type="checkbox"
               checked={style.background_color != null}
               onChange={(e) =>
-                patch({ background_color: e.target.checked ? "#000000A0" : null })
+                patch({
+                  background_color: e.target.checked ? "#000000A0" : null,
+                })
               }
               className="accent-[var(--color-accent-500)]"
             />
@@ -176,7 +220,13 @@ export function StyleEditor({ style, onChange }: Props) {
   );
 }
 
-function Control({ label, children }: { label: string; children: React.ReactNode }) {
+function Control({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <section>
       <h3 className="mb-2 text-[var(--text-ui-xs)] font-semibold uppercase tracking-wider text-[var(--color-fg-subtle)]">
@@ -188,8 +238,14 @@ function Control({ label, children }: { label: string; children: React.ReactNode
 }
 
 function ColorField({
-  label, value, onChange,
-}: { label: string; value: string; onChange: (v: string) => void }) {
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
   // Strip any 8-digit alpha for the native picker; keep full value in state.
   const base = value.length > 7 ? value.slice(0, 7) : value;
   return (

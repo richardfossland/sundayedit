@@ -55,11 +55,12 @@ pub fn extract_audio_wav(input: &Path, out_wav: &Path) -> AppResult<()> {
     }
     let status = Command::new(ffmpeg_path())
         .arg("-y") // overwrite
-        .arg("-i").arg(input)
-        .args(["-ac", "1"])                                  // mono
-        .args(["-ar", &TARGET_SAMPLE_RATE.to_string()])      // 16 kHz
-        .args(["-c:a", "pcm_s16le"])                         // 16-bit PCM
-        .arg("-vn")                                          // drop video
+        .arg("-i")
+        .arg(input)
+        .args(["-ac", "1"]) // mono
+        .args(["-ar", &TARGET_SAMPLE_RATE.to_string()]) // 16 kHz
+        .args(["-c:a", "pcm_s16le"]) // 16-bit PCM
+        .arg("-vn") // drop video
         .arg(out_wav)
         .status()
         .map_err(|e| AppError::Internal(format!("failed to launch ffmpeg: {e}")))?;
@@ -111,13 +112,19 @@ pub fn compute_peaks(samples: &[f32], bucket_count: usize) -> Vec<Peak> {
     let mut peaks = Vec::with_capacity(bucket_count);
     for i in 0..bucket_count {
         let start = (i as f64 * per_bucket).floor() as usize;
-        let end = (((i + 1) as f64 * per_bucket).floor() as usize).min(samples.len()).max(start + 1);
+        let end = (((i + 1) as f64 * per_bucket).floor() as usize)
+            .min(samples.len())
+            .max(start + 1);
         let slice = &samples[start..end];
         let mut min = f32::MAX;
         let mut max = f32::MIN;
         for &s in slice {
-            if s < min { min = s; }
-            if s > max { max = s; }
+            if s < min {
+                min = s;
+            }
+            if s > max {
+                max = s;
+            }
         }
         peaks.push(Peak { min, max });
     }
@@ -127,7 +134,13 @@ pub fn compute_peaks(samples: &[f32], bucket_count: usize) -> Vec<Peak> {
 /// Build multi-resolution peak data. `base_buckets` is the coarsest
 /// level; each subsequent level multiplies by `factor`. Levels stop once
 /// a level would have more buckets than samples (no point oversampling).
-pub fn compute_levels(samples: &[f32], sample_rate: u32, base_buckets: usize, factor: usize, max_levels: usize) -> WaveformData {
+pub fn compute_levels(
+    samples: &[f32],
+    sample_rate: u32,
+    base_buckets: usize,
+    factor: usize,
+    max_levels: usize,
+) -> WaveformData {
     let mut levels = Vec::new();
     let mut buckets = base_buckets.max(1);
     for _ in 0..max_levels {
@@ -167,7 +180,7 @@ mod tests {
     fn peaks_preserve_transient_spike() {
         // A flat-ish signal with one big spike in the middle bucket.
         let mut samples = vec![0.01_f32; 300];
-        samples[150] = 0.95;     // spike
+        samples[150] = 0.95; // spike
         samples[151] = -0.93;
         let peaks = compute_peaks(&samples, 3);
         assert_eq!(peaks.len(), 3);
@@ -188,7 +201,9 @@ mod tests {
         // Ramp from -1 to 1; min of first bucket should be near -1,
         // max of last bucket near +1 — proving full coverage.
         let n = 1000;
-        let samples: Vec<f32> = (0..n).map(|i| -1.0 + 2.0 * (i as f32 / (n - 1) as f32)).collect();
+        let samples: Vec<f32> = (0..n)
+            .map(|i| -1.0 + 2.0 * (i as f32 / (n - 1) as f32))
+            .collect();
         let peaks = compute_peaks(&samples, 10);
         assert_eq!(peaks.len(), 10);
         assert!(peaks[0].min <= -0.99);

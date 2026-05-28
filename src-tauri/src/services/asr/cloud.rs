@@ -15,8 +15,10 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::error::{AppError, AppResult};
-use crate::services::asr::confidence::{provider_confidence_to_scale, word_confidence_from_token_logprobs};
-use crate::services::asr::{Segment, Transcript, TranscribedWord};
+use crate::services::asr::confidence::{
+    provider_confidence_to_scale, word_confidence_from_token_logprobs,
+};
+use crate::services::asr::{Segment, TranscribedWord, Transcript};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "kebab-case")]
@@ -31,8 +33,8 @@ impl CloudProvider {
     pub fn display_name(&self) -> &'static str {
         match self {
             CloudProvider::OpenaiWhisper => "OpenAI Whisper",
-            CloudProvider::AssemblyAi    => "AssemblyAI",
-            CloudProvider::Deepgram      => "Deepgram",
+            CloudProvider::AssemblyAi => "AssemblyAI",
+            CloudProvider::Deepgram => "Deepgram",
         }
     }
 
@@ -61,49 +63,65 @@ fn sec_to_ms(sec: f64) -> i64 {
 
 pub fn parse_openai_verbose_json(json: &str) -> AppResult<Transcript> {
     let v: serde_json::Value = serde_json::from_str(json)?;
-    let language = v.get("language").and_then(|l| l.as_str()).unwrap_or("auto").to_string();
+    let language = v
+        .get("language")
+        .and_then(|l| l.as_str())
+        .unwrap_or("auto")
+        .to_string();
 
-    let segments = v.get("segments").and_then(|s| s.as_array()).ok_or_else(|| {
-        AppError::Validation("OpenAI response has no segments".into())
-    })?;
+    let segments = v
+        .get("segments")
+        .and_then(|s| s.as_array())
+        .ok_or_else(|| AppError::Validation("OpenAI response has no segments".into()))?;
 
     let mut out_segments = Vec::new();
     for seg in segments {
         let seg_start = seg.get("start").and_then(|s| s.as_f64()).unwrap_or(0.0);
         let seg_end = seg.get("end").and_then(|e| e.as_f64()).unwrap_or(seg_start);
-        let avg_logprob = seg.get("avg_logprob").and_then(|l| l.as_f64()).unwrap_or(-0.2) as f32;
+        let avg_logprob = seg
+            .get("avg_logprob")
+            .and_then(|l| l.as_f64())
+            .unwrap_or(-0.2) as f32;
         let seg_conf = word_confidence_from_token_logprobs(&[avg_logprob]);
 
         // Word-level timings when present (timestamp_granularities=word).
-        let words: Vec<TranscribedWord> = if let Some(ws) = seg.get("words").and_then(|w| w.as_array()) {
-            ws.iter()
-                .filter_map(|w| {
-                    let text = w.get("word").and_then(|t| t.as_str())?.trim().to_string();
-                    if text.is_empty() { return None; }
-                    let start = w.get("start").and_then(|s| s.as_f64()).unwrap_or(seg_start);
-                    let end = w.get("end").and_then(|e| e.as_f64()).unwrap_or(seg_end);
-                    Some(TranscribedWord {
-                        text,
-                        start_ms: sec_to_ms(start),
-                        end_ms: sec_to_ms(end),
-                        confidence: seg_conf, // segment-level estimate
+        let words: Vec<TranscribedWord> =
+            if let Some(ws) = seg.get("words").and_then(|w| w.as_array()) {
+                ws.iter()
+                    .filter_map(|w| {
+                        let text = w.get("word").and_then(|t| t.as_str())?.trim().to_string();
+                        if text.is_empty() {
+                            return None;
+                        }
+                        let start = w.get("start").and_then(|s| s.as_f64()).unwrap_or(seg_start);
+                        let end = w.get("end").and_then(|e| e.as_f64()).unwrap_or(seg_end);
+                        Some(TranscribedWord {
+                            text,
+                            start_ms: sec_to_ms(start),
+                            end_ms: sec_to_ms(end),
+                            confidence: seg_conf, // segment-level estimate
+                        })
                     })
-                })
-                .collect()
-        } else {
-            // No word timings — fall back to the whole segment text as one "word".
-            let text = seg.get("text").and_then(|t| t.as_str()).unwrap_or("").trim().to_string();
-            if text.is_empty() {
-                Vec::new()
+                    .collect()
             } else {
-                vec![TranscribedWord {
-                    text,
-                    start_ms: sec_to_ms(seg_start),
-                    end_ms: sec_to_ms(seg_end),
-                    confidence: seg_conf,
-                }]
-            }
-        };
+                // No word timings — fall back to the whole segment text as one "word".
+                let text = seg
+                    .get("text")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
+                if text.is_empty() {
+                    Vec::new()
+                } else {
+                    vec![TranscribedWord {
+                        text,
+                        start_ms: sec_to_ms(seg_start),
+                        end_ms: sec_to_ms(seg_end),
+                        confidence: seg_conf,
+                    }]
+                }
+            };
 
         if !words.is_empty() {
             out_segments.push(Segment {
@@ -114,7 +132,11 @@ pub fn parse_openai_verbose_json(json: &str) -> AppResult<Transcript> {
         }
     }
 
-    Ok(Transcript { language, segments: out_segments, backend: "OpenAI Whisper".into() })
+    Ok(Transcript {
+        language,
+        segments: out_segments,
+        backend: "OpenAI Whisper".into(),
+    })
 }
 
 // ── AssemblyAI ────────────────────────────────────────────────────────────────
@@ -123,25 +145,35 @@ pub fn parse_openai_verbose_json(json: &str) -> AppResult<Transcript> {
 
 pub fn parse_assemblyai_json(json: &str) -> AppResult<Transcript> {
     let v: serde_json::Value = serde_json::from_str(json)?;
-    let language = v.get("language_code").and_then(|l| l.as_str()).unwrap_or("auto").to_string();
+    let language = v
+        .get("language_code")
+        .and_then(|l| l.as_str())
+        .unwrap_or("auto")
+        .to_string();
 
-    let words_arr = v.get("words").and_then(|w| w.as_array()).ok_or_else(|| {
-        AppError::Validation("AssemblyAI response has no words".into())
-    })?;
+    let words_arr = v
+        .get("words")
+        .and_then(|w| w.as_array())
+        .ok_or_else(|| AppError::Validation("AssemblyAI response has no words".into()))?;
 
-    let words: Vec<TranscribedWord> = words_arr.iter().filter_map(|w| {
-        let text = w.get("text").and_then(|t| t.as_str())?.trim().to_string();
-        if text.is_empty() { return None; }
-        let start = w.get("start").and_then(|s| s.as_i64()).unwrap_or(0);
-        let end = w.get("end").and_then(|e| e.as_i64()).unwrap_or(start);
-        let raw_conf = w.get("confidence").and_then(|c| c.as_f64()).unwrap_or(0.0) as f32;
-        Some(TranscribedWord {
-            text,
-            start_ms: start,
-            end_ms: end,
-            confidence: provider_confidence_to_scale(raw_conf),
+    let words: Vec<TranscribedWord> = words_arr
+        .iter()
+        .filter_map(|w| {
+            let text = w.get("text").and_then(|t| t.as_str())?.trim().to_string();
+            if text.is_empty() {
+                return None;
+            }
+            let start = w.get("start").and_then(|s| s.as_i64()).unwrap_or(0);
+            let end = w.get("end").and_then(|e| e.as_i64()).unwrap_or(start);
+            let raw_conf = w.get("confidence").and_then(|c| c.as_f64()).unwrap_or(0.0) as f32;
+            Some(TranscribedWord {
+                text,
+                start_ms: start,
+                end_ms: end,
+                confidence: provider_confidence_to_scale(raw_conf),
+            })
         })
-    }).collect();
+        .collect();
 
     // AssemblyAI is a flat word list; wrap as one segment.
     let segments = if words.is_empty() {
@@ -154,7 +186,11 @@ pub fn parse_assemblyai_json(json: &str) -> AppResult<Transcript> {
         }]
     };
 
-    Ok(Transcript { language, segments, backend: "AssemblyAI".into() })
+    Ok(Transcript {
+        language,
+        segments,
+        backend: "AssemblyAI".into(),
+    })
 }
 
 // ── Deepgram ──────────────────────────────────────────────────────────────────
@@ -175,28 +211,35 @@ pub fn parse_deepgram_json(json: &str) -> AppResult<Transcript> {
         .unwrap_or("auto")
         .to_string();
 
-    let words_arr = alt.get("words").and_then(|w| w.as_array()).ok_or_else(|| {
-        AppError::Validation("Deepgram alternative has no words".into())
-    })?;
+    let words_arr = alt
+        .get("words")
+        .and_then(|w| w.as_array())
+        .ok_or_else(|| AppError::Validation("Deepgram alternative has no words".into()))?;
 
-    let words: Vec<TranscribedWord> = words_arr.iter().filter_map(|w| {
-        // Prefer punctuated_word when present (better caption text).
-        let text = w.get("punctuated_word")
-            .or_else(|| w.get("word"))
-            .and_then(|t| t.as_str())?
-            .trim()
-            .to_string();
-        if text.is_empty() { return None; }
-        let start = w.get("start").and_then(|s| s.as_f64()).unwrap_or(0.0);
-        let end = w.get("end").and_then(|e| e.as_f64()).unwrap_or(start);
-        let raw_conf = w.get("confidence").and_then(|c| c.as_f64()).unwrap_or(0.0) as f32;
-        Some(TranscribedWord {
-            text,
-            start_ms: sec_to_ms(start),
-            end_ms: sec_to_ms(end),
-            confidence: provider_confidence_to_scale(raw_conf),
+    let words: Vec<TranscribedWord> = words_arr
+        .iter()
+        .filter_map(|w| {
+            // Prefer punctuated_word when present (better caption text).
+            let text = w
+                .get("punctuated_word")
+                .or_else(|| w.get("word"))
+                .and_then(|t| t.as_str())?
+                .trim()
+                .to_string();
+            if text.is_empty() {
+                return None;
+            }
+            let start = w.get("start").and_then(|s| s.as_f64()).unwrap_or(0.0);
+            let end = w.get("end").and_then(|e| e.as_f64()).unwrap_or(start);
+            let raw_conf = w.get("confidence").and_then(|c| c.as_f64()).unwrap_or(0.0) as f32;
+            Some(TranscribedWord {
+                text,
+                start_ms: sec_to_ms(start),
+                end_ms: sec_to_ms(end),
+                confidence: provider_confidence_to_scale(raw_conf),
+            })
         })
-    }).collect();
+        .collect();
 
     let segments = if words.is_empty() {
         Vec::new()
@@ -208,7 +251,11 @@ pub fn parse_deepgram_json(json: &str) -> AppResult<Transcript> {
         }]
     };
 
-    Ok(Transcript { language, segments, backend: "Deepgram".into() })
+    Ok(Transcript {
+        language,
+        segments,
+        backend: "Deepgram".into(),
+    })
 }
 
 #[cfg(test)]
@@ -217,7 +264,9 @@ mod tests {
 
     #[test]
     fn consent_text_names_provider() {
-        assert!(CloudProvider::AssemblyAi.consent_text().contains("AssemblyAI"));
+        assert!(CloudProvider::AssemblyAi
+            .consent_text()
+            .contains("AssemblyAI"));
         assert!(CloudProvider::Deepgram.consent_text().contains("Deepgram"));
     }
 
@@ -243,8 +292,11 @@ mod tests {
         assert_eq!(t.segments[0].words[0].start_ms, 0);
         assert_eq!(t.segments[0].words[1].end_ms, 1000);
         // avg_logprob -0.02 → exp ≈ 0.98 → tier 1 (high)
-        assert!(t.segments[0].words[0].confidence > 85.0,
-            "got {}", t.segments[0].words[0].confidence);
+        assert!(
+            t.segments[0].words[0].confidence > 85.0,
+            "got {}",
+            t.segments[0].words[0].confidence
+        );
     }
 
     #[test]
@@ -294,7 +346,7 @@ mod tests {
         assert_eq!(t.language, "en");
         assert_eq!(t.segments[0].words[0].text, "Hello,"); // punctuated preferred
         assert_eq!(t.segments[0].words[0].start_ms, 0);
-        assert_eq!(t.segments[0].words[1].end_ms, 1200);   // 1.2s → ms
+        assert_eq!(t.segments[0].words[1].end_ms, 1200); // 1.2s → ms
         assert!(t.segments[0].words[0].confidence > 85.0);
     }
 
@@ -307,7 +359,10 @@ mod tests {
           "words": [ { "word": "x", "start": 0.0, "end": 0.1, "confidence": 0.62 } ] } ] } ] } }"#;
         let a = parse_assemblyai_json(aai).unwrap().segments[0].words[0].confidence;
         let d = parse_deepgram_json(dg).unwrap().segments[0].words[0].confidence;
-        assert!((a - d).abs() < 0.5, "AssemblyAI {a} vs Deepgram {d} for same prob");
+        assert!(
+            (a - d).abs() < 0.5,
+            "AssemblyAI {a} vs Deepgram {d} for same prob"
+        );
     }
 
     #[test]

@@ -34,7 +34,11 @@ pub fn suggest_estimate(
     let input = rough_token_count(&system) + rough_token_count(&user);
     let output = estimate_output_tokens(&project);
 
-    let caption_count = project.captions.iter().filter(|c| !c.words.is_empty()).count();
+    let caption_count = project
+        .captions
+        .iter()
+        .filter(|c| !c.words.is_empty())
+        .count();
     Ok(PolishEstimate {
         caption_count,
         estimated_input_tokens: input,
@@ -65,7 +69,10 @@ pub async fn suggest_captions(
         .filter(|k| !k.trim().is_empty())
         .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
         .unwrap_or_default();
-    let config = LlmConfig { model, api_key: key };
+    let config = LlmConfig {
+        model,
+        api_key: key,
+    };
 
     let response = llm::complete(&config, &system, &user, max_tokens).await?;
     suggest::parse_suggestions_response(&response)

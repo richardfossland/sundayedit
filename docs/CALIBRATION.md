@@ -26,8 +26,8 @@ from any backend lands in the same tier.
 
 ### Why stretch at all?
 
-Whisper's per-token logprobs cluster high. Empirically most *correct*
-words sit at `p` = 0.85–0.99, and many *wrong* words still report
+Whisper's per-token logprobs cluster high. Empirically most _correct_
+words sit at `p` = 0.85–0.99, and many _wrong_ words still report
 `p` = 0.55–0.75. A naive `p * 100` would put almost everything in tier 1
 and hide the errors. The stretch curve pushes the 0.5–0.95 band — where
 correct and incorrect words actually separate — across the full 0–100
@@ -35,14 +35,14 @@ range so the tier thresholds (85 / 70 / 50) become discriminating.
 
 ### Current anchor points (v1, UNCALIBRATED)
 
-| raw p | stretched | → confidence | tier |
-|-------|-----------|--------------|------|
-| 1.00  | 1.00      | 100          | 1 (high) |
-| 0.95  | 0.88      | 88           | 1 |
-| 0.88  | 0.72      | 72           | 2 (medium) |
-| 0.75  | 0.55      | 55           | 3 (low) |
+| raw p | stretched | → confidence | tier         |
+| ----- | --------- | ------------ | ------------ |
+| 1.00  | 1.00      | 100          | 1 (high)     |
+| 0.95  | 0.88      | 88           | 1            |
+| 0.88  | 0.72      | 72           | 2 (medium)   |
+| 0.75  | 0.55      | 55           | 3 (low)      |
 | 0.50  | 0.30      | 30           | 4 (very low) |
-| 0.00  | 0.00      | 0            | 4 |
+| 0.00  | 0.00      | 0            | 4            |
 
 These are an **educated guess**, not fitted to data. They will be wrong
 in detail. The structure (single curve, single source of truth) is what

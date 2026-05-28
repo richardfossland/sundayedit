@@ -47,7 +47,8 @@ export function styleToCss(style: Style, frameHeight: number): CaptionBoxStyle {
 
   // Outline via layered text-shadow (the standard CSS approximation of
   // libass's border). Combine the requested drop shadow too.
-  const outline = outlinePx > 0 ? buildOutline(style.outline_color, outlinePx) : "";
+  const outline =
+    outlinePx > 0 ? buildOutline(style.outline_color, outlinePx) : "";
   const drop =
     style.shadow_blur > 0 || style.shadow_offset_x || style.shadow_offset_y
       ? `${style.shadow_offset_x * scale}px ${style.shadow_offset_y * scale}px ${style.shadow_blur * scale}px ${style.shadow_color}`
@@ -81,18 +82,30 @@ export function styleToCss(style: Style, frameHeight: number): CaptionBoxStyle {
 function buildOutline(color: string, width: number): string {
   const w = Math.max(0.5, width);
   const offsets: Array<[number, number]> = [
-    [-w, -w], [0, -w], [w, -w],
-    [-w, 0],            [w, 0],
-    [-w, w],  [0, w],   [w, w],
+    [-w, -w],
+    [0, -w],
+    [w, -w],
+    [-w, 0],
+    [w, 0],
+    [-w, w],
+    [0, w],
+    [w, w],
   ];
   return offsets.map(([x, y]) => `${x}px ${y}px 0 ${color}`).join(", ");
 }
 
-function anchorToFlex(anchor: string): { justify: React.CSSProperties["justifyContent"]; align: React.CSSProperties["alignItems"] } {
+function anchorToFlex(anchor: string): {
+  justify: React.CSSProperties["justifyContent"];
+  align: React.CSSProperties["alignItems"];
+} {
   const horizontal = anchor[1]; // l | c | r
-  const vertical = anchor[0];   // t | m | b
+  const vertical = anchor[0]; // t | m | b
   const justify =
-    horizontal === "l" ? "flex-start" : horizontal === "r" ? "flex-end" : "center";
+    horizontal === "l"
+      ? "flex-start"
+      : horizontal === "r"
+        ? "flex-end"
+        : "center";
   const align =
     vertical === "t" ? "flex-start" : vertical === "b" ? "flex-end" : "center";
   return { justify, align };

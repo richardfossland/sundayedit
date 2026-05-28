@@ -16,7 +16,12 @@ import { useEffect, useState } from "react";
 import { Sparkles, ArrowRight, ShieldAlert, KeyRound } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
-import type { ClaudeModel, PolishEstimate, PolishResult, Project } from "@/lib/bindings";
+import type {
+  ClaudeModel,
+  PolishEstimate,
+  PolishResult,
+  Project,
+} from "@/lib/bindings";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -45,7 +50,9 @@ export function PolishPanel({ project, onProjectChange }: Props) {
       .estimate(project, model)
       .then((e) => !cancelled && setEstimate(e))
       .catch(() => !cancelled && setEstimate(null));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [project, model]);
 
   async function run() {
@@ -67,7 +74,8 @@ export function PolishPanel({ project, onProjectChange }: Props) {
     <div className="mx-auto max-w-2xl space-y-6 p-6">
       <header>
         <h2 className="mb-1 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
-          <Sparkles size={16} className="text-[var(--color-accent-400)]" /> AI-tegnsetting
+          <Sparkles size={16} className="text-[var(--color-accent-400)]" />{" "}
+          AI-tegnsetting
         </h2>
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
           Retter kun tegnsetting og store/små bokstaver. Ordene endres aldri —
@@ -90,7 +98,9 @@ export function PolishPanel({ project, onProjectChange }: Props) {
             )}
           >
             <div className="text-[var(--text-ui-sm)] font-medium">{m.name}</div>
-            <div className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">{m.hint}</div>
+            <div className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
+              {m.hint}
+            </div>
           </button>
         ))}
       </div>
@@ -119,7 +129,8 @@ export function PolishPanel({ project, onProjectChange }: Props) {
         </button>
         {estimate && (
           <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-            {estimate.caption_count} undertekster · ~{formatCost(estimate.estimated_cost_usd)}
+            {estimate.caption_count} undertekster · ~
+            {formatCost(estimate.estimated_cost_usd)}
           </span>
         )}
       </div>
@@ -143,8 +154,9 @@ function Results({ result }: { result: PolishResult }) {
         <div className="flex items-start gap-2 rounded-md border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-3 py-2 text-[var(--text-ui-sm)] text-[var(--color-warning)]">
           <ShieldAlert size={15} className="mt-0.5 shrink-0" />
           <span>
-            {rejected.length} undertekst{rejected.length === 1 ? "" : "er"} ble avvist fordi
-            modellen prøvde å endre selve ordene. De ble beholdt uendret.
+            {rejected.length} undertekst{rejected.length === 1 ? "" : "er"} ble
+            avvist fordi modellen prøvde å endre selve ordene. De ble beholdt
+            uendret.
           </span>
         </div>
       )}
@@ -164,9 +176,16 @@ function Results({ result }: { result: PolishResult }) {
                 key={i}
                 className="flex items-center gap-2 rounded px-2 py-1 text-[var(--text-ui-sm)] hover:bg-[var(--color-bg-surface)]"
               >
-                <span className="font-mono text-[var(--color-fg-subtle)] line-through">{c.from}</span>
-                <ArrowRight size={12} className="shrink-0 text-[var(--color-fg-subtle)]" />
-                <span className="font-mono text-[var(--color-accent-400)]">{c.to}</span>
+                <span className="font-mono text-[var(--color-fg-subtle)] line-through">
+                  {c.from}
+                </span>
+                <ArrowRight
+                  size={12}
+                  className="shrink-0 text-[var(--color-fg-subtle)]"
+                />
+                <span className="font-mono text-[var(--color-accent-400)]">
+                  {c.to}
+                </span>
               </li>
             ))}
           </ul>

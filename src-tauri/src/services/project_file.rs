@@ -33,7 +33,10 @@ async fn open_pool(path: &Path) -> AppResult<SqlitePool> {
     let opts = SqliteConnectOptions::from_str(&url)?
         .create_if_missing(true)
         .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
-    let pool = SqlitePoolOptions::new().max_connections(1).connect_with(opts).await?;
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(opts)
+        .await?;
     ensure_schema(&pool).await?;
     Ok(pool)
 }
@@ -46,7 +49,9 @@ async fn ensure_schema(pool: &SqlitePool) -> AppResult<()> {
             value TEXT NOT NULL
         );
         "#,
-    ).execute(pool).await?;
+    )
+    .execute(pool)
+    .await?;
 
     sqlx::query(
         r#"
@@ -69,7 +74,9 @@ async fn ensure_schema(pool: &SqlitePool) -> AppResult<()> {
             updated_at          INTEGER NOT NULL
         );
         "#,
-    ).execute(pool).await?;
+    )
+    .execute(pool)
+    .await?;
 
     sqlx::query(
         r#"
@@ -86,14 +93,18 @@ async fn ensure_schema(pool: &SqlitePool) -> AppResult<()> {
             last_edited_at INTEGER NOT NULL
         );
         "#,
-    ).execute(pool).await?;
+    )
+    .execute(pool)
+    .await?;
 
     sqlx::query("CREATE INDEX IF NOT EXISTS caption_pos_idx ON caption(position)")
-        .execute(pool).await?;
+        .execute(pool)
+        .await?;
 
     sqlx::query("INSERT OR IGNORE INTO meta (key, value) VALUES ('schema_version', ?1)")
         .bind(SCHEMA_VERSION.to_string())
-        .execute(pool).await?;
+        .execute(pool)
+        .await?;
 
     Ok(())
 }
@@ -178,9 +189,12 @@ pub async fn load(path: &Path) -> AppResult<Project> {
         .await?
         .ok_or_else(|| AppError::Validation("project file has no project row".to_string()))?;
 
-    let default_style: Style = serde_json::from_str(row.get::<String, _>("default_style_json").as_str())?;
-    let speakers: Vec<Speaker> = serde_json::from_str(row.get::<String, _>("speakers_json").as_str())?;
-    let glossary: Vec<GlossaryTerm> = serde_json::from_str(row.get::<String, _>("glossary_json").as_str())?;
+    let default_style: Style =
+        serde_json::from_str(row.get::<String, _>("default_style_json").as_str())?;
+    let speakers: Vec<Speaker> =
+        serde_json::from_str(row.get::<String, _>("speakers_json").as_str())?;
+    let glossary: Vec<GlossaryTerm> =
+        serde_json::from_str(row.get::<String, _>("glossary_json").as_str())?;
 
     let caption_rows = sqlx::query("SELECT * FROM caption ORDER BY position")
         .fetch_all(&pool)
@@ -247,29 +261,43 @@ mod tests {
             context_description: Some("A sermon about grace.".into()),
             captions: vec![
                 Caption {
-                    id: "c1".into(), start_ms: 0, end_ms: 2000,
+                    id: "c1".into(),
+                    start_ms: 0,
+                    end_ms: 2000,
                     words: vec![
                         Word::new("Hello", 0, 500, 95.0),
                         Word::new("world", 500, 2000, 72.0),
                     ],
                     speaker_id: Some("s1".into()),
-                    style_id: None, notes: Some("note".into()),
-                    ai_generated: true, last_edited_at: 100,
+                    style_id: None,
+                    notes: Some("note".into()),
+                    ai_generated: true,
+                    last_edited_at: 100,
                 },
                 Caption {
-                    id: "c2".into(), start_ms: 2500, end_ms: 4000,
+                    id: "c2".into(),
+                    start_ms: 2500,
+                    end_ms: 4000,
                     words: vec![Word::new("Again", 2500, 4000, 88.0)],
-                    speaker_id: None, style_id: None, notes: None,
-                    ai_generated: false, last_edited_at: 200,
+                    speaker_id: None,
+                    style_id: None,
+                    notes: None,
+                    ai_generated: false,
+                    last_edited_at: 200,
                 },
             ],
-            speakers: vec![
-                Speaker { id: "s1".into(), display_name: "Lars".into(), color_hex: Some("#4FD1C5".into()) },
-            ],
-            glossary: vec![
-                GlossaryTerm { id: "g1".into(), term: "kerygma".into(),
-                    aliases: vec!["kerigma".into()], definition: None, pronunciation_hint: None },
-            ],
+            speakers: vec![Speaker {
+                id: "s1".into(),
+                display_name: "Lars".into(),
+                color_hex: Some("#4FD1C5".into()),
+            }],
+            glossary: vec![GlossaryTerm {
+                id: "g1".into(),
+                term: "kerygma".into(),
+                aliases: vec!["kerigma".into()],
+                definition: None,
+                pronunciation_hint: None,
+            }],
             created_at: 1000,
             updated_at: 2000,
         }
@@ -284,7 +312,10 @@ mod tests {
         save(&original, &path).await.unwrap();
         let loaded = load(&path).await.unwrap();
 
-        assert_eq!(loaded, original, "round-trip must preserve the project exactly");
+        assert_eq!(
+            loaded, original,
+            "round-trip must preserve the project exactly"
+        );
     }
 
     #[tokio::test]
@@ -307,7 +338,9 @@ mod tests {
 
     #[tokio::test]
     async fn load_missing_file_errors() {
-        let err = load(Path::new("/nonexistent/x.verbatim")).await.unwrap_err();
+        let err = load(Path::new("/nonexistent/x.verbatim"))
+            .await
+            .unwrap_err();
         assert_eq!(err.code(), "not_found");
     }
 

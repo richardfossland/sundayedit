@@ -42,22 +42,24 @@ pub enum AppError {
 impl AppError {
     pub fn code(&self) -> &'static str {
         match self {
-            AppError::Database(_)     => "database",
-            AppError::Migration(_)    => "migration",
+            AppError::Database(_) => "database",
+            AppError::Migration(_) => "migration",
             AppError::NotFound { .. } => "not_found",
-            AppError::Invariant(_)    => "invariant",
-            AppError::Validation(_)   => "validation",
-            AppError::Io(_)           => "io",
-            AppError::Json(_)         => "json",
+            AppError::Invariant(_) => "invariant",
+            AppError::Validation(_) => "validation",
+            AppError::Io(_) => "io",
+            AppError::Json(_) => "json",
             AppError::VideoMissing(_) => "video_missing",
-            AppError::Internal(_)     => "internal",
+            AppError::Internal(_) => "internal",
         }
     }
 }
 
 impl Serialize for AppError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
+    where
+        S: Serializer,
+    {
         use serde::ser::SerializeStruct;
         let mut s = serializer.serialize_struct("AppError", 2)?;
         s.serialize_field("code", self.code())?;

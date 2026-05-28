@@ -16,17 +16,17 @@
 //!   - `llm`           — Claude API client + AI polish/suggest/translate (Phase 4.1/4.3/7.1)
 //!   - `diarize`       — speaker diarization + roster management (Phase 4.2)
 
-pub mod operations;
-pub mod export;
-pub mod video;
-pub mod project_file;
-pub mod waveform;
 pub mod asr;
-pub mod glossary;
-pub mod style_presets;
 pub mod burnin;
-pub mod export_presets;
-pub mod find_replace;
-pub mod filler;
-pub mod llm;
 pub mod diarize;
+pub mod export;
+pub mod export_presets;
+pub mod filler;
+pub mod find_replace;
+pub mod glossary;
+pub mod llm;
+pub mod operations;
+pub mod project_file;
+pub mod style_presets;
+pub mod video;
+pub mod waveform;

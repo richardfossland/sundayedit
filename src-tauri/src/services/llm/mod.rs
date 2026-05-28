@@ -32,38 +32,33 @@ pub const ANTHROPIC_VERSION: &str = "2023-06-01";
 /// The Claude models Verbatim offers for AI features. Haiku is the default
 /// for high-volume passes (polish over a whole project); Sonnet/Opus are
 /// available when the user wants maximum quality on hard content.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "kebab-case")]
 #[ts(export, export_to = "../../src/lib/bindings/ClaudeModel.ts")]
 pub enum ClaudeModel {
+    // Polish is a high-volume, low-creativity task — Haiku is plenty and keeps
+    // a 60-min project well under a cent, so it is the default.
+    #[default]
     Haiku45,
     Sonnet46,
     Opus47,
-}
-
-impl Default for ClaudeModel {
-    fn default() -> Self {
-        // Polish is a high-volume, low-creativity task — Haiku is plenty
-        // and keeps a 60-min project well under a cent.
-        ClaudeModel::Haiku45
-    }
 }
 
 impl ClaudeModel {
     /// The exact API model identifier.
     pub fn id(&self) -> &'static str {
         match self {
-            ClaudeModel::Haiku45  => "claude-haiku-4-5-20251001",
+            ClaudeModel::Haiku45 => "claude-haiku-4-5-20251001",
             ClaudeModel::Sonnet46 => "claude-sonnet-4-6",
-            ClaudeModel::Opus47   => "claude-opus-4-7",
+            ClaudeModel::Opus47 => "claude-opus-4-7",
         }
     }
 
     pub fn display_name(&self) -> &'static str {
         match self {
-            ClaudeModel::Haiku45  => "Claude Haiku 4.5",
+            ClaudeModel::Haiku45 => "Claude Haiku 4.5",
             ClaudeModel::Sonnet46 => "Claude Sonnet 4.6",
-            ClaudeModel::Opus47   => "Claude Opus 4.7",
+            ClaudeModel::Opus47 => "Claude Opus 4.7",
         }
     }
 
@@ -72,9 +67,9 @@ impl ClaudeModel {
     /// pricing changes.
     pub fn price_per_mtok(&self) -> (f64, f64) {
         match self {
-            ClaudeModel::Haiku45  => (1.0, 5.0),
+            ClaudeModel::Haiku45 => (1.0, 5.0),
             ClaudeModel::Sonnet46 => (3.0, 15.0),
-            ClaudeModel::Opus47   => (15.0, 75.0),
+            ClaudeModel::Opus47 => (15.0, 75.0),
         }
     }
 }
@@ -158,7 +153,12 @@ pub fn parse_text_response(json: &str) -> AppResult<String> {
 
 // ── The network call (feature = "llm") ────────────────────────────────────────
 #[cfg(feature = "llm")]
-pub async fn complete(config: &LlmConfig, system: &str, user: &str, max_tokens: u32) -> AppResult<String> {
+pub async fn complete(
+    config: &LlmConfig,
+    system: &str,
+    user: &str,
+    max_tokens: u32,
+) -> AppResult<String> {
     let body = build_messages_body(config.model, system, user, max_tokens);
     let client = reqwest::Client::new();
     let resp = client
@@ -180,7 +180,12 @@ pub async fn complete(config: &LlmConfig, system: &str, user: &str, max_tokens: 
 
 // ── Stub (default build, no `llm` feature) ────────────────────────────────────
 #[cfg(not(feature = "llm"))]
-pub async fn complete(_config: &LlmConfig, _system: &str, _user: &str, _max_tokens: u32) -> AppResult<String> {
+pub async fn complete(
+    _config: &LlmConfig,
+    _system: &str,
+    _user: &str,
+    _max_tokens: u32,
+) -> AppResult<String> {
     Err(AppError::Internal(
         "This build of Verbatim does not include AI features. \
          Rebuild with `--features llm` to enable Claude-powered polish."
@@ -216,8 +221,8 @@ mod tests {
         // Same token budget costs more on Opus than Haiku.
         let haiku = estimate_cost_usd(ClaudeModel::Haiku45, 1_000_000, 1_000_000);
         let opus = estimate_cost_usd(ClaudeModel::Opus47, 1_000_000, 1_000_000);
-        assert!((haiku - 6.0).abs() < 1e-9, "got {haiku}");   // 1.0 + 5.0
-        assert!((opus - 90.0).abs() < 1e-9, "got {opus}");    // 15.0 + 75.0
+        assert!((haiku - 6.0).abs() < 1e-9, "got {haiku}"); // 1.0 + 5.0
+        assert!((opus - 90.0).abs() < 1e-9, "got {opus}"); // 15.0 + 75.0
         assert!(opus > haiku);
     }
 
@@ -268,7 +273,10 @@ mod tests {
     #[cfg(not(feature = "llm"))]
     #[tokio::test]
     async fn complete_stub_returns_actionable_error() {
-        let cfg = LlmConfig { model: ClaudeModel::Haiku45, api_key: "x".into() };
+        let cfg = LlmConfig {
+            model: ClaudeModel::Haiku45,
+            api_key: "x".into(),
+        };
         let err = complete(&cfg, "sys", "user", 16).await.unwrap_err();
         assert_eq!(err.code(), "internal");
         assert!(err.to_string().contains("--features llm"));

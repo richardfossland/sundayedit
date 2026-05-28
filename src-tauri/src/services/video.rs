@@ -55,7 +55,11 @@ pub fn classify_extension(path: &Path) -> Option<MediaKind> {
 
 /// All accepted extensions — used to build the native file-picker filter.
 pub fn accepted_extensions() -> Vec<&'static str> {
-    VIDEO_EXTS.iter().chain(AUDIO_EXTS.iter()).copied().collect()
+    VIDEO_EXTS
+        .iter()
+        .chain(AUDIO_EXTS.iter())
+        .copied()
+        .collect()
 }
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
@@ -83,8 +87,10 @@ pub fn probe(path: &Path) -> AppResult<VideoMetadata> {
     }
     let output = Command::new(ffprobe_path())
         .args([
-            "-v", "quiet",
-            "-print_format", "json",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
             "-show_format",
             "-show_streams",
         ])
@@ -110,16 +116,17 @@ pub fn probe(path: &Path) -> AppResult<VideoMetadata> {
 pub fn parse_ffprobe_json(json: &str) -> AppResult<VideoMetadata> {
     let v: serde_json::Value = serde_json::from_str(json)?;
 
-    let streams = v.get("streams").and_then(|s| s.as_array()).ok_or_else(|| {
-        AppError::Validation("ffprobe output has no streams array".to_string())
-    })?;
+    let streams = v
+        .get("streams")
+        .and_then(|s| s.as_array())
+        .ok_or_else(|| AppError::Validation("ffprobe output has no streams array".to_string()))?;
 
-    let video_stream = streams.iter().find(|s| {
-        s.get("codec_type").and_then(|t| t.as_str()) == Some("video")
-    });
-    let audio_stream = streams.iter().find(|s| {
-        s.get("codec_type").and_then(|t| t.as_str()) == Some("audio")
-    });
+    let video_stream = streams
+        .iter()
+        .find(|s| s.get("codec_type").and_then(|t| t.as_str()) == Some("video"));
+    let audio_stream = streams
+        .iter()
+        .find(|s| s.get("codec_type").and_then(|t| t.as_str()) == Some("audio"));
 
     if video_stream.is_none() && audio_stream.is_none() {
         return Err(AppError::Validation(
@@ -135,7 +142,9 @@ pub fn parse_ffprobe_json(json: &str) -> AppResult<VideoMetadata> {
         .and_then(|s| s.parse::<f64>().ok())
         .or_else(|| {
             streams.iter().find_map(|s| {
-                s.get("duration").and_then(|d| d.as_str()).and_then(|s| s.parse::<f64>().ok())
+                s.get("duration")
+                    .and_then(|d| d.as_str())
+                    .and_then(|s| s.parse::<f64>().ok())
             })
         })
         .unwrap_or(0.0);
@@ -152,14 +161,18 @@ pub fn parse_ffprobe_json(json: &str) -> AppResult<VideoMetadata> {
             s.get("width").and_then(|w| w.as_i64()).unwrap_or(0) as i32,
             s.get("height").and_then(|h| h.as_i64()).unwrap_or(0) as i32,
             parse_fps(s.get("r_frame_rate").and_then(|r| r.as_str())),
-            s.get("codec_name").and_then(|c| c.as_str()).map(String::from),
+            s.get("codec_name")
+                .and_then(|c| c.as_str())
+                .map(String::from),
         ),
         None => (0, 0, 0.0, None),
     };
 
     let (audio_codec, audio_channels, audio_sample_rate) = match audio_stream {
         Some(s) => (
-            s.get("codec_name").and_then(|c| c.as_str()).map(String::from),
+            s.get("codec_name")
+                .and_then(|c| c.as_str())
+                .map(String::from),
             s.get("channels").and_then(|c| c.as_i64()).map(|c| c as i32),
             s.get("sample_rate")
                 .and_then(|r| r.as_str())
@@ -195,7 +208,11 @@ fn parse_fps(r: Option<&str>) -> f32 {
             if let Some((num, den)) = s.split_once('/') {
                 let num: f32 = num.parse().unwrap_or(0.0);
                 let den: f32 = den.parse().unwrap_or(1.0);
-                if den != 0.0 { num / den } else { 0.0 }
+                if den != 0.0 {
+                    num / den
+                } else {
+                    0.0
+                }
             } else {
                 s.parse().unwrap_or(0.0)
             }
@@ -299,9 +316,15 @@ pub fn find_relink_candidate(
 fn sidecar_path(name: &str) -> Option<String> {
     let exe = std::env::current_exe().ok()?;
     let dir = exe.parent()?;
-    let file = if cfg!(windows) { format!("{name}.exe") } else { name.to_string() };
+    let file = if cfg!(windows) {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
+    };
     let candidate = dir.join(file);
-    candidate.is_file().then(|| candidate.to_string_lossy().into_owned())
+    candidate
+        .is_file()
+        .then(|| candidate.to_string_lossy().into_owned())
 }
 
 fn ffprobe_path() -> String {
@@ -331,17 +354,38 @@ mod tests {
     // ── Extension classification ───────────────────────────────────────────
     #[test]
     fn classifies_video_extensions() {
-        assert_eq!(classify_extension(Path::new("/x/clip.mp4")), Some(MediaKind::Video));
-        assert_eq!(classify_extension(Path::new("/x/clip.MOV")), Some(MediaKind::Video));
-        assert_eq!(classify_extension(Path::new("/x/clip.mkv")), Some(MediaKind::Video));
-        assert_eq!(classify_extension(Path::new("/x/clip.webm")), Some(MediaKind::Video));
+        assert_eq!(
+            classify_extension(Path::new("/x/clip.mp4")),
+            Some(MediaKind::Video)
+        );
+        assert_eq!(
+            classify_extension(Path::new("/x/clip.MOV")),
+            Some(MediaKind::Video)
+        );
+        assert_eq!(
+            classify_extension(Path::new("/x/clip.mkv")),
+            Some(MediaKind::Video)
+        );
+        assert_eq!(
+            classify_extension(Path::new("/x/clip.webm")),
+            Some(MediaKind::Video)
+        );
     }
 
     #[test]
     fn classifies_audio_extensions() {
-        assert_eq!(classify_extension(Path::new("/x/pod.mp3")),  Some(MediaKind::AudioOnly));
-        assert_eq!(classify_extension(Path::new("/x/voice.wav")), Some(MediaKind::AudioOnly));
-        assert_eq!(classify_extension(Path::new("/x/sound.flac")), Some(MediaKind::AudioOnly));
+        assert_eq!(
+            classify_extension(Path::new("/x/pod.mp3")),
+            Some(MediaKind::AudioOnly)
+        );
+        assert_eq!(
+            classify_extension(Path::new("/x/voice.wav")),
+            Some(MediaKind::AudioOnly)
+        );
+        assert_eq!(
+            classify_extension(Path::new("/x/sound.flac")),
+            Some(MediaKind::AudioOnly)
+        );
     }
 
     #[test]
@@ -365,7 +409,7 @@ mod tests {
         assert!((parse_fps(Some("30/1")) - 30.0).abs() < 0.001);
         assert!((parse_fps(Some("30000/1001")) - 29.97).abs() < 0.01);
         assert!((parse_fps(Some("25/1")) - 25.0).abs() < 0.001);
-        assert_eq!(parse_fps(Some("0/0")), 0.0);   // div by zero guard
+        assert_eq!(parse_fps(Some("0/0")), 0.0); // div by zero guard
         assert_eq!(parse_fps(None), 0.0);
     }
 
@@ -431,8 +475,14 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let a = dir.path().join("a.bin");
         let b = dir.path().join("b.bin");
-        std::fs::File::create(&a).unwrap().write_all(b"hello world content").unwrap();
-        std::fs::File::create(&b).unwrap().write_all(b"different content!!").unwrap();
+        std::fs::File::create(&a)
+            .unwrap()
+            .write_all(b"hello world content")
+            .unwrap();
+        std::fs::File::create(&b)
+            .unwrap()
+            .write_all(b"different content!!")
+            .unwrap();
 
         let ha1 = content_hash(&a).unwrap();
         let ha2 = content_hash(&a).unwrap();
@@ -449,7 +499,10 @@ mod tests {
         let big = dir.path().join("big.bin");
         // 200 KB > 2× chunk size, exercises the head+tail path
         let data = vec![7u8; 200 * 1024];
-        std::fs::File::create(&big).unwrap().write_all(&data).unwrap();
+        std::fs::File::create(&big)
+            .unwrap()
+            .write_all(&data)
+            .unwrap();
         let h = content_hash(&big).unwrap();
         assert_eq!(h.len(), 64);
     }
@@ -459,14 +512,18 @@ mod tests {
     fn relink_finds_moved_file_by_hash() {
         let dir = tempfile::tempdir().unwrap();
         let original = dir.path().join("sermon.mp4");
-        std::fs::File::create(&original).unwrap().write_all(b"video bytes here").unwrap();
+        std::fs::File::create(&original)
+            .unwrap()
+            .write_all(b"video bytes here")
+            .unwrap();
         let hash = content_hash(&original).unwrap();
 
         // Move it (rename) to simulate the user relocating it
         let moved = dir.path().join("sermon-final.mp4");
         std::fs::rename(&original, &moved).unwrap();
 
-        let found = find_relink_candidate(&hash, &[dir.path().to_path_buf()], Some("sermon.mp4")).unwrap();
+        let found =
+            find_relink_candidate(&hash, &[dir.path().to_path_buf()], Some("sermon.mp4")).unwrap();
         assert_eq!(found, Some(moved));
     }
 

@@ -13,6 +13,7 @@ Same stack as SundayStage (Tauri 2 + Rust + React + TS). One toolchain serves mu
 Every caption edit (split, merge, edit-word, retime, shift) is a pure function `(&Project, params) -> Result<Project>`. Never mutates in place.
 
 Consequences:
+
 - Undo is trivial: keep the previous `Project`.
 - Operations are exhaustively unit-testable without a database or UI.
 - Invariants (`Project::validate`) run after every operation, so corrupt state can never be persisted.

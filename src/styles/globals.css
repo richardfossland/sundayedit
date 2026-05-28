@@ -1,6 +1,8 @@
 @import "./tokens.css";
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   margin: 0;
   background: var(--color-bg);
@@ -13,7 +15,9 @@ html, body, #root {
 }
 
 /* Inputs/text areas keep selectability */
-input, textarea, [contenteditable] {
+input,
+textarea,
+[contenteditable] {
   user-select: text;
 }
 
@@ -23,10 +27,20 @@ input, textarea, [contenteditable] {
   border-radius: var(--radius-xs);
 }
 
-::-webkit-scrollbar         { width: 10px; height: 10px; }
-::-webkit-scrollbar-track   { background: transparent; }
-::-webkit-scrollbar-thumb   { background: var(--color-neutral-800); border-radius: 5px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-700); }
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-neutral-800);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neutral-700);
+}
 
 /* ── Word confidence highlighting ─────────────────────────────────────
  * The single most important UI element in the entire app.
@@ -41,10 +55,33 @@ input, textarea, [contenteditable] {
   padding: 0 1px;
   transition: background var(--duration-fast);
 }
-.word-tier-1 { background: var(--conf-1-bg); color: var(--conf-1-text); }
-.word-tier-2 { background: var(--conf-2-bg); color: var(--conf-2-text); }
-.word-tier-3 { background: var(--conf-3-bg); color: var(--conf-3-text); text-decoration: underline dotted var(--conf-3-mark); text-underline-offset: 4px; }
-.word-tier-4 { background: var(--conf-4-bg); color: var(--conf-4-text); text-decoration: underline wavy var(--conf-4-mark); text-underline-offset: 4px; }
+.word-tier-1 {
+  background: var(--conf-1-bg);
+  color: var(--conf-1-text);
+}
+.word-tier-2 {
+  background: var(--conf-2-bg);
+  color: var(--conf-2-text);
+}
+.word-tier-3 {
+  background: var(--conf-3-bg);
+  color: var(--conf-3-text);
+  text-decoration: underline dotted var(--conf-3-mark);
+  text-underline-offset: 4px;
+}
+.word-tier-4 {
+  background: var(--conf-4-bg);
+  color: var(--conf-4-text);
+  text-decoration: underline wavy var(--conf-4-mark);
+  text-underline-offset: 4px;
+}
 
-.word.is-edited::after  { content: "•"; color: var(--color-success); margin-left: 2px; }
-.word.is-locked         { background: transparent !important; text-decoration: none !important; }
+.word.is-edited::after {
+  content: "•";
+  color: var(--color-success);
+  margin-left: 2px;
+}
+.word.is-locked {
+  background: transparent !important;
+  text-decoration: none !important;
+}

@@ -48,11 +48,11 @@ impl WhisperModel {
     pub fn filename(&self) -> &'static str {
         use WhisperModel::*;
         match self {
-            Tiny         => "ggml-tiny.bin",
-            Base         => "ggml-base.bin",
-            Small        => "ggml-small.bin",
-            Medium       => "ggml-medium.bin",
-            LargeV3      => "ggml-large-v3.bin",
+            Tiny => "ggml-tiny.bin",
+            Base => "ggml-base.bin",
+            Small => "ggml-small.bin",
+            Medium => "ggml-medium.bin",
+            LargeV3 => "ggml-large-v3.bin",
             LargeV3Turbo => "ggml-large-v3-turbo.bin",
         }
     }
@@ -61,13 +61,28 @@ impl WhisperModel {
         use WhisperModel::*;
         const BASE_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main";
         let (approx_mb, description, multilingual, recommended) = match self {
-            Tiny =>   (75,   "Fastest. Rough drafts, quick tests. Lower accuracy.", true, false),
-            Base =>   (142,  "Fast. Acceptable for clean English.", true, false),
-            Small =>  (466,  "Good balance for most short videos.", true, false),
-            Medium => (1500, "High accuracy. Slower; needs a capable machine.", true, false),
+            Tiny => (
+                75,
+                "Fastest. Rough drafts, quick tests. Lower accuracy.",
+                true,
+                false,
+            ),
+            Base => (142, "Fast. Acceptable for clean English.", true, false),
+            Small => (466, "Good balance for most short videos.", true, false),
+            Medium => (
+                1500,
+                "High accuracy. Slower; needs a capable machine.",
+                true,
+                false,
+            ),
             LargeV3 => (2960, "Best raw accuracy. Slowest.", true, false),
             // Turbo is the sweet spot: near-large accuracy, ~5× faster.
-            LargeV3Turbo => (1620, "Recommended. Near-large accuracy at ~5× the speed.", true, true),
+            LargeV3Turbo => (
+                1620,
+                "Recommended. Near-large accuracy at ~5× the speed.",
+                true,
+                true,
+            ),
         };
         WhisperModelInfo {
             model: *self,
@@ -120,13 +135,18 @@ mod tests {
 
     #[test]
     fn default_recommendation_is_turbo() {
-        assert_eq!(WhisperModel::default_recommended(), WhisperModel::LargeV3Turbo);
+        assert_eq!(
+            WhisperModel::default_recommended(),
+            WhisperModel::LargeV3Turbo
+        );
     }
 
     #[test]
     fn urls_point_to_ggml_repo() {
         for info in catalog() {
-            assert!(info.url.starts_with("https://huggingface.co/ggerganov/whisper.cpp"));
+            assert!(info
+                .url
+                .starts_with("https://huggingface.co/ggerganov/whisper.cpp"));
             assert!(info.url.ends_with(".bin"));
         }
     }

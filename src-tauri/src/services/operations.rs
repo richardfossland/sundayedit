@@ -81,11 +81,7 @@ pub fn split_caption(
 
 /// Merge a range of CONTIGUOUS captions (by index, must be in order).
 /// The merged caption inherits the first caption's id, speaker, style.
-pub fn merge_captions(
-    project: &Project,
-    caption_ids: &[&str],
-    now_ms: i64,
-) -> AppResult<Project> {
+pub fn merge_captions(project: &Project, caption_ids: &[&str], now_ms: i64) -> AppResult<Project> {
     if caption_ids.len() < 2 {
         return Err(AppError::Validation(
             "merge needs at least 2 caption ids".to_string(),
@@ -128,8 +124,10 @@ pub fn merge_captions(
         speaker_id: first.speaker_id,
         style_id: first.style_id,
         notes: first.notes,
-        ai_generated: first.ai_generated && project.captions[first_idx..=last_idx]
-            .iter().all(|c| c.ai_generated),
+        ai_generated: first.ai_generated
+            && project.captions[first_idx..=last_idx]
+                .iter()
+                .all(|c| c.ai_generated),
         last_edited_at: now_ms,
     };
 
@@ -156,10 +154,10 @@ pub fn shift_all_captions(project: &Project, offset_ms: i64, now_ms: i64) -> App
     let mut next = project.clone();
     for c in next.captions.iter_mut() {
         c.start_ms = c.start_ms.saturating_add(offset_ms).max(0);
-        c.end_ms   = c.end_ms.saturating_add(offset_ms).max(0);
+        c.end_ms = c.end_ms.saturating_add(offset_ms).max(0);
         for w in c.words.iter_mut() {
             w.start_ms = w.start_ms.saturating_add(offset_ms).max(0);
-            w.end_ms   = w.end_ms.saturating_add(offset_ms).max(0);
+            w.end_ms = w.end_ms.saturating_add(offset_ms).max(0);
         }
         c.last_edited_at = now_ms;
     }
@@ -181,7 +179,9 @@ pub fn edit_word(
 ) -> AppResult<Project> {
     let new_text = new_text.trim();
     if new_text.is_empty() {
-        return Err(AppError::Validation("word text cannot be empty".to_string()));
+        return Err(AppError::Validation(
+            "word text cannot be empty".to_string(),
+        ));
     }
 
     let mut next = project.clone();
@@ -189,7 +189,8 @@ pub fn edit_word(
     if word_index >= cap.words.len() {
         return Err(AppError::Validation(format!(
             "word index {} out of range (caption has {} words)",
-            word_index, cap.words.len()
+            word_index,
+            cap.words.len()
         )));
     }
     let w = &mut cap.words[word_index];
@@ -277,7 +278,9 @@ pub fn retime_word(
     now_ms: i64,
 ) -> AppResult<Project> {
     if new_start_ms >= new_end_ms {
-        return Err(AppError::Validation("start must be less than end".to_string()));
+        return Err(AppError::Validation(
+            "start must be less than end".to_string(),
+        ));
     }
 
     let mut next = project.clone();
@@ -289,7 +292,11 @@ pub fn retime_word(
         )));
     }
     // Bounds vs caption + neighbours
-    let lower_bound = if word_index == 0 { cap.start_ms } else { cap.words[word_index - 1].end_ms };
+    let lower_bound = if word_index == 0 {
+        cap.start_ms
+    } else {
+        cap.words[word_index - 1].end_ms
+    };
     let upper_bound = if word_index + 1 >= cap.words.len() {
         cap.end_ms
     } else {
@@ -312,15 +319,26 @@ pub fn retime_word(
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 fn find_caption<'a>(project: &'a Project, id: &str) -> AppResult<(usize, &'a Caption)> {
-    project.captions.iter().enumerate()
+    project
+        .captions
+        .iter()
+        .enumerate()
         .find(|(_, c)| c.id == id)
-        .ok_or_else(|| AppError::NotFound { entity: "caption", id: id.to_string() })
+        .ok_or_else(|| AppError::NotFound {
+            entity: "caption",
+            id: id.to_string(),
+        })
 }
 
 fn mutable_caption<'a>(project: &'a mut Project, id: &str) -> AppResult<&'a mut Caption> {
-    project.captions.iter_mut()
+    project
+        .captions
+        .iter_mut()
         .find(|c| c.id == id)
-        .ok_or_else(|| AppError::NotFound { entity: "caption", id: id.to_string() })
+        .ok_or_else(|| AppError::NotFound {
+            entity: "caption",
+            id: id.to_string(),
+        })
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -330,7 +348,7 @@ fn mutable_caption<'a>(project: &'a mut Project, id: &str) -> AppResult<&'a mut 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Style, AlternateRead};
+    use crate::model::{AlternateRead, Style};
 
     fn word(text: &str, start: i64, end: i64, conf: f32) -> Word {
         Word::new(text, start, end, conf)
@@ -365,17 +383,27 @@ mod tests {
             default_style: Style::broadcast_news(),
             context_description: None,
             captions: vec![
-                caption("c1", 0, 2000, vec![
-                    word("Hello", 0, 500, 95.0),
-                    word("there", 500, 1000, 88.0),
-                    word("world", 1000, 1500, 60.0),
-                    word("again", 1500, 2000, 35.0),
-                ]),
-                caption("c2", 3000, 5000, vec![
-                    word("This", 3000, 3300, 92.0),
-                    word("is", 3300, 3500, 90.0),
-                    word("two", 3500, 4000, 75.0),
-                ]),
+                caption(
+                    "c1",
+                    0,
+                    2000,
+                    vec![
+                        word("Hello", 0, 500, 95.0),
+                        word("there", 500, 1000, 88.0),
+                        word("world", 1000, 1500, 60.0),
+                        word("again", 1500, 2000, 35.0),
+                    ],
+                ),
+                caption(
+                    "c2",
+                    3000,
+                    5000,
+                    vec![
+                        word("This", 3000, 3300, 92.0),
+                        word("is", 3300, 3500, 90.0),
+                        word("two", 3500, 4000, 75.0),
+                    ],
+                ),
             ],
             speakers: vec![],
             glossary: vec![],
@@ -388,13 +416,13 @@ mod tests {
     #[test]
     fn confidence_tier_boundaries() {
         assert_eq!(word("a", 0, 1, 100.0).confidence_tier(), 1);
-        assert_eq!(word("a", 0, 1, 85.0).confidence_tier(),  1);
-        assert_eq!(word("a", 0, 1, 84.9).confidence_tier(),  2);
-        assert_eq!(word("a", 0, 1, 70.0).confidence_tier(),  2);
-        assert_eq!(word("a", 0, 1, 69.9).confidence_tier(),  3);
-        assert_eq!(word("a", 0, 1, 50.0).confidence_tier(),  3);
-        assert_eq!(word("a", 0, 1, 49.9).confidence_tier(),  4);
-        assert_eq!(word("a", 0, 1, 0.0).confidence_tier(),   4);
+        assert_eq!(word("a", 0, 1, 85.0).confidence_tier(), 1);
+        assert_eq!(word("a", 0, 1, 84.9).confidence_tier(), 2);
+        assert_eq!(word("a", 0, 1, 70.0).confidence_tier(), 2);
+        assert_eq!(word("a", 0, 1, 69.9).confidence_tier(), 3);
+        assert_eq!(word("a", 0, 1, 50.0).confidence_tier(), 3);
+        assert_eq!(word("a", 0, 1, 49.9).confidence_tier(), 4);
+        assert_eq!(word("a", 0, 1, 0.0).confidence_tier(), 4);
     }
 
     #[test]
@@ -425,9 +453,9 @@ mod tests {
         let mut c = fixture().captions[0].clone();
         // 95, 88, 60, 35 — at threshold 70, two are uncertain (60 and 35)
         assert_eq!(c.uncertain_word_count(70.0), 2);
-        c.words[2].locked = true;       // 60 → locked → not uncertain
+        c.words[2].locked = true; // 60 → locked → not uncertain
         assert_eq!(c.uncertain_word_count(70.0), 1);
-        c.words[3].edited = true;       // 35 → edited → not uncertain
+        c.words[3].edited = true; // 35 → edited → not uncertain
         assert_eq!(c.uncertain_word_count(70.0), 0);
     }
 
@@ -495,7 +523,7 @@ mod tests {
         let p = fixture();
         let r = shift_all_captions(&p, 1000, 100).unwrap();
         assert_eq!(r.captions[0].start_ms, 1000);
-        assert_eq!(r.captions[0].end_ms,   3000);
+        assert_eq!(r.captions[0].end_ms, 3000);
         assert_eq!(r.captions[0].words[0].start_ms, 1000);
         assert_eq!(r.captions[1].end_ms, 6000);
     }
@@ -507,9 +535,9 @@ mod tests {
         let p = shift_all_captions(&fixture(), 2000, 50).unwrap();
         let r = shift_all_captions(&p, -500, 100).unwrap();
         assert_eq!(r.captions[0].start_ms, 1500); // 0 + 2000 - 500
-        assert_eq!(r.captions[0].end_ms,   3500); // 2000 + 2000 - 500
+        assert_eq!(r.captions[0].end_ms, 3500); // 2000 + 2000 - 500
         assert_eq!(r.captions[1].start_ms, 4500); // 3000 + 2000 - 500
-        assert_eq!(r.captions[1].end_ms,   6500);
+        assert_eq!(r.captions[1].end_ms, 6500);
     }
 
     #[test]
@@ -568,8 +596,14 @@ mod tests {
     fn accept_alternate_replaces_text_and_confidence() {
         let mut p = fixture();
         p.captions[0].words[3].alternates = vec![
-            AlternateRead { text: "again,".into(), confidence: 80.0 },
-            AlternateRead { text: "Egypt".into(),  confidence: 30.0 },
+            AlternateRead {
+                text: "again,".into(),
+                confidence: 80.0,
+            },
+            AlternateRead {
+                text: "Egypt".into(),
+                confidence: 30.0,
+            },
         ];
         let r = accept_alternate(&p, "c1", 3, 0, 100).unwrap();
         assert_eq!(r.captions[0].words[3].text, "again,");
@@ -580,9 +614,10 @@ mod tests {
     #[test]
     fn accept_alternate_out_of_range_rejected() {
         let mut p = fixture();
-        p.captions[0].words[3].alternates = vec![
-            AlternateRead { text: "again,".into(), confidence: 80.0 },
-        ];
+        p.captions[0].words[3].alternates = vec![AlternateRead {
+            text: "again,".into(),
+            confidence: 80.0,
+        }];
         let err = accept_alternate(&p, "c1", 3, 5, 100).unwrap_err();
         assert_eq!(err.code(), "validation");
     }
@@ -593,7 +628,7 @@ mod tests {
         let p = fixture();
         let r = retime_word(&p, "c1", 1, 600, 900, 100).unwrap();
         assert_eq!(r.captions[0].words[1].start_ms, 600);
-        assert_eq!(r.captions[0].words[1].end_ms,   900);
+        assert_eq!(r.captions[0].words[1].end_ms, 900);
     }
 
     #[test]
@@ -621,7 +656,7 @@ mod tests {
     #[test]
     fn validate_rejects_overlap() {
         let mut p = fixture();
-        p.captions[1].start_ms = 1500;  // overlaps c1 which ends at 2000
+        p.captions[1].start_ms = 1500; // overlaps c1 which ends at 2000
         assert!(p.validate().is_err());
     }
 

@@ -39,7 +39,11 @@ pub fn translate_estimate(
     let input = rough_token_count(&system) + rough_token_count(&user);
     let output = estimate_output_tokens(&project);
 
-    let caption_count = project.captions.iter().filter(|c| !c.words.is_empty()).count();
+    let caption_count = project
+        .captions
+        .iter()
+        .filter(|c| !c.words.is_empty())
+        .count();
     Ok(PolishEstimate {
         caption_count,
         estimated_input_tokens: input,
@@ -75,9 +79,17 @@ pub async fn translate_captions(
         .filter(|k| !k.trim().is_empty())
         .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
         .unwrap_or_default();
-    let config = LlmConfig { model, api_key: key };
+    let config = LlmConfig {
+        model,
+        api_key: key,
+    };
 
     let response = llm::complete(&config, &system, &user, max_tokens).await?;
     let parsed = translate::parse_translation_response(&response)?;
-    Ok(translate::translate_to_captions(&project, &parsed, &target_language, now_ms()))
+    Ok(translate::translate_to_captions(
+        &project,
+        &parsed,
+        &target_language,
+        now_ms(),
+    ))
 }

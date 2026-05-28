@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 
 use crate::error::AppResult;
 use crate::services::asr::model::WhisperModel;
-use crate::services::asr::{AsrOptions, AsrProvider, Transcript, TranscribeProgress};
+use crate::services::asr::{AsrOptions, AsrProvider, TranscribeProgress, Transcript};
 
 pub struct LocalWhisperProvider {
     pub model: WhisperModel,
@@ -93,12 +93,14 @@ impl AsrProvider for LocalWhisperProvider {
             .full(params, &samples)
             .map_err(|e| AppError::Internal(format!("whisper transcribe: {e}")))?;
 
-        let n_segments = state.full_n_segments()
+        let n_segments = state
+            .full_n_segments()
             .map_err(|e| AppError::Internal(format!("segment count: {e}")))?;
 
         let mut words: Vec<TranscribedWord> = Vec::new();
         for i in 0..n_segments {
-            let text = state.full_get_segment_text(i)
+            let text = state
+                .full_get_segment_text(i)
                 .map_err(|e| AppError::Internal(format!("segment text: {e}")))?;
             let t0 = state.full_get_segment_t0(i).unwrap_or(0); // centiseconds
             let t1 = state.full_get_segment_t1(i).unwrap_or(t0);
@@ -115,7 +117,9 @@ impl AsrProvider for LocalWhisperProvider {
             let confidence = word_confidence_from_token_logprobs(&logprobs);
 
             let text = text.trim().to_string();
-            if text.is_empty() { continue; }
+            if text.is_empty() {
+                continue;
+            }
             words.push(TranscribedWord {
                 text,
                 start_ms: t0 * 10, // cs → ms
@@ -136,7 +140,11 @@ impl AsrProvider for LocalWhisperProvider {
 
         progress(TranscribeProgress::Done);
 
-        let language = if opts.language == "auto" { "auto".to_string() } else { opts.language.clone() };
+        let language = if opts.language == "auto" {
+            "auto".to_string()
+        } else {
+            opts.language.clone()
+        };
         Ok(Transcript {
             language,
             backend: self.name(),
@@ -196,7 +204,9 @@ mod tests {
         let dir = std::path::Path::new("/tmp/models");
         let p = LocalWhisperProvider::new(WhisperModel::Base, dir);
         let mut noop = |_p: TranscribeProgress| {};
-        let err = p.transcribe(Path::new("/tmp/x.wav"), &AsrOptions::default(), &mut noop).unwrap_err();
+        let err = p
+            .transcribe(Path::new("/tmp/x.wav"), &AsrOptions::default(), &mut noop)
+            .unwrap_err();
         assert_eq!(err.code(), "internal");
         assert!(err.to_string().contains("--features whisper"));
     }

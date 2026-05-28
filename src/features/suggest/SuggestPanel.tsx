@@ -13,7 +13,14 @@ import { useEffect, useState } from "react";
 import { Lightbulb, ArrowRight, Check, X } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
-import type { ClaudeModel, PolishEstimate, Project, Strictness, Suggestion, SuggestionKind } from "@/lib/bindings";
+import type {
+  ClaudeModel,
+  PolishEstimate,
+  Project,
+  Strictness,
+  Suggestion,
+  SuggestionKind,
+} from "@/lib/bindings";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -60,14 +67,21 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
       .estimate(project, model, strictness)
       .then((e) => !cancelled && setEstimate(e))
       .catch(() => !cancelled && setEstimate(null));
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [project, model, strictness]);
 
   async function run() {
     setError(null);
     setRunning(true);
     try {
-      const res = await ipc.suggest.run(project, model, strictness, apiKey || undefined);
+      const res = await ipc.suggest.run(
+        project,
+        model,
+        strictness,
+        apiKey || undefined,
+      );
       setQueue(res);
     } catch (e) {
       setError(e instanceof IPCError ? e.message : String(e));
@@ -98,11 +112,13 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
     <div className="mx-auto max-w-2xl space-y-6 p-6">
       <header>
         <h2 className="mb-1 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
-          <Lightbulb size={16} className="text-[var(--color-accent-400)]" /> Smarte forslag
+          <Lightbulb size={16} className="text-[var(--color-accent-400)]" />{" "}
+          Smarte forslag
         </h2>
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-          AI foreslår innholdsforbedringer — retting av feilhøring, omformulering, forkorting.
-          Ingenting endres automatisk: du godkjenner eller avviser hvert forslag.
+          AI foreslår innholdsforbedringer — retting av feilhøring,
+          omformulering, forkorting. Ingenting endres automatisk: du godkjenner
+          eller avviser hvert forslag.
         </p>
       </header>
 
@@ -125,7 +141,9 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">Grundighet:</span>
+        <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
+          Grundighet:
+        </span>
         {STRICTNESS.map((s) => (
           <button
             key={s.id}
@@ -158,11 +176,13 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
           disabled={running || !estimate || estimate.caption_count === 0}
           className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
         >
-          <Lightbulb size={14} /> {running ? "Analyserer…" : "Foreslå forbedringer"}
+          <Lightbulb size={14} />{" "}
+          {running ? "Analyserer…" : "Foreslå forbedringer"}
         </button>
         {estimate && (
           <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-            {estimate.caption_count} undertekster · ~{formatCost(estimate.estimated_cost_usd)}
+            {estimate.caption_count} undertekster · ~
+            {formatCost(estimate.estimated_cost_usd)}
           </span>
         )}
       </div>
@@ -173,8 +193,8 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
         </p>
       )}
 
-      {queue && (
-        queue.length === 0 ? (
+      {queue &&
+        (queue.length === 0 ? (
           <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
             Ingen forslag — undertekstene ser allerede bra ut. 🎉
           </p>
@@ -192,12 +212,19 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
                   <span className="rounded bg-[var(--color-accent-600)]/20 px-2 py-0.5 text-[var(--text-ui-xs)] font-medium text-[var(--color-accent-400)]">
                     {KIND_LABEL[s.kind]}
                   </span>
-                  <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">{s.reasoning}</span>
+                  <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
+                    {s.reasoning}
+                  </span>
                 </div>
                 <div className="mb-3 space-y-1 text-[var(--text-ui-sm)]">
-                  <p className="text-[var(--color-fg-subtle)] line-through">{captionText(project, s.caption_id)}</p>
+                  <p className="text-[var(--color-fg-subtle)] line-through">
+                    {captionText(project, s.caption_id)}
+                  </p>
                   <p className="flex items-start gap-1.5 text-[var(--color-fg)]">
-                    <ArrowRight size={13} className="mt-1 shrink-0 text-[var(--color-accent-400)]" />
+                    <ArrowRight
+                      size={13}
+                      className="mt-1 shrink-0 text-[var(--color-accent-400)]"
+                    />
                     <span>{s.suggestion}</span>
                   </p>
                 </div>
@@ -221,8 +248,7 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
               </article>
             ))}
           </section>
-        )
-      )}
+        ))}
     </div>
   );
 }

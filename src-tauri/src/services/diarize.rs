@@ -7,11 +7,11 @@
 //! As with Whisper and the LLM features, the heavy/native part is gated and
 //! everything that matters for correctness is pure and tested offline:
 //!   - `parse_diarization_json` — normalize the sidecar's turns.
-//!   - `assign_speakers`        — overlap-match turns to captions, build the
-//!                                speaker roster with auto names + colours.
+//!   - `assign_speakers` — overlap-match turns to captions, build the speaker
+//!     roster with auto names + colours.
 //!   - `merge_speakers` / `rename_speaker` / `set_speaker_color` — the
-//!                                roster-editing the UI needs (split is just
-//!                                re-running detection or manual re-assign).
+//!     roster-editing the UI needs (split is just re-running detection or
+//!     manual re-assign).
 //!
 //! The diarization *engine* itself needs audio + a model (pyannote has no
 //! mature pure-Rust port yet), so `run_diarization` shells out to a
@@ -49,12 +49,18 @@ pub fn parse_diarization_json(json: &str) -> AppResult<Vec<SpeakerTurn>> {
         let end = json.rfind(']');
         match (start, end) {
             (Some(s), Some(e)) if e > s => &json[s..=e],
-            _ => return Err(AppError::Validation("diarization output had no JSON array".into())),
+            _ => {
+                return Err(AppError::Validation(
+                    "diarization output had no JSON array".into(),
+                ))
+            }
         }
     };
     let raw: serde_json::Value = serde_json::from_str(slice)
         .map_err(|e| AppError::Validation(format!("diarization output was not valid JSON: {e}")))?;
-    let arr = raw.as_array().ok_or_else(|| AppError::Validation("diarization output not an array".into()))?;
+    let arr = raw
+        .as_array()
+        .ok_or_else(|| AppError::Validation("diarization output not an array".into()))?;
 
     let mut turns = Vec::new();
     for t in arr {
@@ -130,15 +136,28 @@ pub fn assign_speakers(project: &Project, turns: &[SpeakerTurn], now_ms: i64) ->
 
 /// Merge `remove_id` into `keep_id`: re-attribute that speaker's captions,
 /// then drop it from the roster. For when diarization split one person.
-pub fn merge_speakers(project: &Project, keep_id: &str, remove_id: &str, now_ms: i64) -> AppResult<Project> {
+pub fn merge_speakers(
+    project: &Project,
+    keep_id: &str,
+    remove_id: &str,
+    now_ms: i64,
+) -> AppResult<Project> {
     if keep_id == remove_id {
-        return Err(AppError::Validation("cannot merge a speaker into itself".into()));
+        return Err(AppError::Validation(
+            "cannot merge a speaker into itself".into(),
+        ));
     }
     if !project.speakers.iter().any(|s| s.id == keep_id) {
-        return Err(AppError::NotFound { entity: "speaker", id: keep_id.to_string() });
+        return Err(AppError::NotFound {
+            entity: "speaker",
+            id: keep_id.to_string(),
+        });
     }
     if !project.speakers.iter().any(|s| s.id == remove_id) {
-        return Err(AppError::NotFound { entity: "speaker", id: remove_id.to_string() });
+        return Err(AppError::NotFound {
+            entity: "speaker",
+            id: remove_id.to_string(),
+        });
     }
 
     let mut next = project.clone();
@@ -153,7 +172,12 @@ pub fn merge_speakers(project: &Project, keep_id: &str, remove_id: &str, now_ms:
     Ok(next)
 }
 
-pub fn rename_speaker(project: &Project, speaker_id: &str, name: &str, now_ms: i64) -> AppResult<Project> {
+pub fn rename_speaker(
+    project: &Project,
+    speaker_id: &str,
+    name: &str,
+    now_ms: i64,
+) -> AppResult<Project> {
     let name = name.trim();
     if name.is_empty() {
         return Err(AppError::Validation("speaker name cannot be empty".into()));
@@ -163,19 +187,30 @@ pub fn rename_speaker(project: &Project, speaker_id: &str, name: &str, now_ms: i
         .speakers
         .iter_mut()
         .find(|s| s.id == speaker_id)
-        .ok_or_else(|| AppError::NotFound { entity: "speaker", id: speaker_id.to_string() })?;
+        .ok_or_else(|| AppError::NotFound {
+            entity: "speaker",
+            id: speaker_id.to_string(),
+        })?;
     s.display_name = name.to_string();
     next.updated_at = now_ms;
     Ok(next)
 }
 
-pub fn set_speaker_color(project: &Project, speaker_id: &str, color_hex: &str, now_ms: i64) -> AppResult<Project> {
+pub fn set_speaker_color(
+    project: &Project,
+    speaker_id: &str,
+    color_hex: &str,
+    now_ms: i64,
+) -> AppResult<Project> {
     let mut next = project.clone();
     let s = next
         .speakers
         .iter_mut()
         .find(|s| s.id == speaker_id)
-        .ok_or_else(|| AppError::NotFound { entity: "speaker", id: speaker_id.to_string() })?;
+        .ok_or_else(|| AppError::NotFound {
+            entity: "speaker",
+            id: speaker_id.to_string(),
+        })?;
     s.color_hex = Some(color_hex.to_string());
     next.updated_at = now_ms;
     Ok(next)
@@ -191,7 +226,9 @@ pub fn run_diarization(audio_path: &std::path::Path) -> AppResult<Vec<SpeakerTur
     let output = Command::new("verbatim-diarize")
         .arg(audio_path)
         .output()
-        .map_err(|e| AppError::Internal(format!("could not launch verbatim-diarize sidecar: {e}")))?;
+        .map_err(|e| {
+            AppError::Internal(format!("could not launch verbatim-diarize sidecar: {e}"))
+        })?;
     if !output.status.success() {
         return Err(AppError::Internal(format!(
             "diarization sidecar failed: {}",
@@ -231,15 +268,32 @@ mod tests {
 
     fn project_with(captions: Vec<Caption>, speakers: Vec<Speaker>) -> Project {
         Project {
-            id: "p".into(), name: "t".into(), video_path: "/x".into(), video_content_hash: "h".into(),
-            video_duration_ms: 60_000, video_width: 0, video_height: 0, video_fps: 0.0,
-            audio_wav_path: None, language: "no".into(), default_style: Style::broadcast_news(),
-            context_description: None, captions, speakers, glossary: vec![], created_at: 0, updated_at: 0,
+            id: "p".into(),
+            name: "t".into(),
+            video_path: "/x".into(),
+            video_content_hash: "h".into(),
+            video_duration_ms: 60_000,
+            video_width: 0,
+            video_height: 0,
+            video_fps: 0.0,
+            audio_wav_path: None,
+            language: "no".into(),
+            default_style: Style::broadcast_news(),
+            context_description: None,
+            captions,
+            speakers,
+            glossary: vec![],
+            created_at: 0,
+            updated_at: 0,
         }
     }
 
     fn turn(start_ms: i64, end_ms: i64, speaker: &str) -> SpeakerTurn {
-        SpeakerTurn { start_ms, end_ms, speaker: speaker.into() }
+        SpeakerTurn {
+            start_ms,
+            end_ms,
+            speaker: speaker.into(),
+        }
     }
 
     // ── parse ────────────────────────────────────────────────────────────────
@@ -269,7 +323,11 @@ mod tests {
     #[test]
     fn assigns_by_max_overlap_and_builds_roster() {
         let p = project_with(
-            vec![caption("c1", 0, 1000), caption("c2", 1000, 2000), caption("c3", 2000, 3000)],
+            vec![
+                caption("c1", 0, 1000),
+                caption("c2", 1000, 2000),
+                caption("c3", 2000, 3000),
+            ],
             vec![],
         );
         let turns = vec![turn(0, 1100, "SPEAKER_00"), turn(1100, 3000, "SPEAKER_01")];
@@ -312,8 +370,16 @@ mod tests {
         let mut p = project_with(
             vec![caption("c1", 0, 1000), caption("c2", 1000, 2000)],
             vec![
-                Speaker { id: "spk:0".into(), display_name: "Taler 1".into(), color_hex: None },
-                Speaker { id: "spk:1".into(), display_name: "Taler 2".into(), color_hex: None },
+                Speaker {
+                    id: "spk:0".into(),
+                    display_name: "Taler 1".into(),
+                    color_hex: None,
+                },
+                Speaker {
+                    id: "spk:1".into(),
+                    display_name: "Taler 2".into(),
+                    color_hex: None,
+                },
             ],
         );
         p.captions[0].speaker_id = Some("spk:0".into());
@@ -321,20 +387,47 @@ mod tests {
 
         let out = merge_speakers(&p, "spk:0", "spk:1", 5).unwrap();
         assert_eq!(out.speakers.len(), 1);
-        assert_eq!(out.captions[1].speaker_id.as_deref(), Some("spk:0"), "c2 reattributed");
+        assert_eq!(
+            out.captions[1].speaker_id.as_deref(),
+            Some("spk:0"),
+            "c2 reattributed"
+        );
     }
 
     #[test]
     fn merge_validates_ids() {
-        let p = project_with(vec![], vec![Speaker { id: "spk:0".into(), display_name: "T".into(), color_hex: None }]);
-        assert!(merge_speakers(&p, "spk:0", "spk:0", 1).is_err(), "self-merge");
-        assert!(merge_speakers(&p, "spk:0", "ghost", 1).is_err(), "missing remove");
-        assert!(merge_speakers(&p, "ghost", "spk:0", 1).is_err(), "missing keep");
+        let p = project_with(
+            vec![],
+            vec![Speaker {
+                id: "spk:0".into(),
+                display_name: "T".into(),
+                color_hex: None,
+            }],
+        );
+        assert!(
+            merge_speakers(&p, "spk:0", "spk:0", 1).is_err(),
+            "self-merge"
+        );
+        assert!(
+            merge_speakers(&p, "spk:0", "ghost", 1).is_err(),
+            "missing remove"
+        );
+        assert!(
+            merge_speakers(&p, "ghost", "spk:0", 1).is_err(),
+            "missing keep"
+        );
     }
 
     #[test]
     fn rename_and_color_update_roster() {
-        let p = project_with(vec![], vec![Speaker { id: "spk:0".into(), display_name: "Taler 1".into(), color_hex: None }]);
+        let p = project_with(
+            vec![],
+            vec![Speaker {
+                id: "spk:0".into(),
+                display_name: "Taler 1".into(),
+                color_hex: None,
+            }],
+        );
         let renamed = rename_speaker(&p, "spk:0", "Pastor Lars", 5).unwrap();
         assert_eq!(renamed.speakers[0].display_name, "Pastor Lars");
         assert!(rename_speaker(&p, "spk:0", "  ", 5).is_err());

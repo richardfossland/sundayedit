@@ -38,6 +38,10 @@ pub fn speaker_rename(project: Project, speaker_id: String, name: String) -> App
 }
 
 #[tauri::command]
-pub fn speaker_set_color(project: Project, speaker_id: String, color_hex: String) -> AppResult<Project> {
+pub fn speaker_set_color(
+    project: Project,
+    speaker_id: String,
+    color_hex: String,
+) -> AppResult<Project> {
     diarize::set_speaker_color(&project, &speaker_id, &color_hex, now_ms())
 }

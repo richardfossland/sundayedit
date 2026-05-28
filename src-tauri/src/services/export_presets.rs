@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::model::Project;
-use crate::services::burnin::{BurnInOptions, VideoCodec, default_encoder};
+use crate::services::burnin::{default_encoder, BurnInOptions, VideoCodec};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "kebab-case")]
@@ -117,46 +117,88 @@ pub fn catalog() -> Vec<ExportPreset> {
     use VideoCodec::H264;
     vec![
         ExportPreset {
-            id: "export:youtube".into(), name: "YouTube".into(),
+            id: "export:youtube".into(),
+            name: "YouTube".into(),
             description: "1080p liggende. SRT-sidecar for SEO + tilgjengelighet.".into(),
-            aspect: Aspect::Landscape, width: 1920, height: 1080,
-            max_duration_sec: None, codec: H264, bitrate_kbps: 12_000, also_srt_sidecar: true,
+            aspect: Aspect::Landscape,
+            width: 1920,
+            height: 1080,
+            max_duration_sec: None,
+            codec: H264,
+            bitrate_kbps: 12_000,
+            also_srt_sidecar: true,
         },
         ExportPreset {
-            id: "export:youtube_shorts".into(), name: "YouTube Shorts".into(),
+            id: "export:youtube_shorts".into(),
+            name: "YouTube Shorts".into(),
             description: "1080×1920 stående, maks 60 s.".into(),
-            aspect: Aspect::Portrait, width: 1080, height: 1920,
-            max_duration_sec: Some(60), codec: H264, bitrate_kbps: 10_000, also_srt_sidecar: false,
+            aspect: Aspect::Portrait,
+            width: 1080,
+            height: 1920,
+            max_duration_sec: Some(60),
+            codec: H264,
+            bitrate_kbps: 10_000,
+            also_srt_sidecar: false,
         },
         ExportPreset {
-            id: "export:reels".into(), name: "Instagram Reels".into(),
+            id: "export:reels".into(),
+            name: "Instagram Reels".into(),
             description: "1080×1920 stående, maks 90 s.".into(),
-            aspect: Aspect::Portrait, width: 1080, height: 1920,
-            max_duration_sec: Some(90), codec: H264, bitrate_kbps: 10_000, also_srt_sidecar: false,
+            aspect: Aspect::Portrait,
+            width: 1080,
+            height: 1920,
+            max_duration_sec: Some(90),
+            codec: H264,
+            bitrate_kbps: 10_000,
+            also_srt_sidecar: false,
         },
         ExportPreset {
-            id: "export:tiktok".into(), name: "TikTok".into(),
+            id: "export:tiktok".into(),
+            name: "TikTok".into(),
             description: "1080×1920 stående, maks 10 min.".into(),
-            aspect: Aspect::Portrait, width: 1080, height: 1920,
-            max_duration_sec: Some(600), codec: H264, bitrate_kbps: 10_000, also_srt_sidecar: false,
+            aspect: Aspect::Portrait,
+            width: 1080,
+            height: 1920,
+            max_duration_sec: Some(600),
+            codec: H264,
+            bitrate_kbps: 10_000,
+            also_srt_sidecar: false,
         },
         ExportPreset {
-            id: "export:x".into(), name: "Twitter / X".into(),
+            id: "export:x".into(),
+            name: "Twitter / X".into(),
             description: "720p liggende, maks 140 s.".into(),
-            aspect: Aspect::Landscape, width: 1280, height: 720,
-            max_duration_sec: Some(140), codec: H264, bitrate_kbps: 6_000, also_srt_sidecar: false,
+            aspect: Aspect::Landscape,
+            width: 1280,
+            height: 720,
+            max_duration_sec: Some(140),
+            codec: H264,
+            bitrate_kbps: 6_000,
+            also_srt_sidecar: false,
         },
         ExportPreset {
-            id: "export:square".into(), name: "Square (feed)".into(),
+            id: "export:square".into(),
+            name: "Square (feed)".into(),
             description: "1080×1080 kvadratisk for feed-poster.".into(),
-            aspect: Aspect::Square, width: 1080, height: 1080,
-            max_duration_sec: None, codec: H264, bitrate_kbps: 8_000, also_srt_sidecar: false,
+            aspect: Aspect::Square,
+            width: 1080,
+            height: 1080,
+            max_duration_sec: None,
+            codec: H264,
+            bitrate_kbps: 8_000,
+            also_srt_sidecar: false,
         },
         ExportPreset {
-            id: "export:broadcast".into(), name: "Broadcast".into(),
+            id: "export:broadcast".into(),
+            name: "Broadcast".into(),
             description: "1080p liggende, høy bitrate. SRT-sidecar.".into(),
-            aspect: Aspect::Landscape, width: 1920, height: 1080,
-            max_duration_sec: None, codec: H264, bitrate_kbps: 20_000, also_srt_sidecar: true,
+            aspect: Aspect::Landscape,
+            width: 1920,
+            height: 1080,
+            max_duration_sec: None,
+            codec: H264,
+            bitrate_kbps: 20_000,
+            also_srt_sidecar: true,
         },
     ]
 }
@@ -167,20 +209,37 @@ mod tests {
     use crate::model::{Caption, Project, Style, Word};
 
     fn project(width: i32, height: i32, dur_ms: i64, captions: usize) -> Project {
-        let caps = (0..captions).map(|i| Caption {
-            id: format!("c{i}"), start_ms: i as i64 * 1000, end_ms: i as i64 * 1000 + 900,
-            words: vec![Word::new("hi", 0, 900, 95.0)],
-            speaker_id: None, style_id: None, notes: None,
-            ai_generated: true, last_edited_at: 0,
-        }).collect();
+        let caps = (0..captions)
+            .map(|i| Caption {
+                id: format!("c{i}"),
+                start_ms: i as i64 * 1000,
+                end_ms: i as i64 * 1000 + 900,
+                words: vec![Word::new("hi", 0, 900, 95.0)],
+                speaker_id: None,
+                style_id: None,
+                notes: None,
+                ai_generated: true,
+                last_edited_at: 0,
+            })
+            .collect();
         Project {
-            id: "p".into(), name: "t".into(),
-            video_path: "/x".into(), video_content_hash: "h".into(),
-            video_duration_ms: dur_ms, video_width: width, video_height: height, video_fps: 30.0,
-            audio_wav_path: None, language: "en".into(),
-            default_style: Style::broadcast_news(), context_description: None,
-            captions: caps, speakers: vec![], glossary: vec![],
-            created_at: 0, updated_at: 0,
+            id: "p".into(),
+            name: "t".into(),
+            video_path: "/x".into(),
+            video_content_hash: "h".into(),
+            video_duration_ms: dur_ms,
+            video_width: width,
+            video_height: height,
+            video_fps: 30.0,
+            audio_wav_path: None,
+            language: "en".into(),
+            default_style: Style::broadcast_news(),
+            context_description: None,
+            captions: caps,
+            speakers: vec![],
+            glossary: vec![],
+            created_at: 0,
+            updated_at: 0,
         }
     }
 
@@ -200,7 +259,9 @@ mod tests {
     fn shorts_rejects_over_60s() {
         let p = project(1080, 1920, 75_000, 3); // 75s
         let w = validate(&p, &preset("export:youtube_shorts"));
-        assert!(w.iter().any(|x| x.severity == "error" && x.message.contains("60")));
+        assert!(w
+            .iter()
+            .any(|x| x.severity == "error" && x.message.contains("60")));
     }
 
     #[test]
@@ -214,7 +275,9 @@ mod tests {
     fn landscape_source_to_portrait_target_warns_crop() {
         let p = project(1920, 1080, 30_000, 3); // landscape source
         let w = validate(&p, &preset("export:tiktok")); // portrait target
-        assert!(w.iter().any(|x| x.severity == "warning" && x.message.contains("beskåret")));
+        assert!(w
+            .iter()
+            .any(|x| x.severity == "warning" && x.message.contains("beskåret")));
     }
 
     #[test]

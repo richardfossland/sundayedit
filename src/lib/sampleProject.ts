@@ -9,8 +9,24 @@
 
 import type { Project, Word } from "./bindings";
 
-function w(text: string, start: number, end: number, confidence: number, extra?: Partial<Word>): Word {
-  return { text, start_ms: start, end_ms: end, confidence, edited: false, locked: false, polished: false, alternates: [], ...extra };
+function w(
+  text: string,
+  start: number,
+  end: number,
+  confidence: number,
+  extra?: Partial<Word>,
+): Word {
+  return {
+    text,
+    start_ms: start,
+    end_ms: end,
+    confidence,
+    edited: false,
+    locked: false,
+    polished: false,
+    alternates: [],
+    ...extra,
+  };
 }
 
 export const SAMPLE_PROJECT: Project = {
@@ -24,7 +40,8 @@ export const SAMPLE_PROJECT: Project = {
   video_fps: 30,
   audio_wav_path: null,
   language: "no",
-  context_description: "A sermon excerpt discussing Christology and soteriology.",
+  context_description:
+    "A sermon excerpt discussing Christology and soteriology.",
   default_style: {
     id: "preset:broadcast_news",
     name: "Broadcast News",
@@ -61,7 +78,7 @@ export const SAMPLE_PROJECT: Project = {
         w("gudstjenesten", 900, 1800, 91),
         w("denne", 1800, 2100, 88),
         w("søndagen", 2100, 2900, 72), // tier 2
-        w("morgen", 2900, 4200, 64),   // tier 3
+        w("morgen", 2900, 4200, 64), // tier 3
       ],
       speaker_id: "s1",
       style_id: null,
@@ -80,7 +97,8 @@ export const SAMPLE_PROJECT: Project = {
         w("vi", 5300, 5500, 96),
         w("snakke", 5500, 6000, 90),
         w("om", 6000, 6200, 97),
-        w("kerigma", 6200, 7100, 38, {  // tier 4 — the demo case from the plan
+        w("kerigma", 6200, 7100, 38, {
+          // tier 4 — the demo case from the plan
           alternates: [
             { text: "kerygma", confidence: 71 },
             { text: "karisma", confidence: 44 },
@@ -92,7 +110,8 @@ export const SAMPLE_PROJECT: Project = {
       ],
       speaker_id: "s1",
       style_id: null,
-      notes: "Speaker uses the theological term — context priming would fix 'kerigma' → 'kerygma'.",
+      notes:
+        "Speaker uses the theological term — context priming would fix 'kerigma' → 'kerygma'.",
       ai_generated: true,
       last_edited_at: 0,
     },
@@ -103,9 +122,9 @@ export const SAMPLE_PROJECT: Project = {
       words: [
         w("La", 10_200, 10_400, 93),
         w("oss", 10_400, 10_700, 95),
-        w("be", 10_700, 11_100, 55),     // tier 3
+        w("be", 10_700, 11_100, 55), // tier 3
         w("sammen", 11_100, 11_900, 89),
-        w("før", 11_900, 12_300, 81),    // tier 2
+        w("før", 11_900, 12_300, 81), // tier 2
         w("vi", 12_300, 12_600, 96),
         w("begynner", 12_600, 15_000, 87),
       ],
@@ -116,12 +135,22 @@ export const SAMPLE_PROJECT: Project = {
       last_edited_at: 0,
     },
   ],
-  speakers: [
-    { id: "s1", display_name: "Pastor Lars", color_hex: "#4FD1C5" },
-  ],
+  speakers: [{ id: "s1", display_name: "Pastor Lars", color_hex: "#4FD1C5" }],
   glossary: [
-    { id: "g1", term: "kerygma", aliases: ["kerigma", "karisma"], definition: "The proclamation of the gospel.", pronunciation_hint: null },
-    { id: "g2", term: "soteriologi", aliases: ["soteorologi"], definition: "The study of salvation.", pronunciation_hint: null },
+    {
+      id: "g1",
+      term: "kerygma",
+      aliases: ["kerigma", "karisma"],
+      definition: "The proclamation of the gospel.",
+      pronunciation_hint: null,
+    },
+    {
+      id: "g2",
+      term: "soteriologi",
+      aliases: ["soteorologi"],
+      definition: "The study of salvation.",
+      pronunciation_hint: null,
+    },
   ],
   created_at: 0,
   updated_at: 0,

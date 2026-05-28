@@ -65,7 +65,9 @@ pub fn detect_fillers(project: &Project, language: &str) -> Vec<FillerHit> {
 }
 
 fn strip_punct(s: &str) -> String {
-    s.chars().filter(|c| c.is_alphanumeric() || *c == '\'').collect()
+    s.chars()
+        .filter(|c| c.is_alphanumeric() || *c == '\'')
+        .collect()
 }
 
 // ── Silence detection ─────────────────────────────────────────────────────────
@@ -135,7 +137,10 @@ pub fn apply_ripple_cuts(project: &Project, cuts: &[(i64, i64)], now_ms: i64) ->
         let mut kept = Vec::with_capacity(cap.words.len());
         for w in cap.words.drain(..) {
             // Drop if entirely within any cut.
-            if merged.iter().any(|&(s, e)| w.start_ms >= s && w.end_ms <= e) {
+            if merged
+                .iter()
+                .any(|&(s, e)| w.start_ms >= s && w.end_ms <= e)
+            {
                 continue;
             }
             let shift = cut_duration_before(&merged, w.start_ms);
@@ -201,31 +206,52 @@ mod tests {
     use crate::model::{Caption, Project, Style, Word};
 
     fn from_words(words: Vec<(&str, i64, i64)>) -> Project {
-        let ws: Vec<Word> = words.iter()
+        let ws: Vec<Word> = words
+            .iter()
             .map(|&(t, s, e)| Word::new(t, s, e, 90.0))
             .collect();
         let start = ws.first().map(|w| w.start_ms).unwrap_or(0);
         let end = ws.last().map(|w| w.end_ms).unwrap_or(0);
         Project {
-            id: "p".into(), name: "t".into(),
-            video_path: "/x".into(), video_content_hash: "h".into(),
-            video_duration_ms: 60000, video_width: 1920, video_height: 1080, video_fps: 30.0,
-            audio_wav_path: None, language: "en".into(),
-            default_style: Style::broadcast_news(), context_description: None,
+            id: "p".into(),
+            name: "t".into(),
+            video_path: "/x".into(),
+            video_content_hash: "h".into(),
+            video_duration_ms: 60000,
+            video_width: 1920,
+            video_height: 1080,
+            video_fps: 30.0,
+            audio_wav_path: None,
+            language: "en".into(),
+            default_style: Style::broadcast_news(),
+            context_description: None,
             captions: vec![Caption {
-                id: "c1".into(), start_ms: start, end_ms: end, words: ws,
-                speaker_id: None, style_id: None, notes: None,
-                ai_generated: true, last_edited_at: 0,
+                id: "c1".into(),
+                start_ms: start,
+                end_ms: end,
+                words: ws,
+                speaker_id: None,
+                style_id: None,
+                notes: None,
+                ai_generated: true,
+                last_edited_at: 0,
             }],
-            speakers: vec![], glossary: vec![],
-            created_at: 0, updated_at: 0,
+            speakers: vec![],
+            glossary: vec![],
+            created_at: 0,
+            updated_at: 0,
         }
     }
 
     // ── filler detection ────────────────────────────────────────────────────
     #[test]
     fn detects_english_fillers() {
-        let p = from_words(vec![("So", 0, 300), ("um", 300, 600), ("yes", 600, 900), ("uh", 900, 1100)]);
+        let p = from_words(vec![
+            ("So", 0, 300),
+            ("um", 300, 600),
+            ("yes", 600, 900),
+            ("uh", 900, 1100),
+        ]);
         let hits = detect_fillers(&p, "en");
         assert_eq!(hits.len(), 2);
         assert_eq!(hits[0].text, "um");
@@ -234,7 +260,11 @@ mod tests {
 
     #[test]
     fn detects_norwegian_fillers() {
-        let p = from_words(vec![("Jeg", 0, 300), ("altså", 300, 700), ("liksom", 700, 1100)]);
+        let p = from_words(vec![
+            ("Jeg", 0, 300),
+            ("altså", 300, 700),
+            ("liksom", 700, 1100),
+        ]);
         let hits = detect_fillers(&p, "no");
         assert_eq!(hits.len(), 2);
     }
@@ -305,13 +335,17 @@ mod tests {
     #[test]
     fn ripple_multiple_cuts_accumulate() {
         let p = from_words(vec![
-            ("a", 0, 200), ("um", 200, 400), ("b", 400, 600), ("uh", 600, 800), ("c", 800, 1000),
+            ("a", 0, 200),
+            ("um", 200, 400),
+            ("b", 400, 600),
+            ("uh", 600, 800),
+            ("c", 800, 1000),
         ]);
         let out = apply_ripple_cuts(&p, &[(200, 400), (600, 800)], 100);
         let w = &out.captions[0].words;
         assert_eq!(w.len(), 3);
         assert_eq!(w[0].text, "a"); // 0..200 unchanged
-        // "b" 400..600: 200ms cut before it → 200..400
+                                    // "b" 400..600: 200ms cut before it → 200..400
         assert_eq!(w[1].text, "b");
         assert_eq!(w[1].start_ms, 200);
         // "c" 800..1000: 400ms cut before it → 400..600
@@ -345,7 +379,13 @@ mod tests {
 
     #[test]
     fn end_to_end_filler_removal() {
-        let p = from_words(vec![("So", 0, 300), ("um", 300, 600), ("we", 600, 900), ("uh", 900, 1200), ("go", 1200, 1500)]);
+        let p = from_words(vec![
+            ("So", 0, 300),
+            ("um", 300, 600),
+            ("we", 600, 900),
+            ("uh", 900, 1200),
+            ("go", 1200, 1500),
+        ]);
         let hits = detect_fillers(&p, "en");
         let cuts = fillers_to_cuts(&hits);
         let out = apply_ripple_cuts(&p, &cuts, 100);

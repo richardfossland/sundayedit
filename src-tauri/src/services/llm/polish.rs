@@ -67,7 +67,10 @@ pub fn build_polish_items(project: &Project) -> Vec<PolishItem> {
         .captions
         .iter()
         .filter(|c| !c.words.is_empty())
-        .map(|c| PolishItem { id: c.id.clone(), text: c.text() })
+        .map(|c| PolishItem {
+            id: c.id.clone(),
+            text: c.text(),
+        })
         .collect()
 }
 
@@ -182,8 +185,10 @@ pub fn substance_preserved(original_tokens: &[&str], polished_tokens: &[&str]) -
 pub fn apply_polish(project: &Project, polished: &[PolishItem], now_ms: i64) -> PolishResult {
     use std::collections::HashMap;
 
-    let by_id: HashMap<&str, &str> =
-        polished.iter().map(|p| (p.id.as_str(), p.text.as_str())).collect();
+    let by_id: HashMap<&str, &str> = polished
+        .iter()
+        .map(|p| (p.id.as_str(), p.text.as_str()))
+        .collect();
 
     let mut next = project.clone();
     let mut changes = Vec::new();
@@ -228,7 +233,11 @@ pub fn apply_polish(project: &Project, polished: &[PolishItem], now_ms: i64) -> 
         next.updated_at = now_ms;
     }
 
-    PolishResult { project: next, changes, rejected }
+    PolishResult {
+        project: next,
+        changes,
+        rejected,
+    }
 }
 
 #[cfg(test)]
@@ -281,7 +290,7 @@ mod tests {
         assert_eq!(word_core("don't"), "dont");
         assert_eq!(word_core("U.S.A."), "usa");
         assert_eq!(word_core("Får"), "får"); // Norwegian, unicode-lowered
-        assert_eq!(word_core("—"), "");       // pure punctuation
+        assert_eq!(word_core("—"), ""); // pure punctuation
     }
 
     // ── substance_preserved: the guard ──────────────────────────────────────
@@ -291,29 +300,44 @@ mod tests {
             &["i", "think", "we", "should", "go"],
             &["I", "think", "we", "should", "go."],
         ));
-        assert!(substance_preserved(&["hello", "world"], &["Hello,", "world!"]));
+        assert!(substance_preserved(
+            &["hello", "world"],
+            &["Hello,", "world!"]
+        ));
         assert!(substance_preserved(&["dont"], &["don't"]));
     }
 
     #[test]
     fn guard_rejects_word_substitution() {
         // "their" → "there" is a content change, not punctuation.
-        assert!(!substance_preserved(&["their", "house"], &["there", "house"]));
+        assert!(!substance_preserved(
+            &["their", "house"],
+            &["there", "house"]
+        ));
     }
 
     #[test]
     fn guard_rejects_added_word() {
-        assert!(!substance_preserved(&["hello", "world"], &["hello", "big", "world"]));
+        assert!(!substance_preserved(
+            &["hello", "world"],
+            &["hello", "big", "world"]
+        ));
     }
 
     #[test]
     fn guard_rejects_dropped_word() {
-        assert!(!substance_preserved(&["um", "hello", "world"], &["hello", "world"]));
+        assert!(!substance_preserved(
+            &["um", "hello", "world"],
+            &["hello", "world"]
+        ));
     }
 
     #[test]
     fn guard_rejects_reorder() {
-        assert!(!substance_preserved(&["hello", "world"], &["world", "hello"]));
+        assert!(!substance_preserved(
+            &["hello", "world"],
+            &["world", "hello"]
+        ));
     }
 
     #[test]
@@ -335,7 +359,10 @@ mod tests {
                 Word::new("so", 500, 800, 80.0),
             ],
         )]);
-        let polished = vec![PolishItem { id: "c1".into(), text: "I think so.".into() }];
+        let polished = vec![PolishItem {
+            id: "c1".into(),
+            text: "I think so.".into(),
+        }];
         let res = apply_polish(&p, &polished, 1234);
 
         let words = &res.project.captions[0].words;
@@ -362,13 +389,22 @@ mod tests {
     fn rejects_substantive_polish_and_keeps_original() {
         let p = project_with(vec![caption(
             "c1",
-            vec![Word::new("their", 0, 300, 70.0), Word::new("house", 300, 600, 85.0)],
+            vec![
+                Word::new("their", 0, 300, 70.0),
+                Word::new("house", 300, 600, 85.0),
+            ],
         )]);
         // Model tried to "correct" their → there: a word change. Reject.
-        let polished = vec![PolishItem { id: "c1".into(), text: "There house.".into() }];
+        let polished = vec![PolishItem {
+            id: "c1".into(),
+            text: "There house.".into(),
+        }];
         let res = apply_polish(&p, &polished, 1234);
 
-        assert_eq!(res.project.captions[0].words[0].text, "their", "original preserved");
+        assert_eq!(
+            res.project.captions[0].words[0].text, "their",
+            "original preserved"
+        );
         assert!(res.changes.is_empty());
         assert_eq!(res.rejected, vec!["c1".to_string()]);
         // nothing changed → updated_at untouched
@@ -382,8 +418,14 @@ mod tests {
             caption("c2", vec![Word::new("world", 1000, 1300, 90.0)]),
         ]);
         let polished = vec![
-            PolishItem { id: "c1".into(), text: "Hello!".into() },        // safe
-            PolishItem { id: "c2".into(), text: "Goodbye.".into() },      // substituted → reject
+            PolishItem {
+                id: "c1".into(),
+                text: "Hello!".into(),
+            }, // safe
+            PolishItem {
+                id: "c2".into(),
+                text: "Goodbye.".into(),
+            }, // substituted → reject
         ];
         let res = apply_polish(&p, &polished, 50);
         assert_eq!(res.project.captions[0].words[0].text, "Hello!");
@@ -404,7 +446,10 @@ mod tests {
     #[test]
     fn identical_polish_is_a_noop() {
         let p = project_with(vec![caption("c1", vec![Word::new("Hello.", 0, 300, 90.0)])]);
-        let polished = vec![PolishItem { id: "c1".into(), text: "Hello.".into() }];
+        let polished = vec![PolishItem {
+            id: "c1".into(),
+            text: "Hello.".into(),
+        }];
         let res = apply_polish(&p, &polished, 50);
         assert!(!res.project.captions[0].words[0].polished);
         assert!(res.changes.is_empty());
@@ -422,7 +467,10 @@ mod tests {
 
     #[test]
     fn user_prompt_embeds_items_as_json() {
-        let items = vec![PolishItem { id: "c1".into(), text: "hello world".into() }];
+        let items = vec![PolishItem {
+            id: "c1".into(),
+            text: "hello world".into(),
+        }];
         let prompt = build_polish_user_prompt(&items);
         assert!(prompt.contains("\"id\""));
         assert!(prompt.contains("c1"));
@@ -466,7 +514,10 @@ mod tests {
     fn end_to_end_parse_then_apply() {
         let p = project_with(vec![caption(
             "c1",
-            vec![Word::new("hei", 0, 300, 60.0), Word::new("verden", 300, 600, 65.0)],
+            vec![
+                Word::new("hei", 0, 300, 60.0),
+                Word::new("verden", 300, 600, 65.0),
+            ],
         )]);
         // Model response with fences, fixes casing + adds punctuation.
         let response = "```json\n[{\"id\":\"c1\",\"text\":\"Hei, verden.\"}]\n```";

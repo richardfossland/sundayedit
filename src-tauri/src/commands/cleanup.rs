@@ -5,12 +5,15 @@ use ts_rs::TS;
 
 use crate::error::AppResult;
 use crate::model::Project;
-use crate::services::find_replace::{self, FindMatch, FindOptions};
 use crate::services::filler::{self, FillerHit, SilenceGap};
+use crate::services::find_replace::{self, FindMatch, FindOptions};
 
 fn now_ms() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 // ── Find & replace (7.3) ───────────────────────────────────────────────────────
@@ -48,7 +51,12 @@ pub fn bulk_set_speaker(
     caption_ids: Vec<String>,
     speaker_id: Option<String>,
 ) -> AppResult<Project> {
-    Ok(find_replace::bulk_set_speaker(&project, &caption_ids, speaker_id, now_ms()))
+    Ok(find_replace::bulk_set_speaker(
+        &project,
+        &caption_ids,
+        speaker_id,
+        now_ms(),
+    ))
 }
 
 // ── Filler / silence removal (7.2) ──────────────────────────────────────────────

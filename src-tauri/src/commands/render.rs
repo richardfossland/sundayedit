@@ -24,11 +24,7 @@ pub fn export_validate(project: Project, preset: ExportPreset) -> Vec<ExportWarn
 /// if ffmpeg is unavailable. (Progress streaming via events lands when we
 /// parse ffmpeg's -progress output — Phase 6.2 polish.)
 #[tauri::command]
-pub fn burnin_render(
-    project: Project,
-    output: String,
-    options: BurnInOptions,
-) -> AppResult<()> {
+pub fn burnin_render(project: Project, output: String, options: BurnInOptions) -> AppResult<()> {
     burnin::render(&project, Path::new(&output), &options)
 }
 

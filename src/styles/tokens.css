@@ -12,12 +12,12 @@
 
 @theme {
   /* ── Neutral grayscale ── */
-  --color-neutral-50:  oklch(0.98 0 0);
+  --color-neutral-50: oklch(0.98 0 0);
   --color-neutral-100: oklch(0.96 0 0);
   --color-neutral-200: oklch(0.92 0 0);
   --color-neutral-300: oklch(0.84 0 0);
   --color-neutral-400: oklch(0.66 0 0);
-  --color-neutral-500: oklch(0.50 0 0);
+  --color-neutral-500: oklch(0.5 0 0);
   --color-neutral-600: oklch(0.38 0 0);
   --color-neutral-700: oklch(0.28 0 0);
   --color-neutral-800: oklch(0.18 0 0);
@@ -25,10 +25,10 @@
   --color-neutral-950: oklch(0.06 0 0);
 
   /* ── Verbatim accent — confident teal ── */
-  --color-accent-300: oklch(0.84 0.10 195);
+  --color-accent-300: oklch(0.84 0.1 195);
   --color-accent-400: oklch(0.78 0.14 195);
-  --color-accent-500: oklch(0.70 0.16 195);  /* primary accent */
-  --color-accent-600: oklch(0.60 0.16 195);
+  --color-accent-500: oklch(0.7 0.16 195); /* primary accent */
+  --color-accent-600: oklch(0.6 0.16 195);
   --color-accent-700: oklch(0.48 0.14 195);
   --color-accent-800: oklch(0.36 0.11 195);
 
@@ -42,52 +42,55 @@
    * Tier 3 (low — 50-69):    clearer amber. Demands a glance.
    * Tier 4 (very low — 0-49): warm orange-red. Demands attention.
    */
-  --conf-1-bg:     transparent;
-  --conf-1-text:   var(--color-neutral-100);
-  --conf-1-mark:   transparent;
+  --conf-1-bg: transparent;
+  --conf-1-text: var(--color-neutral-100);
+  --conf-1-mark: transparent;
 
-  --conf-2-bg:     oklch(0.30 0.05 75 / 0.18);
-  --conf-2-text:   var(--color-neutral-100);
-  --conf-2-mark:   oklch(0.78 0.10 75);
+  --conf-2-bg: oklch(0.3 0.05 75 / 0.18);
+  --conf-2-text: var(--color-neutral-100);
+  --conf-2-mark: oklch(0.78 0.1 75);
 
-  --conf-3-bg:     oklch(0.42 0.10 60 / 0.30);
-  --conf-3-text:   var(--color-neutral-50);
-  --conf-3-mark:   oklch(0.76 0.16 55);
+  --conf-3-bg: oklch(0.42 0.1 60 / 0.3);
+  --conf-3-text: var(--color-neutral-50);
+  --conf-3-mark: oklch(0.76 0.16 55);
 
-  --conf-4-bg:     oklch(0.48 0.18 25 / 0.45);
-  --conf-4-text:   var(--color-neutral-50);
-  --conf-4-mark:   oklch(0.70 0.22 25);
+  --conf-4-bg: oklch(0.48 0.18 25 / 0.45);
+  --conf-4-text: var(--color-neutral-50);
+  --conf-4-mark: oklch(0.7 0.22 25);
 
   /* ── Status (separate from confidence — these are app states) ── */
   --color-success: oklch(0.74 0.16 145);
   --color-warning: oklch(0.78 0.16 75);
-  --color-danger:  oklch(0.65 0.22 27);
-  --color-info:    oklch(0.70 0.14 245);
+  --color-danger: oklch(0.65 0.22 27);
+  --color-info: oklch(0.7 0.14 245);
 
   /* ── Semantic aliases ── */
-  --color-bg:           var(--color-neutral-950);
-  --color-bg-elevated:  var(--color-neutral-900);
-  --color-bg-surface:   var(--color-neutral-800);
-  --color-bg-input:     var(--color-neutral-900);
-  --color-fg:           var(--color-neutral-100);
-  --color-fg-muted:     var(--color-neutral-400);
-  --color-fg-subtle:    var(--color-neutral-500);
-  --color-border:       var(--color-neutral-800);
+  --color-bg: var(--color-neutral-950);
+  --color-bg-elevated: var(--color-neutral-900);
+  --color-bg-surface: var(--color-neutral-800);
+  --color-bg-input: var(--color-neutral-900);
+  --color-fg: var(--color-neutral-100);
+  --color-fg-muted: var(--color-neutral-400);
+  --color-fg-subtle: var(--color-neutral-500);
+  --color-border: var(--color-neutral-800);
   --color-border-strong: var(--color-neutral-700);
-  --color-brand:        var(--color-accent-500);
+  --color-brand: var(--color-accent-500);
 
   /* ── Typography ── */
-  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans:
+    "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
   /* Subtitle-preview font fallback for the burn-in WYSIWYG */
-  --font-subtitle: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
+  --font-subtitle:
+    "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
 
   /* UI scale */
-  --text-ui-xs:  0.6875rem;  /* 11px — time codes, dense data */
-  --text-ui-sm:  0.8125rem;  /* 13px */
-  --text-ui-md:  0.9375rem;  /* 15px — base */
-  --text-ui-lg:  1.0625rem;
-  --text-ui-xl:  1.25rem;
+  --text-ui-xs: 0.6875rem; /* 11px — time codes, dense data */
+  --text-ui-sm: 0.8125rem; /* 13px */
+  --text-ui-md: 0.9375rem; /* 15px — base */
+  --text-ui-lg: 1.0625rem;
+  --text-ui-xl: 1.25rem;
   --text-ui-2xl: 1.5rem;
 
   /* ── Spacing & radii ── */
@@ -98,8 +101,8 @@
   --radius-lg: 0.75rem;
 
   /* ── Shadows ── */
-  --shadow-soft:    0 1px 2px rgba(0,0,0,0.20), 0 2px 8px rgba(0,0,0,0.20);
-  --shadow-popover: 0 8px 24px rgba(0,0,0,0.40);
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.4);
 
   /* ── Transitions ── */
   --duration-fast: 100ms;

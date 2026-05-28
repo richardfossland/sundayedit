@@ -38,7 +38,11 @@ pub struct FindMatch {
 
 /// Compiled matcher — built once, reused across every word.
 enum Matcher {
-    Plain { needle: String, case_sensitive: bool, whole_word: bool },
+    Plain {
+        needle: String,
+        case_sensitive: bool,
+        whole_word: bool,
+    },
     Regex(regex::Regex),
 }
 
@@ -72,10 +76,24 @@ impl Matcher {
                 .find_iter(text)
                 .map(|m| (m.start(), m.end(), m.as_str().to_string()))
                 .collect(),
-            Matcher::Plain { needle, case_sensitive, whole_word } => {
-                let hay = if *case_sensitive { text.to_string() } else { text.to_lowercase() };
-                let need = if *case_sensitive { needle.clone() } else { needle.to_lowercase() };
-                if need.is_empty() { return vec![]; }
+            Matcher::Plain {
+                needle,
+                case_sensitive,
+                whole_word,
+            } => {
+                let hay = if *case_sensitive {
+                    text.to_string()
+                } else {
+                    text.to_lowercase()
+                };
+                let need = if *case_sensitive {
+                    needle.clone()
+                } else {
+                    needle.to_lowercase()
+                };
+                if need.is_empty() {
+                    return vec![];
+                }
                 let mut out = Vec::new();
                 let mut from = 0;
                 while let Some(pos) = hay[from..].find(&need) {
@@ -94,9 +112,17 @@ impl Matcher {
 
 fn is_whole_word(text: &str, start: usize, end: usize) -> bool {
     let before_ok = start == 0
-        || !text[..start].chars().last().map(is_word_char).unwrap_or(false);
+        || !text[..start]
+            .chars()
+            .last()
+            .map(is_word_char)
+            .unwrap_or(false);
     let after_ok = end >= text.len()
-        || !text[end..].chars().next().map(is_word_char).unwrap_or(false);
+        || !text[end..]
+            .chars()
+            .next()
+            .map(is_word_char)
+            .unwrap_or(false);
     before_ok && after_ok
 }
 
@@ -211,32 +237,56 @@ mod tests {
     use crate::model::{Caption, Project, Style, Word};
 
     fn proj(captions: Vec<(&str, Vec<&str>)>) -> Project {
-        let caps = captions.into_iter().enumerate().map(|(ci, (id, words))| {
-            let ws = words.into_iter().enumerate().map(|(wi, t)| {
-                Word::new(t, (wi as i64) * 500, (wi as i64) * 500 + 400, 90.0)
-            }).collect();
-            Caption {
-                id: id.to_string(),
-                start_ms: ci as i64 * 5000,
-                end_ms: ci as i64 * 5000 + 2000,
-                words: ws,
-                speaker_id: None, style_id: None, notes: None,
-                ai_generated: true, last_edited_at: 0,
-            }
-        }).collect();
+        let caps = captions
+            .into_iter()
+            .enumerate()
+            .map(|(ci, (id, words))| {
+                let ws = words
+                    .into_iter()
+                    .enumerate()
+                    .map(|(wi, t)| Word::new(t, (wi as i64) * 500, (wi as i64) * 500 + 400, 90.0))
+                    .collect();
+                Caption {
+                    id: id.to_string(),
+                    start_ms: ci as i64 * 5000,
+                    end_ms: ci as i64 * 5000 + 2000,
+                    words: ws,
+                    speaker_id: None,
+                    style_id: None,
+                    notes: None,
+                    ai_generated: true,
+                    last_edited_at: 0,
+                }
+            })
+            .collect();
         Project {
-            id: "p".into(), name: "t".into(),
-            video_path: "/x".into(), video_content_hash: "h".into(),
-            video_duration_ms: 60000, video_width: 1920, video_height: 1080, video_fps: 30.0,
-            audio_wav_path: None, language: "en".into(),
-            default_style: Style::broadcast_news(), context_description: None,
-            captions: caps, speakers: vec![], glossary: vec![],
-            created_at: 0, updated_at: 0,
+            id: "p".into(),
+            name: "t".into(),
+            video_path: "/x".into(),
+            video_content_hash: "h".into(),
+            video_duration_ms: 60000,
+            video_width: 1920,
+            video_height: 1080,
+            video_fps: 30.0,
+            audio_wav_path: None,
+            language: "en".into(),
+            default_style: Style::broadcast_news(),
+            context_description: None,
+            captions: caps,
+            speakers: vec![],
+            glossary: vec![],
+            created_at: 0,
+            updated_at: 0,
         }
     }
 
     fn opts(q: &str) -> FindOptions {
-        FindOptions { query: q.into(), case_sensitive: false, whole_word: false, regex: false }
+        FindOptions {
+            query: q.into(),
+            case_sensitive: false,
+            whole_word: false,
+            regex: false,
+        }
     }
 
     #[test]
@@ -249,7 +299,12 @@ mod tests {
     #[test]
     fn find_case_sensitive() {
         let p = proj(vec![("c1", vec!["Hello", "hello"])]);
-        let o = FindOptions { query: "hello".into(), case_sensitive: true, whole_word: false, regex: false };
+        let o = FindOptions {
+            query: "hello".into(),
+            case_sensitive: true,
+            whole_word: false,
+            regex: false,
+        };
         let m = find_all(&p, &o).unwrap();
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].matched, "hello");
@@ -258,7 +313,12 @@ mod tests {
     #[test]
     fn find_whole_word_only() {
         let p = proj(vec![("c1", vec!["cat", "category", "scatter"])]);
-        let o = FindOptions { query: "cat".into(), case_sensitive: false, whole_word: true, regex: false };
+        let o = FindOptions {
+            query: "cat".into(),
+            case_sensitive: false,
+            whole_word: true,
+            regex: false,
+        };
         let m = find_all(&p, &o).unwrap();
         assert_eq!(m.len(), 1); // only "cat", not "category"/"scatter"
         assert_eq!(m[0].word_index, 0);
@@ -267,7 +327,12 @@ mod tests {
     #[test]
     fn find_regex() {
         let p = proj(vec![("c1", vec!["2024", "abc", "1999"])]);
-        let o = FindOptions { query: r"\d{4}".into(), case_sensitive: false, whole_word: false, regex: false };
+        let o = FindOptions {
+            query: r"\d{4}".into(),
+            case_sensitive: false,
+            whole_word: false,
+            regex: false,
+        };
         let o = FindOptions { regex: true, ..o };
         let m = find_all(&p, &o).unwrap();
         assert_eq!(m.len(), 2); // 2024, 1999
@@ -276,7 +341,12 @@ mod tests {
     #[test]
     fn invalid_regex_errors() {
         let p = proj(vec![("c1", vec!["x"])]);
-        let o = FindOptions { query: "(".into(), case_sensitive: false, whole_word: false, regex: true };
+        let o = FindOptions {
+            query: "(".into(),
+            case_sensitive: false,
+            whole_word: false,
+            regex: true,
+        };
         assert_eq!(find_all(&p, &o).unwrap_err().code(), "validation");
     }
 
@@ -301,7 +371,12 @@ mod tests {
     fn replace_to_empty_drops_word() {
         // Replacing "um" with "" should remove the filler word entirely.
         let p = proj(vec![("c1", vec!["So", "um", "yes"])]);
-        let o = FindOptions { query: "um".into(), case_sensitive: false, whole_word: true, regex: false };
+        let o = FindOptions {
+            query: "um".into(),
+            case_sensitive: false,
+            whole_word: true,
+            regex: false,
+        };
         let (out, count) = replace_all(&p, &o, "", 100).unwrap();
         assert_eq!(count, 1);
         assert_eq!(out.captions[0].words.len(), 2);
@@ -311,7 +386,12 @@ mod tests {
     #[test]
     fn replace_emptying_all_words_drops_caption() {
         let p = proj(vec![("c1", vec!["um"]), ("c2", vec!["real"])]);
-        let o = FindOptions { query: "um".into(), case_sensitive: false, whole_word: true, regex: false };
+        let o = FindOptions {
+            query: "um".into(),
+            case_sensitive: false,
+            whole_word: true,
+            regex: false,
+        };
         let (out, _) = replace_all(&p, &o, "", 100).unwrap();
         assert_eq!(out.captions.len(), 1);
         assert_eq!(out.captions[0].id, "c2");
@@ -319,7 +399,11 @@ mod tests {
 
     #[test]
     fn bulk_delete_removes_captions() {
-        let p = proj(vec![("c1", vec!["a"]), ("c2", vec!["b"]), ("c3", vec!["c"])]);
+        let p = proj(vec![
+            ("c1", vec!["a"]),
+            ("c2", vec!["b"]),
+            ("c3", vec!["c"]),
+        ]);
         let out = bulk_delete(&p, &["c1".into(), "c3".into()], 100);
         assert_eq!(out.captions.len(), 1);
         assert_eq!(out.captions[0].id, "c2");

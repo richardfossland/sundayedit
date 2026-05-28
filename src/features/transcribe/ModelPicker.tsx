@@ -21,7 +21,11 @@ interface Props {
   downloadedModels?: WhisperModel[];
 }
 
-export function ModelPicker({ selected, onSelect, downloadedModels = [] }: Props) {
+export function ModelPicker({
+  selected,
+  onSelect,
+  downloadedModels = [],
+}: Props) {
   const modelsQuery = useQuery({
     queryKey: ["asr-models"],
     queryFn: () => ipc.asr.listModels(),
@@ -33,7 +37,9 @@ export function ModelPicker({ selected, onSelect, downloadedModels = [] }: Props
     <div className="mx-auto max-w-2xl">
       <div className="mb-5 flex items-center gap-2">
         <Cpu size={18} className="text-[var(--color-accent-400)]" />
-        <h2 className="text-[var(--text-ui-lg)] font-semibold">Velg transkripsjonsmodell</h2>
+        <h2 className="text-[var(--text-ui-lg)] font-semibold">
+          Velg transkripsjonsmodell
+        </h2>
       </div>
       <p className="mb-5 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
         Kjører helt lokalt på maskinen din — ingenting lastes opp. Større

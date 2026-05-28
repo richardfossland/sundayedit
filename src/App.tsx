@@ -1,5 +1,19 @@
 import { useEffect, useState } from "react";
-import { Download, Settings as SettingsIcon, Captions, FileVideo, Clock, Cpu, Palette, Wand2, Sparkles, Lightbulb, Languages, Users, RefreshCw } from "lucide-react";
+import {
+  Download,
+  Settings as SettingsIcon,
+  Captions,
+  FileVideo,
+  Clock,
+  Cpu,
+  Palette,
+  Wand2,
+  Sparkles,
+  Lightbulb,
+  Languages,
+  Users,
+  RefreshCw,
+} from "lucide-react";
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
 import { ImportScreen } from "@/features/project/ImportScreen";
@@ -13,11 +27,25 @@ import { TranslatePanel } from "@/features/translate/TranslatePanel";
 import { SpeakersPanel } from "@/features/speakers/SpeakersPanel";
 import { Waveform } from "@/components/Waveform";
 import { SAMPLE_PROJECT } from "@/lib/sampleProject";
-import type { Project, Style, WaveformData, WhisperModel } from "@/lib/bindings";
+import type {
+  Project,
+  Style,
+  WaveformData,
+  WhisperModel,
+} from "@/lib/bindings";
 import { checkForUpdate, installAndRelaunch, type Update } from "@/lib/updater";
 import { cn } from "@/lib/cn";
 
-type Tab = "transcribe" | "editor" | "speakers" | "polish" | "suggest" | "translate" | "cleanup" | "style" | "export";
+type Tab =
+  | "transcribe"
+  | "editor"
+  | "speakers"
+  | "polish"
+  | "suggest"
+  | "translate"
+  | "cleanup"
+  | "style"
+  | "export";
 
 function App() {
   const [project, setProject] = useState<Project | null>(null);
@@ -36,7 +64,9 @@ function App() {
   if (!project) {
     return (
       <div className="flex h-screen w-screen flex-col bg-[var(--color-bg)] text-[var(--color-fg)]">
-        {update && <UpdateBanner update={update} onDismiss={() => setUpdate(null)} />}
+        {update && (
+          <UpdateBanner update={update} onDismiss={() => setUpdate(null)} />
+        )}
         <div className="flex-1">
           <ImportScreen onProjectReady={setProject} />
         </div>
@@ -55,7 +85,9 @@ function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg)] text-[var(--color-fg)]">
-      {update && <UpdateBanner update={update} onDismiss={() => setUpdate(null)} />}
+      {update && (
+        <UpdateBanner update={update} onDismiss={() => setUpdate(null)} />
+      )}
       {/* Sidebar */}
       <nav className="flex w-14 flex-col items-center gap-1 border-r border-[var(--color-border)] bg-[var(--color-bg-elevated)] py-3">
         <button
@@ -66,31 +98,67 @@ function App() {
         >
           V
         </button>
-        <NavIcon active={tab === "transcribe"} onClick={() => setTab("transcribe")} title="Transkriber">
+        <NavIcon
+          active={tab === "transcribe"}
+          onClick={() => setTab("transcribe")}
+          title="Transkriber"
+        >
           <Cpu size={18} />
         </NavIcon>
-        <NavIcon active={tab === "editor"} onClick={() => setTab("editor")} title="Editor">
+        <NavIcon
+          active={tab === "editor"}
+          onClick={() => setTab("editor")}
+          title="Editor"
+        >
           <Captions size={18} />
         </NavIcon>
-        <NavIcon active={tab === "speakers"} onClick={() => setTab("speakers")} title="Talere">
+        <NavIcon
+          active={tab === "speakers"}
+          onClick={() => setTab("speakers")}
+          title="Talere"
+        >
           <Users size={18} />
         </NavIcon>
-        <NavIcon active={tab === "polish"} onClick={() => setTab("polish")} title="AI-tegnsetting">
+        <NavIcon
+          active={tab === "polish"}
+          onClick={() => setTab("polish")}
+          title="AI-tegnsetting"
+        >
           <Sparkles size={18} />
         </NavIcon>
-        <NavIcon active={tab === "suggest"} onClick={() => setTab("suggest")} title="Smarte forslag">
+        <NavIcon
+          active={tab === "suggest"}
+          onClick={() => setTab("suggest")}
+          title="Smarte forslag"
+        >
           <Lightbulb size={18} />
         </NavIcon>
-        <NavIcon active={tab === "translate"} onClick={() => setTab("translate")} title="Oversett">
+        <NavIcon
+          active={tab === "translate"}
+          onClick={() => setTab("translate")}
+          title="Oversett"
+        >
           <Languages size={18} />
         </NavIcon>
-        <NavIcon active={tab === "cleanup"} onClick={() => setTab("cleanup")} title="Opprydding">
+        <NavIcon
+          active={tab === "cleanup"}
+          onClick={() => setTab("cleanup")}
+          title="Opprydding"
+        >
           <Wand2 size={18} />
         </NavIcon>
-        <NavIcon active={tab === "style"} onClick={() => setTab("style")} title="Stil">
+        <NavIcon
+          active={tab === "style"}
+          onClick={() => setTab("style")}
+          title="Stil"
+        >
           <Palette size={18} />
         </NavIcon>
-        <NavIcon active={tab === "export"} onClick={() => setTab("export")} title="Eksport">
+        <NavIcon
+          active={tab === "export"}
+          onClick={() => setTab("export")}
+          title="Eksport"
+        >
           <Download size={18} />
         </NavIcon>
         <div className="flex-1" />
@@ -126,7 +194,9 @@ function App() {
           ) : tab === "style" ? (
             <StyleEditor
               style={project.default_style}
-              onChange={(s: Style) => setProject({ ...project, default_style: s })}
+              onChange={(s: Style) =>
+                setProject({ ...project, default_style: s })
+              }
             />
           ) : (
             <ExportPanel project={project} />
@@ -142,10 +212,13 @@ function ProjectHeader({ project }: { project: Project }) {
   const demoWaveform: WaveformData = {
     sample_rate: 16000,
     total_samples: 16000 * 18,
-    levels: [Array.from({ length: 240 }, (_, i) => {
-      const env = Math.sin((i / 240) * Math.PI * 6) * 0.6 + Math.sin(i * 0.7) * 0.3;
-      return { min: -Math.abs(env), max: Math.abs(env) };
-    })],
+    levels: [
+      Array.from({ length: 240 }, (_, i) => {
+        const env =
+          Math.sin((i / 240) * Math.PI * 6) * 0.6 + Math.sin(i * 0.7) * 0.3;
+        return { min: -Math.abs(env), max: Math.abs(env) };
+      }),
+    ],
   };
   return (
     <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-5 py-2.5">
@@ -154,19 +227,30 @@ function ProjectHeader({ project }: { project: Project }) {
         <span className="font-medium">{project.name}</span>
         {project.video_width > 0 && (
           <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-            {project.video_width}×{project.video_height} · {project.video_fps.toFixed(2)} fps
+            {project.video_width}×{project.video_height} ·{" "}
+            {project.video_fps.toFixed(2)} fps
           </span>
         )}
         <span className="flex items-center gap-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
           <Clock size={11} /> {fmtDuration(project.video_duration_ms)}
         </span>
       </div>
-      <Waveform data={demoWaveform} durationMs={project.video_duration_ms} height={64} />
+      <Waveform
+        data={demoWaveform}
+        durationMs={project.video_duration_ms}
+        height={64}
+      />
     </div>
   );
 }
 
-function UpdateBanner({ update, onDismiss }: { update: Update; onDismiss: () => void }) {
+function UpdateBanner({
+  update,
+  onDismiss,
+}: {
+  update: Update;
+  onDismiss: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -215,8 +299,16 @@ function UpdateBanner({ update, onDismiss }: { update: Update; onDismiss: () => 
 }
 
 function NavIcon({
-  active, onClick, title, children,
-}: { active: boolean; onClick: () => void; title: string; children: React.ReactNode }) {
+  active,
+  onClick,
+  title,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"

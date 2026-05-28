@@ -9,10 +9,31 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  AppError, AsrOptions, BurnInOptions, Caption, ClaudeModel, ExportPreset, ExportWarning,
-  FillerHit, FindMatch, FindOptions, GlossaryApplyResult, PolishEstimate, PolishResult,
-  Project, ReplaceResult, SilenceGap, Strictness, Suggestion, StylePreset, TranslationLanguage,
-  TranslationResult, VideoMetadata, WaveformData, WhisperModel, WhisperModelInfo,
+  AppError,
+  AsrOptions,
+  BurnInOptions,
+  Caption,
+  ClaudeModel,
+  ExportPreset,
+  ExportWarning,
+  FillerHit,
+  FindMatch,
+  FindOptions,
+  GlossaryApplyResult,
+  PolishEstimate,
+  PolishResult,
+  Project,
+  ReplaceResult,
+  SilenceGap,
+  Strictness,
+  Suggestion,
+  StylePreset,
+  TranslationLanguage,
+  TranslationResult,
+  VideoMetadata,
+  WaveformData,
+  WhisperModel,
+  WhisperModelInfo,
 } from "./bindings";
 
 export class IPCError extends Error {
@@ -24,7 +45,10 @@ export class IPCError extends Error {
   }
 }
 
-async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+async function call<T>(
+  cmd: string,
+  args?: Record<string, unknown>,
+): Promise<T> {
   try {
     return await invoke<T>(cmd, args);
   } catch (raw) {
@@ -43,14 +67,45 @@ export const ops = {
     call<Project>("op_merge_captions", { project, captionIds }),
   shiftAll: (project: Project, offsetMs: number) =>
     call<Project>("op_shift_all_captions", { project, offsetMs }),
-  editWord: (project: Project, captionId: string, wordIndex: number, newText: string) =>
+  editWord: (
+    project: Project,
+    captionId: string,
+    wordIndex: number,
+    newText: string,
+  ) =>
     call<Project>("op_edit_word", { project, captionId, wordIndex, newText }),
-  lockWord: (project: Project, captionId: string, wordIndex: number, locked: boolean) =>
-    call<Project>("op_lock_word", { project, captionId, wordIndex, locked }),
-  acceptAlternate: (project: Project, captionId: string, wordIndex: number, alternateIndex: number) =>
-    call<Project>("op_accept_alternate", { project, captionId, wordIndex, alternateIndex }),
-  retimeWord: (project: Project, captionId: string, wordIndex: number, newStartMs: number, newEndMs: number) =>
-    call<Project>("op_retime_word", { project, captionId, wordIndex, newStartMs, newEndMs }),
+  lockWord: (
+    project: Project,
+    captionId: string,
+    wordIndex: number,
+    locked: boolean,
+  ) => call<Project>("op_lock_word", { project, captionId, wordIndex, locked }),
+  acceptAlternate: (
+    project: Project,
+    captionId: string,
+    wordIndex: number,
+    alternateIndex: number,
+  ) =>
+    call<Project>("op_accept_alternate", {
+      project,
+      captionId,
+      wordIndex,
+      alternateIndex,
+    }),
+  retimeWord: (
+    project: Project,
+    captionId: string,
+    wordIndex: number,
+    newStartMs: number,
+    newEndMs: number,
+  ) =>
+    call<Project>("op_retime_word", {
+      project,
+      captionId,
+      wordIndex,
+      newStartMs,
+      newEndMs,
+    }),
   /** Killer feature #2 post-pass: apply glossary aliases → canonical terms. */
   applyGlossary: (project: Project) =>
     call<GlossaryApplyResult>("op_apply_glossary", { project }),
@@ -62,39 +117,52 @@ export const exporters = {
     call<string>("export_srt", { project, includeSpeakers, stripEmpty }),
   vtt: (project: Project, includeSpeakers = false, stripEmpty = true) =>
     call<string>("export_vtt", { project, includeSpeakers, stripEmpty }),
-  ass: (project: Project) =>
-    call<string>("export_ass", { project }),
+  ass: (project: Project) => call<string>("export_ass", { project }),
   txt: (project: Project, includeSpeakers = false, stripEmpty = true) =>
     call<string>("export_txt", { project, includeSpeakers, stripEmpty }),
 };
 
 // ── Project lifecycle + video import (Phase 1) ───────────────────────────────
 export const project = {
-  probe: (path: string) =>
-    call<VideoMetadata>("video_probe", { path }),
+  probe: (path: string) => call<VideoMetadata>("video_probe", { path }),
   createFromVideo: (path: string) =>
     call<Project>("project_create_from_video", { path }),
   save: (proj: Project, path: string) =>
     call<void>("project_save", { project: proj, path }),
-  open: (path: string) =>
-    call<Project>("project_open", { path }),
+  open: (path: string) => call<Project>("project_open", { path }),
   waveform: (videoPath: string, cacheDir: string) =>
     call<WaveformData>("waveform_compute", { videoPath, cacheDir }),
-  relink: (targetHash: string, searchDirs: string[], originalFilename?: string) =>
-    call<string | null>("project_relink", { targetHash, searchDirs, originalFilename }),
-  acceptedExtensions: () =>
-    call<string[]>("accepted_media_extensions"),
+  relink: (
+    targetHash: string,
+    searchDirs: string[],
+    originalFilename?: string,
+  ) =>
+    call<string | null>("project_relink", {
+      targetHash,
+      searchDirs,
+      originalFilename,
+    }),
+  acceptedExtensions: () => call<string[]>("accepted_media_extensions"),
 };
 
 // ── ASR / transcription (Phase 2) ────────────────────────────────────────────
 export const asr = {
-  listModels: () =>
-    call<WhisperModelInfo[]>("asr_list_models"),
+  listModels: () => call<WhisperModelInfo[]>("asr_list_models"),
   downloadedModels: (modelsDir: string) =>
     call<WhisperModel[]>("asr_downloaded_models", { modelsDir }),
   /** Listen for "transcribe-progress" events on the window while this runs. */
-  transcribeLocal: (audioPath: string, modelsDir: string, model: WhisperModel, options: AsrOptions) =>
-    call<Caption[]>("asr_transcribe_local", { audioPath, modelsDir, model, options }),
+  transcribeLocal: (
+    audioPath: string,
+    modelsDir: string,
+    model: WhisperModel,
+    options: AsrOptions,
+  ) =>
+    call<Caption[]>("asr_transcribe_local", {
+      audioPath,
+      modelsDir,
+      model,
+      options,
+    }),
 };
 
 // ── Styling (Phase 5) ─────────────────────────────────────────────────────────
@@ -118,11 +186,18 @@ export const cleanup = {
   find: (project: Project, options: FindOptions) =>
     call<FindMatch[]>("find_in_project", { project, options }),
   replace: (project: Project, options: FindOptions, replacement: string) =>
-    call<ReplaceResult>("replace_in_project", { project, options, replacement }),
+    call<ReplaceResult>("replace_in_project", {
+      project,
+      options,
+      replacement,
+    }),
   bulkDelete: (project: Project, captionIds: string[]) =>
     call<Project>("bulk_delete_captions", { project, captionIds }),
-  bulkSetSpeaker: (project: Project, captionIds: string[], speakerId: string | null) =>
-    call<Project>("bulk_set_speaker", { project, captionIds, speakerId }),
+  bulkSetSpeaker: (
+    project: Project,
+    captionIds: string[],
+    speakerId: string | null,
+  ) => call<Project>("bulk_set_speaker", { project, captionIds, speakerId }),
   detectFillers: (project: Project, language: string) =>
     call<FillerHit[]>("detect_fillers", { project, language }),
   detectSilences: (project: Project, minGapMs: number) =>
@@ -138,7 +213,11 @@ export const polish = {
     call<PolishEstimate>("polish_estimate", { project, model }),
   /** Run the polish. `apiKey` falls back to ANTHROPIC_API_KEY on the backend. */
   run: (project: Project, model: ClaudeModel, apiKey?: string) =>
-    call<PolishResult>("polish_captions", { project, model, apiKey: apiKey ?? null }),
+    call<PolishResult>("polish_captions", {
+      project,
+      model,
+      apiKey: apiKey ?? null,
+    }),
 };
 
 // ── AI smart suggestions (Phase 4.3) ─────────────────────────────────────────
@@ -147,8 +226,18 @@ export const suggest = {
   estimate: (project: Project, model: ClaudeModel, strictness: Strictness) =>
     call<PolishEstimate>("suggest_estimate", { project, model, strictness }),
   /** Run a Smart Suggest pass → review queue. Applies nothing. */
-  run: (project: Project, model: ClaudeModel, strictness: Strictness, apiKey?: string) =>
-    call<Suggestion[]>("suggest_captions", { project, model, strictness, apiKey: apiKey ?? null }),
+  run: (
+    project: Project,
+    model: ClaudeModel,
+    strictness: Strictness,
+    apiKey?: string,
+  ) =>
+    call<Suggestion[]>("suggest_captions", {
+      project,
+      model,
+      strictness,
+      apiKey: apiKey ?? null,
+    }),
   /** Apply one accepted suggestion → updated project. */
   apply: (project: Project, suggestion: Suggestion) =>
     call<Project>("apply_suggestion", { project, suggestion }),
@@ -159,10 +248,24 @@ export const translate = {
   languages: () => call<TranslationLanguage[]>("translate_supported_languages"),
   /** Pure cost/scope preview — no network. */
   estimate: (project: Project, targetLanguage: string, model: ClaudeModel) =>
-    call<PolishEstimate>("translate_estimate", { project, targetLanguage, model }),
+    call<PolishEstimate>("translate_estimate", {
+      project,
+      targetLanguage,
+      model,
+    }),
   /** Translate the track → result (captions + warnings). Does not mutate. */
-  run: (project: Project, targetLanguage: string, model: ClaudeModel, apiKey?: string) =>
-    call<TranslationResult>("translate_captions", { project, targetLanguage, model, apiKey: apiKey ?? null }),
+  run: (
+    project: Project,
+    targetLanguage: string,
+    model: ClaudeModel,
+    apiKey?: string,
+  ) =>
+    call<TranslationResult>("translate_captions", {
+      project,
+      targetLanguage,
+      model,
+      apiKey: apiKey ?? null,
+    }),
 };
 
 // ── Speaker diarization (Phase 4.2) ──────────────────────────────────────────
@@ -178,4 +281,16 @@ export const diarize = {
     call<Project>("speaker_set_color", { project, speakerId, colorHex }),
 };
 
-export const ipc = { ops, exporters, project, asr, style, render, cleanup, polish, suggest, translate, diarize };
+export const ipc = {
+  ops,
+  exporters,
+  project,
+  asr,
+  style,
+  render,
+  cleanup,
+  polish,
+  suggest,
+  translate,
+  diarize,
+};

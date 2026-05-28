@@ -32,7 +32,15 @@ export function ImportScreen({ onProjectReady }: Props) {
   // Tauri window-level drag-drop gives us real file paths.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-    getCurrentWebview()
+    let webview: ReturnType<typeof getCurrentWebview>;
+    try {
+      // Throws synchronously outside Tauri (browser dev/preview); the demo
+      // and file picker still work, so degrade quietly.
+      webview = getCurrentWebview();
+    } catch {
+      return;
+    }
+    webview
       .onDragDropEvent((event) => {
         if (event.payload.type === "over" || event.payload.type === "enter") {
           setDragging(true);
@@ -44,16 +52,32 @@ export function ImportScreen({ onProjectReady }: Props) {
           setDragging(false);
         }
       })
-      .then((fn) => { unlisten = fn; })
-      .catch(() => { /* not in Tauri (browser dev) — picker still works */ });
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {
+        /* not in Tauri (browser dev) — picker still works */
+      });
     return () => unlisten?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function pickFile() {
-    const exts = await projectApi.acceptedExtensions().catch(() => [
-      "mp4", "mov", "mkv", "webm", "avi", "m4v", "mp3", "wav", "m4a", "flac", "ogg",
-    ]);
+    const exts = await projectApi
+      .acceptedExtensions()
+      .catch(() => [
+        "mp4",
+        "mov",
+        "mkv",
+        "webm",
+        "avi",
+        "m4v",
+        "mp3",
+        "wav",
+        "m4a",
+        "flac",
+        "ogg",
+      ]);
     const selected = await openDialog({
       multiple: false,
       filters: [{ name: "Video & lyd", extensions: exts }],
@@ -97,7 +121,10 @@ export function ImportScreen({ onProjectReady }: Props) {
         >
           <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl bg-[var(--color-bg-surface)]">
             {busy ? (
-              <Upload size={28} className="animate-pulse text-[var(--color-accent-400)]" />
+              <Upload
+                size={28}
+                className="animate-pulse text-[var(--color-accent-400)]"
+              />
             ) : (
               <FileVideo size={28} className="text-[var(--color-fg-muted)]" />
             )}
@@ -122,7 +149,10 @@ export function ImportScreen({ onProjectReady }: Props) {
 
         {error && (
           <div className="mt-4 flex items-start gap-2 rounded-md border border-[var(--color-danger)]/40 bg-[var(--color-danger)]/10 px-4 py-3 text-left text-[var(--text-ui-sm)]">
-            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-[var(--color-danger)]" />
+            <AlertTriangle
+              size={16}
+              className="mt-0.5 shrink-0 text-[var(--color-danger)]"
+            />
             <span>{error}</span>
           </div>
         )}
