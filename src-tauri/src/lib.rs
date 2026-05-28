@@ -48,6 +48,8 @@ pub fn run() {
             commands::asr::asr_list_models,
             commands::asr::asr_downloaded_models,
             commands::asr::asr_transcribe_local,
+            // Styling (Phase 5)
+            commands::style::style_list_presets,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

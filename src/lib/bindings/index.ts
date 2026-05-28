@@ -17,6 +17,7 @@ export type { Project }          from "./Project";
 export type { Segment }          from "./Segment";
 export type { Speaker }          from "./Speaker";
 export type { Style }            from "./Style";
+export type { StylePreset }      from "./StylePreset";
 export type { TranscribeProgress } from "./TranscribeProgress";
 export type { TranscribedWord }  from "./TranscribedWord";
 export type { Transcript }       from "./Transcript";

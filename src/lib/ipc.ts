@@ -9,8 +9,8 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  AppError, AsrOptions, Caption, GlossaryApplyResult, Project, VideoMetadata,
-  WaveformData, WhisperModel, WhisperModelInfo,
+  AppError, AsrOptions, Caption, GlossaryApplyResult, Project, StylePreset,
+  VideoMetadata, WaveformData, WhisperModel, WhisperModelInfo,
 } from "./bindings";
 
 export class IPCError extends Error {
@@ -95,4 +95,9 @@ export const asr = {
     call<Caption[]>("asr_transcribe_local", { audioPath, modelsDir, model, options }),
 };
 
-export const ipc = { ops, exporters, project, asr };
+// ── Styling (Phase 5) ─────────────────────────────────────────────────────────
+export const style = {
+  listPresets: () => call<StylePreset[]>("style_list_presets"),
+};
+
+export const ipc = { ops, exporters, project, asr, style };

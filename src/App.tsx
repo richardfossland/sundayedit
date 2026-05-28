@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { Download, Settings as SettingsIcon, Captions, FileVideo, Clock, Cpu } from "lucide-react";
+import { Download, Settings as SettingsIcon, Captions, FileVideo, Clock, Cpu, Palette } from "lucide-react";
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
 import { ImportScreen } from "@/features/project/ImportScreen";
 import { ModelPicker } from "@/features/transcribe/ModelPicker";
+import { StyleEditor } from "@/features/style/StyleEditor";
 import { Waveform } from "@/components/Waveform";
 import { SAMPLE_PROJECT } from "@/lib/sampleProject";
 import { ipc } from "@/lib/ipc";
-import type { Project, WaveformData, WhisperModel } from "@/lib/bindings";
+import type { Project, Style, WaveformData, WhisperModel } from "@/lib/bindings";
 import { cn } from "@/lib/cn";
 
-type Tab = "transcribe" | "editor" | "export";
+type Tab = "transcribe" | "editor" | "style" | "export";
 
 function App() {
   const [project, setProject] = useState<Project | null>(null);
@@ -67,6 +68,9 @@ function App() {
         <NavIcon active={tab === "editor"} onClick={() => setTab("editor")} title="Editor">
           <Captions size={18} />
         </NavIcon>
+        <NavIcon active={tab === "style"} onClick={() => setTab("style")} title="Stil">
+          <Palette size={18} />
+        </NavIcon>
         <NavIcon active={tab === "export"} onClick={() => setTab("export")} title="Eksport">
           <Download size={18} />
         </NavIcon>
@@ -89,6 +93,11 @@ function App() {
               key={project.id}
               project={project}
               onProjectChange={setProject}
+            />
+          ) : tab === "style" ? (
+            <StyleEditor
+              style={project.default_style}
+              onChange={(s: Style) => setProject({ ...project, default_style: s })}
             />
           ) : (
             <ExportPanel exported={exported} onExport={doExport} />

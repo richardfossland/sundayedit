@@ -166,7 +166,8 @@ Caveat for path-stability: if the user moves their video file, Verbatim detects 
 - [x] Phase 3.3 — Confidence highlighting (killer feature #1): 4-tier colours, Tab/Shift-Tab linear review, threshold control, review-progress. Calibration of the curve pending real labelled data (`docs/CALIBRATION.md`).
 - [~] Phase 3.4 — Context priming + glossary (killer feature #2): priming hook + auto-correction pass + "Fix terms" button done; glossary-editing UI + AI term-suggestion pending
 - [ ] Phase 4 — Polish + diarization + smart suggestions
-- [ ] Phase 5 — Styling system + presets
+- [x] Phase 5.1/5.3 — Style model (Phase 3.1) + 9 bundled presets + `styleToCss` WYSIWYG (mirrors ASS burn-in)
+- [x] Phase 5.2 — Visual style editor: preset gallery, live caption-over-frame preview, font/colour/outline/9-grid-position controls, safe-area guide
 - [x] Phase 6.1 — SRT / VTT / ASS export *(in scaffold)*
 - [ ] Phase 6.2 — Burn-in render via libass
 - [ ] Phase 6.3 — Platform export presets
