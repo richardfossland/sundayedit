@@ -21,6 +21,7 @@ import type {
   Suggestion,
   SuggestionKind,
 } from "@/lib/bindings";
+import { useT, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -34,24 +35,24 @@ const MODELS: { id: ClaudeModel; name: string }[] = [
   { id: "opus47", name: "Opus 4.7" },
 ];
 
-const STRICTNESS: { id: Strictness; label: string }[] = [
-  { id: "conservative", label: "Forsiktig" },
-  { id: "balanced", label: "Balansert" },
-  { id: "aggressive", label: "Grundig" },
+const STRICTNESS: { id: Strictness; labelKey: TKey }[] = [
+  { id: "conservative", labelKey: "strictnessConservative" },
+  { id: "balanced", labelKey: "strictnessBalanced" },
+  { id: "aggressive", labelKey: "strictnessAggressive" },
 ];
 
-const KIND_LABEL: Record<SuggestionKind, string> = {
-  "fix-transcription": "Retter feilhøring",
-  rephrase: "Omformulering",
-  shorten: "Forkorting",
+const KIND_KEY: Record<SuggestionKind, TKey> = {
+  "fix-transcription": "suggestKindFix",
+  rephrase: "suggestKindRephrase",
+  shorten: "suggestKindShorten",
 };
 
-function captionText(project: Project, captionId: string): string {
-  const cap = project.captions.find((c) => c.id === captionId);
-  return cap ? cap.words.map((w) => w.text).join(" ") : "(borte)";
-}
-
 export function SuggestPanel({ project, onProjectChange }: Props) {
+  const t = useT();
+  const captionText = (captionId: string): string => {
+    const cap = project.captions.find((c) => c.id === captionId);
+    return cap ? cap.words.map((w) => w.text).join(" ") : t("captionGone");
+  };
   const [model, setModel] = useState<ClaudeModel>("haiku45");
   const [strictness, setStrictness] = useState<Strictness>("balanced");
   const [apiKey, setApiKey] = useState("");
@@ -113,12 +114,10 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
       <header>
         <h2 className="mb-1 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
           <Lightbulb size={16} className="text-[var(--color-accent-400)]" />{" "}
-          Smarte forslag
+          {t("navSuggest")}
         </h2>
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-          AI foreslår innholdsforbedringer — retting av feilhøring,
-          omformulering, forkorting. Ingenting endres automatisk: du godkjenner
-          eller avviser hvert forslag.
+          {t("suggestIntro")}
         </p>
       </header>
 
@@ -142,7 +141,7 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
 
       <div className="flex items-center gap-2">
         <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-          Grundighet:
+          {t("strictnessLabel")}
         </span>
         {STRICTNESS.map((s) => (
           <button
@@ -156,7 +155,7 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
                 : "bg-[var(--color-bg-surface)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
             )}
           >
-            {s.label}
+            {t(s.labelKey)}
           </button>
         ))}
       </div>
@@ -165,7 +164,7 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
         type="password"
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
-        placeholder="Anthropic API-nøkkel (valgfritt — ellers ANTHROPIC_API_KEY)"
+        placeholder={t("apiKeyPlaceholder")}
         className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg-input)] px-3 py-1.5 text-[var(--text-ui-sm)] outline-none focus:border-[var(--color-accent-500)]"
       />
 
@@ -177,12 +176,14 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
           className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
         >
           <Lightbulb size={14} />{" "}
-          {running ? "Analyserer…" : "Foreslå forbedringer"}
+          {running ? t("suggestRunning") : t("suggestRun")}
         </button>
         {estimate && (
           <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-            {estimate.caption_count} undertekster · ~
-            {formatCost(estimate.estimated_cost_usd)}
+            {t("estCaptionsCost", {
+              n: estimate.caption_count,
+              cost: formatCost(estimate.estimated_cost_usd),
+            })}
           </span>
         )}
       </div>
@@ -196,12 +197,12 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
       {queue &&
         (queue.length === 0 ? (
           <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-            Ingen forslag — undertekstene ser allerede bra ut. 🎉
+            {t("suggestNoneNeeded")}
           </p>
         ) : (
           <section className="space-y-3">
             <h3 className="text-[var(--text-ui-sm)] font-semibold">
-              {queue.length} forslag å vurdere
+              {t("suggestQueueHeader", { n: queue.length })}
             </h3>
             {queue.map((s, i) => (
               <article
@@ -210,7 +211,7 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
               >
                 <div className="mb-2 flex items-center gap-2">
                   <span className="rounded bg-[var(--color-accent-600)]/20 px-2 py-0.5 text-[var(--text-ui-xs)] font-medium text-[var(--color-accent-400)]">
-                    {KIND_LABEL[s.kind]}
+                    {t(KIND_KEY[s.kind])}
                   </span>
                   <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
                     {s.reasoning}
@@ -218,7 +219,7 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
                 </div>
                 <div className="mb-3 space-y-1 text-[var(--text-ui-sm)]">
                   <p className="text-[var(--color-fg-subtle)] line-through">
-                    {captionText(project, s.caption_id)}
+                    {captionText(s.caption_id)}
                   </p>
                   <p className="flex items-start gap-1.5 text-[var(--color-fg)]">
                     <ArrowRight
@@ -235,14 +236,14 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
                     disabled={busyId === s.caption_id}
                     className="flex items-center gap-1 rounded-md bg-[var(--color-accent-600)] px-3 py-1.5 text-[var(--text-ui-xs)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
                   >
-                    <Check size={13} /> Godta
+                    <Check size={13} /> {t("actionAccept")}
                   </button>
                   <button
                     type="button"
                     onClick={() => reject(s)}
                     className="flex items-center gap-1 rounded-md bg-[var(--color-bg-elevated)] px-3 py-1.5 text-[var(--text-ui-xs)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
                   >
-                    <X size={13} /> Avvis
+                    <X size={13} /> {t("actionReject")}
                   </button>
                 </div>
               </article>

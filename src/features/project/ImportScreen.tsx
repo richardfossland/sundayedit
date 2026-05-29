@@ -18,6 +18,7 @@ import { FileVideo, Upload, AlertTriangle } from "lucide-react";
 import { ipc, IPCError } from "@/lib/ipc";
 import { project as projectApi } from "@/lib/ipc";
 import type { Project } from "@/lib/bindings";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function ImportScreen({ onProjectReady }: Props) {
+  const t = useT();
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +82,7 @@ export function ImportScreen({ onProjectReady }: Props) {
       ]);
     const selected = await openDialog({
       multiple: false,
-      filters: [{ name: "Video & lyd", extensions: exts }],
+      filters: [{ name: t("importFilterName"), extensions: exts }],
     });
     if (typeof selected === "string") void importPath(selected);
   }
@@ -95,9 +97,9 @@ export function ImportScreen({ onProjectReady }: Props) {
       if (e instanceof IPCError) {
         setError(
           e.code === "video_missing"
-            ? "Filen finnes ikke lenger."
+            ? t("importFileMissing")
             : e.code === "validation"
-              ? `Kunne ikke lese filen: ${e.message}`
+              ? t("importReadError", { error: e.message })
               : e.message,
         );
       } else {
@@ -130,12 +132,12 @@ export function ImportScreen({ onProjectReady }: Props) {
             )}
           </div>
           <h1 className="text-[var(--text-ui-xl)] font-semibold">
-            {busy ? "Leser video…" : "Slipp en video her"}
+            {busy ? t("importReading") : t("importDropHere")}
           </h1>
           <p className="mt-2 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-            MP4, MOV, MKV, WebM, AVI — eller lyd: MP3, WAV, M4A, FLAC, OGG.
+            {t("importFormats")}
             <br />
-            Filen forlater aldri maskinen din.
+            {t("importNeverLeaves")}
           </p>
           <button
             type="button"
@@ -143,7 +145,7 @@ export function ImportScreen({ onProjectReady }: Props) {
             disabled={busy}
             className="mt-6 rounded-lg bg-[var(--color-accent-600)] px-5 py-2.5 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] transition-colors hover:bg-[var(--color-accent-500)] disabled:opacity-50"
           >
-            Velg fil…
+            {t("importPickFile")}
           </button>
         </div>
 

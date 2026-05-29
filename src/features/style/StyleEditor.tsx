@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { Style } from "@/lib/bindings";
 import { ipc } from "@/lib/ipc";
+import { useT } from "@/lib/i18n";
 import { styleToCss } from "@/lib/styleToCss";
 import { cn } from "@/lib/cn";
 
@@ -36,6 +37,7 @@ const ANCHORS: Array<{ key: string; label: string }> = [
 ];
 
 export function StyleEditor({ style, onChange }: Props) {
+  const t = useT();
   const presetsQuery = useQuery({
     queryKey: ["style-presets"],
     queryFn: () => ipc.style.listPresets(),
@@ -77,14 +79,11 @@ export function StyleEditor({ style, onChange }: Props) {
           {/* Safe-area guide (TV-safe ~ 90%) */}
           <div className="pointer-events-none absolute inset-[5%] rounded border border-dashed border-white/15" />
           <div style={css.container}>
-            <span style={css.text}>
-              Dette er en forhåndsvisning av undertekst
-            </span>
+            <span style={css.text}>{t("styleSampleText")}</span>
           </div>
         </div>
         <p className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-          Forhåndsvisning bruker samme stil som burn-in — det du ser er det du
-          får.
+          {t("stylePreviewHint")}
         </p>
       </div>
 
@@ -93,7 +92,7 @@ export function StyleEditor({ style, onChange }: Props) {
         {/* Preset gallery */}
         <section>
           <h3 className="mb-2 text-[var(--text-ui-xs)] font-semibold uppercase tracking-wider text-[var(--color-fg-subtle)]">
-            Forhåndsdefinerte stiler
+            {t("stylePresets")}
           </h3>
           <div className="grid grid-cols-2 gap-1.5">
             {presets.map((p) => (
@@ -121,7 +120,7 @@ export function StyleEditor({ style, onChange }: Props) {
         </section>
 
         {/* Font size */}
-        <Control label={`Skriftstørrelse (${style.font_size_px}px)`}>
+        <Control label={t("styleFontSize", { px: style.font_size_px })}>
           <input
             type="range"
             min={20}
@@ -133,15 +132,15 @@ export function StyleEditor({ style, onChange }: Props) {
         </Control>
 
         {/* Colours */}
-        <Control label="Farger">
+        <Control label={t("styleColors")}>
           <div className="flex items-center gap-4">
             <ColorField
-              label="Tekst"
+              label={t("styleColorText")}
               value={style.color_fg}
               onChange={(v) => patch({ color_fg: v })}
             />
             <ColorField
-              label="Kontur"
+              label={t("styleColorOutline")}
               value={style.outline_color}
               onChange={(v) => patch({ outline_color: v })}
             />
@@ -149,7 +148,7 @@ export function StyleEditor({ style, onChange }: Props) {
         </Control>
 
         {/* Outline width */}
-        <Control label={`Konturbredde (${style.outline_width_px}px)`}>
+        <Control label={t("styleOutlineWidth", { px: style.outline_width_px })}>
           <input
             type="range"
             min={0}
@@ -163,7 +162,7 @@ export function StyleEditor({ style, onChange }: Props) {
         </Control>
 
         {/* Position 9-grid */}
-        <Control label="Plassering">
+        <Control label={t("stylePosition")}>
           <div className="grid w-fit grid-cols-3 gap-1">
             {ANCHORS.map((a) => (
               <button
@@ -200,7 +199,7 @@ export function StyleEditor({ style, onChange }: Props) {
         </Control>
 
         {/* Background toggle */}
-        <Control label="Bakgrunnsboks">
+        <Control label={t("styleBackgroundBox")}>
           <label className="flex items-center gap-2 text-[var(--text-ui-sm)]">
             <input
               type="checkbox"
@@ -212,7 +211,7 @@ export function StyleEditor({ style, onChange }: Props) {
               }
               className="accent-[var(--color-accent-500)]"
             />
-            Vis halvgjennomsiktig boks bak teksten
+            {t("styleBackgroundToggle")}
           </label>
         </Control>
       </div>

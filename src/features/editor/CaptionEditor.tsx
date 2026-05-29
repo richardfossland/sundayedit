@@ -37,6 +37,7 @@ import {
 } from "@/lib/bindings";
 import { ipc } from "@/lib/ipc";
 import { useEditorHistory } from "@/lib/useEditorHistory";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -56,6 +57,7 @@ export function CaptionEditor({
   project: initialProject,
   onProjectChange,
 }: Props) {
+  const t = useT();
   const editor = useEditorHistory(initialProject);
   const project = editor.project;
 
@@ -138,8 +140,8 @@ export function CaptionEditor({
       const result = await ipc.ops.applyGlossary(p);
       setGlossaryToast(
         result.corrections.length === 0
-          ? "Ingen ordlistetreff å rette."
-          : `Rettet ${result.corrections.length} term${result.corrections.length === 1 ? "" : "er"} fra ordlisten.`,
+          ? t("editorGlossaryNoHits")
+          : t("editorGlossaryCorrected", { n: result.corrections.length }),
       );
       return result.project;
     });
@@ -155,17 +157,19 @@ export function CaptionEditor({
     <div className="relative flex h-full flex-col">
       {/* Toolbar */}
       <header className="flex items-center gap-3 border-b border-[var(--color-border)] px-5 py-3">
-        <h1 className="text-[var(--text-ui-lg)] font-semibold">Editor</h1>
+        <h1 className="text-[var(--text-ui-lg)] font-semibold">
+          {t("navEditor")}
+        </h1>
         <div className="flex items-center gap-0.5">
           <IconBtn
-            title="Angre (⌘Z)"
+            title={t("editorUndo")}
             disabled={!editor.canUndo || editor.busy}
             onClick={editor.undo}
           >
             <Undo2 size={15} />
           </IconBtn>
           <IconBtn
-            title="Gjør om (⌘⇧Z)"
+            title={t("editorRedo")}
             disabled={!editor.canRedo || editor.busy}
             onClick={editor.redo}
           >
@@ -180,14 +184,14 @@ export function CaptionEditor({
             onClick={applyGlossary}
             disabled={editor.busy}
             className="flex items-center gap-1.5 rounded-md bg-[var(--color-bg-surface)] px-3 py-1.5 text-[var(--text-ui-sm)] font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] disabled:opacity-50"
-            title="Rett opp termer fra ordlisten"
+            title={t("editorFixTermsTitle")}
           >
-            <WandSparkles size={14} /> Rett termer
+            <WandSparkles size={14} /> {t("editorFixTerms")}
           </button>
         )}
 
         <label className="flex items-center gap-2 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-          <span>Terskel</span>
+          <span>{t("editorThreshold")}</span>
           <input
             type="range"
             min={40}
@@ -209,7 +213,7 @@ export function CaptionEditor({
               : "bg-[var(--color-bg-surface)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
           )}
         >
-          <Eye size={14} /> Fokus
+          <Eye size={14} /> {t("editorFocus")}
         </button>
       </header>
 
@@ -221,7 +225,7 @@ export function CaptionEditor({
             {stats.uncertain}
           </strong>{" "}
           <span className="text-[var(--color-fg-muted)]">
-            usikre ord av {stats.total}
+            {t("editorUncertainOf", { total: stats.total })}
           </span>
         </span>
         <div className="ml-2 h-1.5 w-40 overflow-hidden rounded-full bg-[var(--color-bg-surface)]">
@@ -236,7 +240,7 @@ export function CaptionEditor({
           <kbd className="rounded border border-[var(--color-border)] px-1 font-mono">
             Tab
           </kbd>{" "}
-          til neste usikre
+          {t("editorTabToNext")}
         </span>
         <ConfidenceLegend />
       </div>
@@ -377,6 +381,7 @@ function WordSpan({
   onLock: () => void;
   onAcceptAlternate: (altIndex: number) => void;
 }) {
+  const t = useT();
   const [popoverOpen, setPopoverOpen] = useState(false);
   const tier = confidenceTier(word);
   const effectiveTier =
@@ -425,15 +430,15 @@ function WordSpan({
           isCursor &&
             "ring-2 ring-[var(--color-accent-500)] ring-offset-1 ring-offset-[var(--color-bg)]",
         )}
-        title={`${word.confidence.toFixed(0)}% sikkerhet`}
+        title={t("editorConfidencePct", { pct: word.confidence.toFixed(0) })}
       >
         {word.text}
       </span>
       {word.polished && (
         <span
           className="ml-0.5 inline-block h-1 w-1 -translate-y-[0.5em] rounded-full bg-[var(--color-accent-400)] align-top"
-          title="AI-polert tegnsetting"
-          aria-label="AI-polert tegnsetting"
+          title={t("editorPolishedDot")}
+          aria-label={t("editorPolishedDot")}
         />
       )}
       {isUncertain && !busy && (
@@ -441,8 +446,8 @@ function WordSpan({
           type="button"
           onClick={() => setPopoverOpen((o) => !o)}
           className="ml-0.5 inline-flex translate-y-0.5 text-[var(--color-fg-subtle)] hover:text-[var(--color-accent-400)]"
-          title="Vis alternativer"
-          aria-label="Vis alternativer"
+          title={t("editorShowAlternates")}
+          aria-label={t("editorShowAlternates")}
         >
           <ChevronRight
             size={12}
@@ -453,7 +458,7 @@ function WordSpan({
       {popoverOpen && (
         <span className="absolute left-0 top-full z-20 mt-1 block w-56 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-1.5 shadow-[var(--shadow-popover)]">
           <span className="mb-1 block px-2 py-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-            {word.confidence.toFixed(0)}% sikkerhet
+            {t("editorConfidencePct", { pct: word.confidence.toFixed(0) })}
           </span>
           {word.alternates.length > 0 ? (
             word.alternates.map((alt, ai) => (
@@ -474,7 +479,7 @@ function WordSpan({
             ))
           ) : (
             <span className="block px-2 py-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-              Ingen alternativer.
+              {t("editorNoAlternates")}
             </span>
           )}
           <span className="my-1 block h-px bg-[var(--color-border)]" />
@@ -486,7 +491,7 @@ function WordSpan({
             }}
             className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[var(--text-ui-sm)] text-[var(--color-success)] hover:bg-[var(--color-bg-surface)]"
           >
-            <Check size={13} /> Marker som riktig
+            <Check size={13} /> {t("editorMarkCorrect")}
           </button>
           <button
             type="button"
@@ -496,7 +501,7 @@ function WordSpan({
             }}
             className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[var(--text-ui-sm)] hover:bg-[var(--color-bg-surface)]"
           >
-            <Lock size={13} /> Rediger manuelt…
+            <Lock size={13} /> {t("editorEditManually")}
           </button>
         </span>
       )}{" "}
@@ -505,23 +510,24 @@ function WordSpan({
 }
 
 function ConfidenceLegend() {
+  const t = useT();
   const tiers = [
-    { tier: 1, label: "Sikker" },
-    { tier: 2, label: "Litt usikker" },
-    { tier: 3, label: "Usikker" },
-    { tier: 4, label: "Svært usikker" },
+    { tier: 1, label: t("tier1") },
+    { tier: 2, label: t("tier2") },
+    { tier: 3, label: t("tier3") },
+    { tier: 4, label: t("tier4") },
   ];
   return (
     <div className="ml-auto flex items-center gap-3 text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-      {tiers.map((t) => (
-        <span key={t.tier} className="flex items-center gap-1.5">
+      {tiers.map((row) => (
+        <span key={row.tier} className="flex items-center gap-1.5">
           <span
             className={cn(
               "word inline-block h-3 w-4 rounded",
-              `word-tier-${t.tier}`,
+              `word-tier-${row.tier}`,
             )}
           />
-          {t.label}
+          {row.label}
         </span>
       ))}
     </div>

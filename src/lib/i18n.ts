@@ -217,6 +217,141 @@ const en = {
   clipsRemove: "Remove clip",
   clipsRenderVertical: "Render vertically",
   clipsRendering: "Burning in…",
+
+  // ── Smart suggestions ───────────────────────────────────────────────────
+  suggestIntro:
+    "AI proposes content improvements — fixing mishearings, rephrasing, shortening. Nothing changes automatically: you accept or reject each suggestion.",
+  strictnessLabel: "Strictness:",
+  strictnessConservative: "Cautious",
+  strictnessBalanced: "Balanced",
+  strictnessAggressive: "Thorough",
+  suggestRun: "Suggest improvements",
+  suggestRunning: "Analyzing…",
+  suggestNoneNeeded: "No suggestions — the captions already look good. 🎉",
+  suggestQueueHeader: "{n} suggestions to review",
+  suggestKindFix: "Fixes mishearing",
+  suggestKindRephrase: "Rephrasing",
+  suggestKindShorten: "Shortening",
+  captionGone: "(gone)",
+  actionAccept: "Accept",
+  actionReject: "Reject",
+
+  // ── Translation ─────────────────────────────────────────────────────────
+  translateTitle: "Translate captions",
+  translateIntro:
+    "Translate to another language with timing preserved. Glossary terms stay consistent. Preview before you replace the track.",
+  translateTo: "To:",
+  translateRun: "Translate to {lang}",
+  translateRunning: "Translating to {lang}…",
+  translateReplace: "Replace captions",
+  translateWarnings:
+    "{n} caption(s) grew much longer than the original — reading speed may be high. Consider shortening.",
+
+  // ── Speakers ────────────────────────────────────────────────────────────
+  speakersIntro: "Identify who says what, and edit the roster.",
+  speakersDisclaimer:
+    "Speaker recognition is best-effort. Check the assignments before exporting — merge speakers that got split, or rename them.",
+  speakersDetect: "Detect speakers",
+  speakersDetecting: "Detecting…",
+  speakersNoAudio:
+    "No audio has been extracted yet. Import a video and run waveform/transcription first.",
+  speakersNoneYet: "No speakers yet.",
+  speakersChangeColor: "Change colour",
+  speakersMergeTitle: "Merge this speaker into another",
+  speakersMergePlaceholder: "Merge…",
+
+  // ── Onboarding ──────────────────────────────────────────────────────────
+  obWelcomeTitle: "Welcome to SundayEdit",
+  obWelcomeBody:
+    "From raw video to broadcast-ready captions — fast. AI does 92% of the work and shows you exactly where the last 8% needs a glance. Everything runs locally; the video never leaves your machine.",
+  obGetStarted: "Get started",
+  obProfileTitle: "What kind of content do you make?",
+  obProfileBody: "Helps us suggest sensible defaults. Entirely optional.",
+  obProfileCreator: "Content creator",
+  obProfileEducator: "Educator",
+  obProfileJournalist: "Journalist",
+  obProfileMarketer: "Marketer",
+  obProfileFaith: "Church / faith",
+  obProfileOther: "Other",
+  obBack: "Back",
+  obSkip: "Skip",
+  obContinue: "Continue",
+  obReadyTitle: "Ready!",
+  obReadyBody: "Drop in a video to start — or explore the demo project first.",
+  obImportVideo: "Import a video",
+  obExploreDemo: "Explore the demo project",
+
+  // ── Style editor ────────────────────────────────────────────────────────
+  styleSampleText: "This is a caption preview",
+  stylePreviewHint:
+    "Preview uses the same style as burn-in — what you see is what you get.",
+  stylePresets: "Preset styles",
+  styleFontSize: "Font size ({px}px)",
+  styleColors: "Colours",
+  styleColorText: "Text",
+  styleColorOutline: "Outline",
+  styleOutlineWidth: "Outline width ({px}px)",
+  stylePosition: "Position",
+  styleBackgroundBox: "Background box",
+  styleBackgroundToggle: "Show a semi-transparent box behind the text",
+
+  // ── Caption editor ──────────────────────────────────────────────────────
+  editorUndo: "Undo (⌘Z)",
+  editorRedo: "Redo (⌘⇧Z)",
+  editorFixTerms: "Fix terms",
+  editorFixTermsTitle: "Correct terms from the glossary",
+  editorThreshold: "Threshold",
+  editorFocus: "Focus",
+  editorUncertainOf: "uncertain words of {total}",
+  editorTabToNext: "to next uncertain",
+  editorGlossaryNoHits: "No glossary matches to correct.",
+  editorGlossaryCorrected: "Corrected {n} term(s) from the glossary.",
+  editorConfidencePct: "{pct}% confidence",
+  editorShowAlternates: "Show alternates",
+  editorPolishedDot: "AI-polished punctuation",
+  editorNoAlternates: "No alternates.",
+  editorMarkCorrect: "Mark as correct",
+  editorEditManually: "Edit manually…",
+  tier1: "Confident",
+  tier2: "Slightly unsure",
+  tier3: "Unsure",
+  tier4: "Very unsure",
+
+  // ── Timeline ────────────────────────────────────────────────────────────
+  timelineTotalSuffix: "total",
+  timelinePause: "Pause",
+  timelinePlay: "Play",
+  timelineZoomOut: "Zoom out",
+  timelineZoomIn: "Zoom in",
+  timelineHelp:
+    "Space: play/pause · ←/→: previous/next caption (⇧ = 5) · drag a caption to move it, drag the edges to retime · ⌘+scroll: zoom",
+
+  // ── Export ──────────────────────────────────────────────────────────────
+  exportSidecarHeader: "Text formats (sidecar)",
+  exportSrtDesc: "Universal — YouTube, most players",
+  exportVttDesc: "Web standard, with speakers",
+  exportAssDesc: "Full styling — Aegisub, burn-in",
+  exportTxtDesc: "Plain transcript",
+  exportJsonDesc: "For developers — per-word timing + confidence",
+  exportDocxDesc: "Word document for proofing (saved directly)",
+  exportPlatformHeader: "Burn in (platform)",
+  exportMaxDuration: "max {n}s",
+  exportSrtSidecar: "+ SRT sidecar",
+  exportBurnIn: "Burn in captions",
+  exportBurningIn: "Burning in…",
+  exportSaveFormat: "Save {format}…",
+  exportChooseHint: "Choose a text format or a platform on the left.",
+
+  // ── Import screen ───────────────────────────────────────────────────────
+  importFilterName: "Video & audio",
+  importFileMissing: "The file no longer exists.",
+  importReadError: "Could not read the file: {error}",
+  importReading: "Reading video…",
+  importDropHere: "Drop a video here",
+  importFormats:
+    "MP4, MOV, MKV, WebM, AVI — or audio: MP3, WAV, M4A, FLAC, OGG.",
+  importNeverLeaves: "The file never leaves your machine.",
+  importPickFile: "Choose file…",
 } satisfies Catalog;
 
 const no: Catalog = {
@@ -403,6 +538,142 @@ const no: Catalog = {
   clipsRemove: "Fjern klipp",
   clipsRenderVertical: "Render vertikalt",
   clipsRendering: "Brenner inn…",
+
+  // ── Smart suggestions ───────────────────────────────────────────────────
+  suggestIntro:
+    "AI foreslår innholdsforbedringer — retting av feilhøring, omformulering, forkorting. Ingenting endres automatisk: du godkjenner eller avviser hvert forslag.",
+  strictnessLabel: "Grundighet:",
+  strictnessConservative: "Forsiktig",
+  strictnessBalanced: "Balansert",
+  strictnessAggressive: "Grundig",
+  suggestRun: "Foreslå forbedringer",
+  suggestRunning: "Analyserer…",
+  suggestNoneNeeded: "Ingen forslag — undertekstene ser allerede bra ut. 🎉",
+  suggestQueueHeader: "{n} forslag å vurdere",
+  suggestKindFix: "Retter feilhøring",
+  suggestKindRephrase: "Omformulering",
+  suggestKindShorten: "Forkorting",
+  captionGone: "(borte)",
+  actionAccept: "Godta",
+  actionReject: "Avvis",
+
+  // ── Translation ─────────────────────────────────────────────────────────
+  translateTitle: "Oversett undertekster",
+  translateIntro:
+    "Oversetter til et annet språk med bevart timing. Ordlistetermer holdes konsistente. Forhåndsvis før du erstatter sporet.",
+  translateTo: "Til:",
+  translateRun: "Oversett til {lang}",
+  translateRunning: "Oversetter til {lang}…",
+  translateReplace: "Erstatt undertekster",
+  translateWarnings:
+    "{n} undertekst(er) ble vesentlig lengre enn originalen — lesehastigheten kan bli høy. Vurder å forkorte.",
+
+  // ── Speakers ────────────────────────────────────────────────────────────
+  speakersIntro: "Identifiser hvem som sier hva, og rediger rollelisten.",
+  speakersDisclaimer:
+    "Talergjenkjenning er et beste-forsøk. Kontroller tilordningene før du eksporterer — slå sammen talere som ble delt opp, eller gi nytt navn.",
+  speakersDetect: "Gjenkjenn talere",
+  speakersDetecting: "Gjenkjenner…",
+  speakersNoAudio:
+    "Ingen lyd er hentet ut ennå. Importer en video og kjør waveform/transkripsjon først.",
+  speakersNoneYet: "Ingen talere ennå.",
+  speakersChangeColor: "Endre farge",
+  speakersMergeTitle: "Slå denne taleren sammen med en annen",
+  speakersMergePlaceholder: "Slå sammen…",
+
+  // ── Onboarding ──────────────────────────────────────────────────────────
+  obWelcomeTitle: "Velkommen til SundayEdit",
+  obWelcomeBody:
+    "Fra rå video til kringkastingsklar teksting — raskt. AI gjør 92 % av jobben og viser deg nøyaktig hvor de siste 8 % trenger et blikk. Alt kjører lokalt; videoen forlater aldri maskinen din.",
+  obGetStarted: "Kom i gang",
+  obProfileTitle: "Hva slags innhold lager du?",
+  obProfileBody: "Hjelper oss å foreslå fornuftige standarder. Helt valgfritt.",
+  obProfileCreator: "Innholdsskaper",
+  obProfileEducator: "Underviser",
+  obProfileJournalist: "Journalist",
+  obProfileMarketer: "Markedsfører",
+  obProfileFaith: "Menighet / kirke",
+  obProfileOther: "Annet",
+  obBack: "Tilbake",
+  obSkip: "Hopp over",
+  obContinue: "Fortsett",
+  obReadyTitle: "Klar!",
+  obReadyBody:
+    "Slipp inn en video for å starte — eller utforsk demo-prosjektet først.",
+  obImportVideo: "Importer en video",
+  obExploreDemo: "Utforsk demo-prosjektet",
+
+  // ── Style editor ────────────────────────────────────────────────────────
+  styleSampleText: "Dette er en forhåndsvisning av undertekst",
+  stylePreviewHint:
+    "Forhåndsvisning bruker samme stil som burn-in — det du ser er det du får.",
+  stylePresets: "Forhåndsdefinerte stiler",
+  styleFontSize: "Skriftstørrelse ({px}px)",
+  styleColors: "Farger",
+  styleColorText: "Tekst",
+  styleColorOutline: "Kontur",
+  styleOutlineWidth: "Konturbredde ({px}px)",
+  stylePosition: "Plassering",
+  styleBackgroundBox: "Bakgrunnsboks",
+  styleBackgroundToggle: "Vis halvgjennomsiktig boks bak teksten",
+
+  // ── Caption editor ──────────────────────────────────────────────────────
+  editorUndo: "Angre (⌘Z)",
+  editorRedo: "Gjør om (⌘⇧Z)",
+  editorFixTerms: "Rett termer",
+  editorFixTermsTitle: "Rett opp termer fra ordlisten",
+  editorThreshold: "Terskel",
+  editorFocus: "Fokus",
+  editorUncertainOf: "usikre ord av {total}",
+  editorTabToNext: "til neste usikre",
+  editorGlossaryNoHits: "Ingen ordlistetreff å rette.",
+  editorGlossaryCorrected: "Rettet {n} term(er) fra ordlisten.",
+  editorConfidencePct: "{pct}% sikkerhet",
+  editorShowAlternates: "Vis alternativer",
+  editorPolishedDot: "AI-polert tegnsetting",
+  editorNoAlternates: "Ingen alternativer.",
+  editorMarkCorrect: "Marker som riktig",
+  editorEditManually: "Rediger manuelt…",
+  tier1: "Sikker",
+  tier2: "Litt usikker",
+  tier3: "Usikker",
+  tier4: "Svært usikker",
+
+  // ── Timeline ────────────────────────────────────────────────────────────
+  timelineTotalSuffix: "total",
+  timelinePause: "Pause",
+  timelinePlay: "Spill av",
+  timelineZoomOut: "Zoom ut",
+  timelineZoomIn: "Zoom inn",
+  timelineHelp:
+    "Mellomrom: spill av/pause · ←/→: forrige/neste caption (⇧ = 5) · dra caption for å flytte, dra kantene for å endre timing · ⌘+rull: zoom",
+
+  // ── Export ──────────────────────────────────────────────────────────────
+  exportSidecarHeader: "Tekstformater (sidecar)",
+  exportSrtDesc: "Universal — YouTube, de fleste spillere",
+  exportVttDesc: "Web-standard, med talere",
+  exportAssDesc: "Full styling — Aegisub, burn-in",
+  exportTxtDesc: "Ren transkripsjon",
+  exportJsonDesc: "For utviklere — per-ord timing + confidence",
+  exportDocxDesc: "Word-dokument for korrektur (lagres direkte)",
+  exportPlatformHeader: "Brenn inn (plattform)",
+  exportMaxDuration: "maks {n}s",
+  exportSrtSidecar: "+ SRT-sidecar",
+  exportBurnIn: "Brenn inn undertekster",
+  exportBurningIn: "Brenner inn…",
+  exportSaveFormat: "Lagre {format}…",
+  exportChooseHint: "Velg et tekstformat eller en plattform til venstre.",
+
+  // ── Import screen ───────────────────────────────────────────────────────
+  importFilterName: "Video & lyd",
+  importFileMissing: "Filen finnes ikke lenger.",
+  importReadError: "Kunne ikke lese filen: {error}",
+  importReading: "Leser video…",
+  importDropHere: "Slipp en video her",
+  importFormats:
+    "MP4, MOV, MKV, WebM, AVI — eller lyd: MP3, WAV, M4A, FLAC, OGG.",
+  importNeverLeaves: "Filen forlater aldri maskinen din.",
+  importPickFile: "Velg fil…",
 };
 
 // Scandinavian + de/fr/pl: nav/chrome only; everything else falls back to en.

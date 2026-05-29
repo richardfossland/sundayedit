@@ -15,6 +15,7 @@ import { Users, Info, Merge } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
 import type { Project } from "@/lib/bindings";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   project: Project;
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function SpeakersPanel({ project, onProjectChange }: Props) {
+  const t = useT();
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,9 +36,7 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
   async function detect() {
     setError(null);
     if (!project.audio_wav_path) {
-      setError(
-        "Ingen lyd er hentet ut ennå. Importer en video og kjør waveform/transkripsjon først.",
-      );
+      setError(t("speakersNoAudio"));
       return;
     }
     setRunning(true);
@@ -78,10 +78,11 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
     <div className="mx-auto max-w-2xl space-y-6 p-6">
       <header>
         <h2 className="mb-1 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
-          <Users size={16} className="text-[var(--color-accent-400)]" /> Talere
+          <Users size={16} className="text-[var(--color-accent-400)]" />{" "}
+          {t("navSpeakers")}
         </h2>
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-          Identifiser hvem som sier hva, og rediger rollelisten.
+          {t("speakersIntro")}
         </p>
       </header>
 
@@ -90,10 +91,7 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
           size={15}
           className="mt-0.5 shrink-0 text-[var(--color-accent-400)]"
         />
-        <span>
-          Talergjenkjenning er et beste-forsøk. Kontroller tilordningene før du
-          eksporterer — slå sammen talere som ble delt opp, eller gi nytt navn.
-        </span>
+        <span>{t("speakersDisclaimer")}</span>
       </div>
 
       <button
@@ -102,7 +100,8 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
         disabled={running}
         className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
       >
-        <Users size={14} /> {running ? "Gjenkjenner…" : "Gjenkjenn talere"}
+        <Users size={14} />{" "}
+        {running ? t("speakersDetecting") : t("speakersDetect")}
       </button>
 
       {error && (
@@ -113,7 +112,7 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
 
       {project.speakers.length === 0 ? (
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-subtle)]">
-          Ingen talere ennå.
+          {t("speakersNoneYet")}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -126,7 +125,7 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
                 type="color"
                 value={s.color_hex ?? "#888888"}
                 onChange={(e) => setColor(s.id, e.target.value)}
-                title="Endre farge"
+                title={t("speakersChangeColor")}
                 className="h-6 w-6 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0"
               />
               <input
@@ -144,7 +143,7 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
                 className="flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-[var(--text-ui-sm)] font-medium outline-none hover:border-[var(--color-border)] focus:border-[var(--color-accent-500)]"
               />
               <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-                {counts.get(s.id) ?? 0} undertekster
+                {t("clipsCaptionsCount", { n: counts.get(s.id) ?? 0 })}
               </span>
               {project.speakers.length > 1 && (
                 <label className="flex items-center gap-1 text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
@@ -154,10 +153,10 @@ export function SpeakersPanel({ project, onProjectChange }: Props) {
                     onChange={(e) => {
                       if (e.target.value) merge(s.id, e.target.value);
                     }}
-                    title="Slå denne taleren sammen med en annen"
+                    title={t("speakersMergeTitle")}
                     className="rounded border border-[var(--color-border)] bg-[var(--color-bg-input)] px-1 py-0.5 outline-none focus:border-[var(--color-accent-500)]"
                   >
-                    <option value="">Slå sammen…</option>
+                    <option value="">{t("speakersMergePlaceholder")}</option>
                     {project.speakers
                       .filter((o) => o.id !== s.id)
                       .map((o) => (

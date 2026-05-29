@@ -17,6 +17,7 @@ import { AlertTriangle, Film, Download, Loader2 } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
 import type { ExportPreset, ExportWarning, Project } from "@/lib/bindings";
+import { useT, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -26,6 +27,7 @@ interface Props {
 type SidecarFormat = "srt" | "vtt" | "ass" | "txt" | "json";
 
 export function ExportPanel({ project }: Props) {
+  const t = useT();
   const [exported, setExported] = useState<{
     format: string;
     content: string;
@@ -98,9 +100,13 @@ export function ExportPanel({ project }: Props) {
     setSaveMsg(null);
     try {
       await ipc.exporters.save(project, out, format);
-      setSaveMsg(`Lagret: ${out}`);
+      setSaveMsg(t("doneFile", { path: out }));
     } catch (e) {
-      setSaveMsg(e instanceof IPCError ? `Feil: ${e.message}` : String(e));
+      setSaveMsg(
+        e instanceof IPCError
+          ? t("errorPrefix", { error: e.message })
+          : String(e),
+      );
     }
   }
 
@@ -117,10 +123,12 @@ export function ExportPanel({ project }: Props) {
     setRenderResult(null);
     try {
       await ipc.render.burnInPreset(project, out, selectedPreset);
-      setRenderResult(`Ferdig: ${out}`);
+      setRenderResult(t("doneFile", { path: out }));
     } catch (e) {
       setRenderResult(
-        e instanceof IPCError ? `Feil: ${e.message}` : `Feil: ${String(e)}`,
+        e instanceof IPCError
+          ? t("errorPrefix", { error: e.message })
+          : t("errorPrefix", { error: String(e) }),
       );
     } finally {
       setRendering(false);
@@ -134,36 +142,20 @@ export function ExportPanel({ project }: Props) {
       {/* Sidecar formats */}
       <div className="w-72 shrink-0 space-y-2 overflow-y-auto border-r border-[var(--color-border)] p-4">
         <h3 className="mb-1 text-[var(--text-ui-xs)] font-semibold uppercase tracking-wider text-[var(--color-fg-subtle)]">
-          Tekstformater (sidecar)
+          {t("exportSidecarHeader")}
         </h3>
         {(
           [
-            {
-              id: "srt",
-              label: "SRT",
-              desc: "Universal — YouTube, de fleste spillere",
-            },
-            { id: "vtt", label: "VTT", desc: "Web-standard, med talere" },
-            {
-              id: "ass",
-              label: "ASS",
-              desc: "Full styling — Aegisub, burn-in",
-            },
-            { id: "txt", label: "TXT", desc: "Ren transkripsjon" },
-            {
-              id: "json",
-              label: "JSON",
-              desc: "For utviklere — per-ord timing + confidence",
-            },
-            {
-              id: "docx",
-              label: "DOCX",
-              desc: "Word-dokument for korrektur (lagres direkte)",
-            },
+            { id: "srt", label: "SRT", descKey: "exportSrtDesc" },
+            { id: "vtt", label: "VTT", descKey: "exportVttDesc" },
+            { id: "ass", label: "ASS", descKey: "exportAssDesc" },
+            { id: "txt", label: "TXT", descKey: "exportTxtDesc" },
+            { id: "json", label: "JSON", descKey: "exportJsonDesc" },
+            { id: "docx", label: "DOCX", descKey: "exportDocxDesc" },
           ] as Array<{
             id: SidecarFormat | "docx";
             label: string;
-            desc: string;
+            descKey: TKey;
           }>
         ).map((f) => (
           <button
@@ -176,7 +168,7 @@ export function ExportPanel({ project }: Props) {
               {f.label}
             </span>
             <span className="text-[10px] text-[var(--color-fg-muted)]">
-              {f.desc}
+              {t(f.descKey)}
             </span>
           </button>
         ))}
@@ -185,7 +177,7 @@ export function ExportPanel({ project }: Props) {
       {/* Platform burn-in */}
       <div className="w-72 shrink-0 space-y-2 overflow-y-auto border-r border-[var(--color-border)] p-4">
         <h3 className="mb-1 flex items-center gap-1.5 text-[var(--text-ui-xs)] font-semibold uppercase tracking-wider text-[var(--color-fg-subtle)]">
-          <Film size={12} /> Brenn inn (plattform)
+          <Film size={12} /> {t("exportPlatformHeader")}
         </h3>
         {presets.map((p) => (
           <button
@@ -219,9 +211,11 @@ export function ExportPanel({ project }: Props) {
             <p className="mt-1 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
               {selectedPreset.width}×{selectedPreset.height}
               {selectedPreset.max_duration_sec
-                ? ` · maks ${selectedPreset.max_duration_sec}s`
+                ? ` · ${t("exportMaxDuration", { n: String(selectedPreset.max_duration_sec) })}`
                 : ""}
-              {selectedPreset.also_srt_sidecar ? " · + SRT-sidecar" : ""}
+              {selectedPreset.also_srt_sidecar
+                ? ` · ${t("exportSrtSidecar")}`
+                : ""}
             </p>
 
             {warnings.length > 0 && (
@@ -262,7 +256,7 @@ export function ExportPanel({ project }: Props) {
               ) : (
                 <Download size={15} />
               )}
-              {rendering ? "Brenner inn…" : "Brenn inn undertekster"}
+              {rendering ? t("exportBurningIn") : t("exportBurnIn")}
             </button>
 
             {renderResult && (
@@ -279,7 +273,10 @@ export function ExportPanel({ project }: Props) {
                 onClick={() => doSaveExport(exported.format)}
                 className="flex items-center gap-2 rounded-lg bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
               >
-                <Download size={14} /> Lagre {exported.format.toUpperCase()}…
+                <Download size={14} />{" "}
+                {t("exportSaveFormat", {
+                  format: exported.format.toUpperCase(),
+                })}
               </button>
               {saveMsg && (
                 <span className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
@@ -293,7 +290,7 @@ export function ExportPanel({ project }: Props) {
           </div>
         ) : (
           <div className="grid h-full place-items-center text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-            Velg et tekstformat eller en plattform til venstre.
+            {t("exportChooseHint")}
           </div>
         )}
       </div>

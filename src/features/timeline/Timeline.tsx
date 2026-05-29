@@ -27,6 +27,7 @@ import { ZoomIn, ZoomOut, Play, Pause } from "lucide-react";
 import type { Caption, Project, WaveformData } from "@/lib/bindings";
 import { confidenceTier } from "@/lib/bindings";
 import { ipc } from "@/lib/ipc";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import * as tl from "./geometry";
 
@@ -66,6 +67,7 @@ const TIER_BORDER: Record<number, string> = {
 };
 
 export function Timeline({ project, onProjectChange }: Props) {
+  const t = useT();
   const durationMs = Math.max(1, project.video_duration_ms);
   const fps = project.video_fps > 0 ? project.video_fps : 30;
 
@@ -355,7 +357,8 @@ export function Timeline({ project, onProjectChange }: Props) {
             {tl.formatTimecode(playheadMs, fps)}
           </div>
           <div className="mt-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-            {project.name} · {tl.formatTimecode(durationMs, fps)} total
+            {project.name} · {tl.formatTimecode(durationMs, fps)}{" "}
+            {t("timelineTotalSuffix")}
           </div>
         </div>
       </div>
@@ -366,7 +369,7 @@ export function Timeline({ project, onProjectChange }: Props) {
           type="button"
           onClick={() => setPlaying((p) => !p)}
           className="grid h-7 w-7 place-items-center rounded-md hover:bg-[var(--color-bg-surface)]"
-          aria-label={playing ? "Pause" : "Spill av"}
+          aria-label={playing ? t("timelinePause") : t("timelinePlay")}
         >
           {playing ? <Pause size={15} /> : <Play size={15} />}
         </button>
@@ -381,7 +384,7 @@ export function Timeline({ project, onProjectChange }: Props) {
           type="button"
           onClick={() => zoomButton(1 / 1.3)}
           className="grid h-7 w-7 place-items-center rounded-md hover:bg-[var(--color-bg-surface)]"
-          aria-label="Zoom ut"
+          aria-label={t("timelineZoomOut")}
         >
           <ZoomOut size={15} />
         </button>
@@ -389,7 +392,7 @@ export function Timeline({ project, onProjectChange }: Props) {
           type="button"
           onClick={() => zoomButton(1.3)}
           className="grid h-7 w-7 place-items-center rounded-md hover:bg-[var(--color-bg-surface)]"
-          aria-label="Zoom inn"
+          aria-label={t("timelineZoomIn")}
         >
           <ZoomIn size={15} />
         </button>
@@ -501,8 +504,7 @@ export function Timeline({ project, onProjectChange }: Props) {
       </div>
 
       <div className="border-t border-[var(--color-border)] px-3 py-1 text-[10px] text-[var(--color-fg-subtle)]">
-        Mellomrom: spill av/pause · ←/→: forrige/neste caption (⇧ = 5) · dra
-        caption for å flytte, dra kantene for å endre timing · ⌘+rull: zoom
+        {t("timelineHelp")}
       </div>
     </div>
   );

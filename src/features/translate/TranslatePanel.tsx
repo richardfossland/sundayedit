@@ -22,6 +22,7 @@ import type {
   TranslationLanguage,
   TranslationResult,
 } from "@/lib/bindings";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -40,6 +41,7 @@ function capText(caption: { words: { text: string }[] }): string {
 }
 
 export function TranslatePanel({ project, onProjectChange }: Props) {
+  const t = useT();
   const [model, setModel] = useState<ClaudeModel>("haiku45");
   const [target, setTarget] = useState("en");
   const [apiKey, setApiKey] = useState("");
@@ -113,17 +115,18 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
       <header>
         <h2 className="mb-1 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
           <Languages size={16} className="text-[var(--color-accent-400)]" />{" "}
-          Oversett undertekster
+          {t("translateTitle")}
         </h2>
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-          Oversetter til et annet språk med bevart timing. Ordlistetermer holdes
-          konsistente. Forhåndsvis før du erstatter sporet.
+          {t("translateIntro")}
         </p>
       </header>
 
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-[var(--text-ui-sm)]">
-          <span className="text-[var(--color-fg-muted)]">Til:</span>
+          <span className="text-[var(--color-fg-muted)]">
+            {t("translateTo")}
+          </span>
           <select
             value={target}
             onChange={(e) => setTarget(e.target.value)}
@@ -159,7 +162,7 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
         type="password"
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
-        placeholder="Anthropic API-nøkkel (valgfritt — ellers ANTHROPIC_API_KEY)"
+        placeholder={t("apiKeyPlaceholder")}
         className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg-input)] px-3 py-1.5 text-[var(--text-ui-sm)] outline-none focus:border-[var(--color-accent-500)]"
       />
 
@@ -172,13 +175,15 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
         >
           <Languages size={14} />{" "}
           {running
-            ? `Oversetter til ${targetName}…`
-            : `Oversett til ${targetName}`}
+            ? t("translateRunning", { lang: targetName })
+            : t("translateRun", { lang: targetName })}
         </button>
         {estimate && (
           <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-            {estimate.caption_count} undertekster · ~
-            {formatCost(estimate.estimated_cost_usd)}
+            {t("estCaptionsCost", {
+              n: estimate.caption_count,
+              cost: formatCost(estimate.estimated_cost_usd),
+            })}
           </span>
         )}
       </div>
@@ -197,14 +202,14 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
               onClick={replace}
               className="rounded-md bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
             >
-              Erstatt undertekster
+              {t("translateReplace")}
             </button>
             <button
               type="button"
               onClick={() => setResult(null)}
               className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
             >
-              Avbryt
+              {t("actionCancel")}
             </button>
           </div>
 
@@ -212,9 +217,7 @@ export function TranslatePanel({ project, onProjectChange }: Props) {
             <div className="flex items-start gap-2 rounded-md border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-3 py-2 text-[var(--text-ui-sm)] text-[var(--color-warning)]">
               <AlertTriangle size={15} className="mt-0.5 shrink-0" />
               <span>
-                {result.warnings.length} undertekst
-                {result.warnings.length === 1 ? "" : "er"} ble vesentlig lengre
-                enn originalen — lesehastigheten kan bli høy. Vurder å forkorte.
+                {t("translateWarnings", { n: result.warnings.length })}
               </span>
             </div>
           )}

@@ -19,16 +19,17 @@ import {
 
 import { ModelPicker } from "@/features/transcribe/ModelPicker";
 import type { DownloadProgress, WhisperModel } from "@/lib/bindings";
+import { useT, type TKey } from "@/lib/i18n";
 
 type Step = "welcome" | "profile" | "model" | "ready";
 
-const PROFILES: Array<{ id: string; label: string }> = [
-  { id: "creator", label: "Innholdsskaper" },
-  { id: "educator", label: "Underviser" },
-  { id: "journalist", label: "Journalist" },
-  { id: "marketer", label: "Markedsfører" },
-  { id: "faith", label: "Menighet / kirke" },
-  { id: "other", label: "Annet" },
+const PROFILES: Array<{ id: string; labelKey: TKey }> = [
+  { id: "creator", labelKey: "obProfileCreator" },
+  { id: "educator", labelKey: "obProfileEducator" },
+  { id: "journalist", labelKey: "obProfileJournalist" },
+  { id: "marketer", labelKey: "obProfileMarketer" },
+  { id: "faith", labelKey: "obProfileFaith" },
+  { id: "other", labelKey: "obProfileOther" },
 ];
 
 interface Props {
@@ -50,6 +51,7 @@ export function Onboarding({
   onDone,
   onTryDemo,
 }: Props) {
+  const t = useT();
   const [step, setStep] = useState<Step>("welcome");
 
   function chooseProfile(id: string | null) {
@@ -70,19 +72,17 @@ export function Onboarding({
               <Captions size={30} />
             </div>
             <h1 className="text-[var(--text-ui-2xl)] font-semibold">
-              Velkommen til SundayEdit
+              {t("obWelcomeTitle")}
             </h1>
             <p className="mx-auto mt-3 max-w-md text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-              Fra rå video til kringkastingsklar teksting — raskt. AI gjør 92 %
-              av jobben og viser deg nøyaktig hvor de siste 8 % trenger et
-              blikk. Alt kjører lokalt; videoen forlater aldri maskinen din.
+              {t("obWelcomeBody")}
             </p>
             <button
               type="button"
               onClick={() => setStep("profile")}
               className="mt-7 inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent-600)] px-5 py-2.5 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
             >
-              Kom i gang <ArrowRight size={15} />
+              {t("obGetStarted")} <ArrowRight size={15} />
             </button>
           </div>
         )}
@@ -90,10 +90,10 @@ export function Onboarding({
         {step === "profile" && (
           <div className="text-center">
             <h2 className="text-[var(--text-ui-xl)] font-semibold">
-              Hva slags innhold lager du?
+              {t("obProfileTitle")}
             </h2>
             <p className="mt-2 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-              Hjelper oss å foreslå fornuftige standarder. Helt valgfritt.
+              {t("obProfileBody")}
             </p>
             <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {PROFILES.map((p) => (
@@ -103,7 +103,7 @@ export function Onboarding({
                   onClick={() => chooseProfile(p.id)}
                   className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-4 text-[var(--text-ui-sm)] font-medium transition-colors hover:border-[var(--color-accent-500)] hover:bg-[var(--color-accent-500)]/8"
                 >
-                  {p.label}
+                  {t(p.labelKey)}
                 </button>
               ))}
             </div>
@@ -113,14 +113,14 @@ export function Onboarding({
                 onClick={() => setStep("welcome")}
                 className="inline-flex items-center gap-1.5 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
               >
-                <ArrowLeft size={14} /> Tilbake
+                <ArrowLeft size={14} /> {t("obBack")}
               </button>
               <button
                 type="button"
                 onClick={() => chooseProfile(null)}
                 className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] underline-offset-4 hover:text-[var(--color-accent-400)] hover:underline"
               >
-                Hopp over
+                {t("obSkip")}
               </button>
             </div>
           </div>
@@ -141,14 +141,14 @@ export function Onboarding({
                 onClick={() => setStep("profile")}
                 className="inline-flex items-center gap-1.5 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
               >
-                <ArrowLeft size={14} /> Tilbake
+                <ArrowLeft size={14} /> {t("obBack")}
               </button>
               <button
                 type="button"
                 onClick={() => setStep("ready")}
                 className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent-600)] px-5 py-2.5 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
               >
-                Fortsett <ArrowRight size={15} />
+                {t("obContinue")} <ArrowRight size={15} />
               </button>
             </div>
           </div>
@@ -159,10 +159,11 @@ export function Onboarding({
             <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-[var(--color-bg-surface)] text-[var(--color-accent-400)]">
               <Sparkles size={26} />
             </div>
-            <h2 className="text-[var(--text-ui-xl)] font-semibold">Klar!</h2>
+            <h2 className="text-[var(--text-ui-xl)] font-semibold">
+              {t("obReadyTitle")}
+            </h2>
             <p className="mt-2 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-              Slipp inn en video for å starte — eller utforsk demo-prosjektet
-              først.
+              {t("obReadyBody")}
             </p>
             <div className="mt-7 flex items-center justify-center gap-3">
               <button
@@ -170,14 +171,14 @@ export function Onboarding({
                 onClick={onDone}
                 className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent-600)] px-5 py-2.5 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
               >
-                <FileVideo size={15} /> Importer en video
+                <FileVideo size={15} /> {t("obImportVideo")}
               </button>
               <button
                 type="button"
                 onClick={onTryDemo}
                 className="rounded-lg border border-[var(--color-border)] px-5 py-2.5 text-[var(--text-ui-sm)] font-medium hover:border-[var(--color-accent-600)]"
               >
-                Utforsk demo-prosjektet
+                {t("obExploreDemo")}
               </button>
             </div>
           </div>
