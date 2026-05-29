@@ -7,8 +7,8 @@
  * keychain), and a consent dialog that must be accepted before a provider is
  * selected ("your audio will be uploaded to X").
  *
- * The live upload/transcription call is the remaining engine piece; this is
- * the consent + cost + selection surface the plan requires.
+ * All three providers (OpenAI Whisper, AssemblyAI, Deepgram) transcribe live
+ * once a key is set; the returned captions are lifted into the editor.
  */
 
 import { useState } from "react";
@@ -68,6 +68,7 @@ export function CloudPanel({ project, onTranscribed }: Props) {
   const minutes = project.video_duration_ms / 60_000;
 
   const [selected, setSelected] = useState<CloudProvider | null>(null);
+  const selectedInfo = providers.find((p) => p.provider === selected) ?? null;
   const [consentFor, setConsentFor] = useState<CloudProviderInfo | null>(null);
   const [transcribing, setTranscribing] = useState(false);
   const [transcribeErr, setTranscribeErr] = useState<string | null>(null);
@@ -181,13 +182,13 @@ export function CloudPanel({ project, onTranscribed }: Props) {
         })}
       </ul>
 
-      {selected === "openai-whisper" && (
+      {selectedInfo && (
         <div className="mt-4 rounded-lg border border-[var(--color-accent-600)]/40 bg-[var(--color-accent-500)]/5 p-3">
-          {keySet("openai-whisper") ? (
+          {keySet(selectedInfo.provider) ? (
             <>
               <button
                 type="button"
-                onClick={() => doTranscribe("openai-whisper")}
+                onClick={() => doTranscribe(selectedInfo.provider)}
                 disabled={transcribing}
                 className="flex items-center gap-2 rounded-lg bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
               >
@@ -198,11 +199,13 @@ export function CloudPanel({ project, onTranscribed }: Props) {
                 )}
                 {transcribing
                   ? "Transkriberer i skyen…"
-                  : "Transkriber med OpenAI Whisper"}
+                  : `Transkriber med ${selectedInfo.display_name}`}
               </button>
               <p className="mt-2 text-[10px] text-[var(--color-fg-subtle)]">
-                Laster opp prosjektets lyd til OpenAI. Korte klipp fungerer best
-                (API-grense ~25 MB).
+                Laster opp prosjektets lyd til {selectedInfo.display_name}.
+                Korte klipp fungerer best (API-grense ~25 MB).
+                {selectedInfo.provider === "assembly-ai" &&
+                  " AssemblyAI laster opp og venter på resultat, så det kan ta litt tid."}
               </p>
               {transcribeErr && (
                 <p className="mt-2 text-[var(--text-ui-sm)] text-[var(--color-danger)]">
@@ -212,19 +215,11 @@ export function CloudPanel({ project, onTranscribed }: Props) {
             </>
           ) : (
             <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-              Legg inn OpenAI-nøkkelen din under Innstillinger → API-nøkler for
-              å transkribere i skyen.
+              Legg inn {selectedInfo.display_name}-nøkkelen din under
+              Innstillinger → API-nøkler for å transkribere i skyen.
             </p>
           )}
         </div>
-      )}
-
-      {selected && selected !== "openai-whisper" && (
-        <p className="mt-3 text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-          Transkripsjon via{" "}
-          {selected === "assembly-ai" ? "AssemblyAI" : "Deepgram"} kommer — bruk
-          OpenAI Whisper eller lokal Whisper inntil da.
-        </p>
       )}
 
       {consentFor && (

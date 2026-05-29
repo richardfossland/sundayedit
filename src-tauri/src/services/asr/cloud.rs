@@ -5,11 +5,11 @@
 //! API keys live in the OS keychain (`keyring` crate, wired in the
 //! command layer), never plaintext.
 //!
-//! The HTTP calls themselves are feature-gated / deferred — what's
-//! implemented and tested here is the part that matters for correctness
-//! and that's pure: parsing each provider's response JSON into our
-//! normalized `Transcript`, with confidence run through the SAME curve as
-//! local Whisper so tiers line up across backends.
+//! All three providers (OpenAI Whisper, AssemblyAI, Deepgram) are wired for
+//! live transcription (BYOK). The correctness-critical part — parsing each
+//! provider's response JSON into our normalized `Transcript`, with confidence
+//! run through the SAME curve as local Whisper so tiers line up across
+//! backends — is pure and unit-tested below.
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -341,12 +341,14 @@ pub fn parse_deepgram_json(json: &str) -> AppResult<Transcript> {
     })
 }
 
-// ── Live transcription call ───────────────────────────────────────────────
+// ── Live transcription calls ──────────────────────────────────────────────
 //
-// OpenAI Whisper API is a single synchronous multipart POST, so it's wired
-// here. AssemblyAI (upload + poll) and Deepgram (sync POST) use different
-// shapes and aren't wired yet. BYOK: the key is resolved from the OS keychain
-// in the command layer and passed in.
+// All three providers are wired. They use different shapes:
+//   - OpenAI Whisper: one synchronous multipart POST.
+//   - Deepgram: one synchronous POST of the raw audio bytes.
+//   - AssemblyAI: upload the bytes, request a transcript, then poll until done.
+// BYOK: the key is resolved from the OS keychain in the command layer and
+// passed in. Response parsing is the pure, tested part above.
 
 /// Pull a human message out of an OpenAI error body, else the raw text.
 fn openai_error_message(body: &str) -> String {
@@ -354,6 +356,44 @@ fn openai_error_message(body: &str) -> String {
         .ok()
         .and_then(|v| v["error"]["message"].as_str().map(str::to_string))
         .unwrap_or_else(|| body.chars().take(300).collect())
+}
+
+/// Best-effort human message from a provider error body across the common
+/// shapes ({"error": "..."}, {"error": {"message": "..."}}, {"err_msg": ...}).
+fn provider_error_message(body: &str) -> String {
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(body) {
+        if let Some(s) = v["error"]["message"].as_str() {
+            return s.to_string();
+        }
+        for key in ["error", "err_msg", "message"] {
+            if let Some(s) = v.get(key).and_then(|x| x.as_str()) {
+                return s.to_string();
+            }
+        }
+    }
+    body.chars().take(300).collect()
+}
+
+/// Content-Type for a media file, inferred from its extension. Deepgram sniffs
+/// container formats regardless, but a correct type avoids ambiguity.
+fn mime_for(path: &std::path::Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("wav") => "audio/wav",
+        Some("mp3") => "audio/mpeg",
+        Some("m4a") | Some("aac") => "audio/mp4",
+        Some("flac") => "audio/flac",
+        Some("ogg") | Some("opus") => "audio/ogg",
+        Some("mp4") => "video/mp4",
+        Some("mov") => "video/quicktime",
+        Some("webm") => "video/webm",
+        Some("mkv") => "video/x-matroska",
+        _ => "application/octet-stream",
+    }
 }
 
 /// Transcribe an audio/video file via the OpenAI Whisper API (whisper-1,
@@ -409,6 +449,165 @@ pub async fn transcribe_openai(
     parse_openai_verbose_json(&body)
 }
 
+const ASSEMBLYAI_BASE: &str = "https://api.assemblyai.com/v2";
+/// Poll cap for AssemblyAI: 400 × 3 s ≈ 20 minutes before we give up.
+const ASSEMBLYAI_MAX_POLLS: u32 = 400;
+
+/// Transcribe via AssemblyAI: upload the audio, request a transcript, then poll
+/// until it's `completed` (or `error`). Returns our normalized `Transcript`.
+pub async fn transcribe_assemblyai(
+    audio_path: &std::path::Path,
+    api_key: &str,
+    language: &str,
+) -> AppResult<Transcript> {
+    if api_key.trim().is_empty() {
+        return Err(AppError::Validation(
+            "AssemblyAI API key is not set — add it under Settings → API keys.".into(),
+        ));
+    }
+
+    let bytes = tokio::fs::read(audio_path).await?;
+    let client = reqwest::Client::new();
+    let net = |e: reqwest::Error| AppError::Network(e.to_string());
+
+    // 1. Upload the raw audio → an upload_url AssemblyAI can read back.
+    let resp = client
+        .post(format!("{ASSEMBLYAI_BASE}/upload"))
+        .header("authorization", api_key)
+        .body(bytes)
+        .send()
+        .await
+        .map_err(net)?;
+    let status = resp.status();
+    let body = resp.text().await.map_err(net)?;
+    if !status.is_success() {
+        return Err(AppError::Network(format!(
+            "AssemblyAI upload failed ({}): {}",
+            status.as_u16(),
+            provider_error_message(&body)
+        )));
+    }
+    let upload_url = serde_json::from_str::<serde_json::Value>(&body)?
+        .get("upload_url")
+        .and_then(|u| u.as_str())
+        .map(str::to_string)
+        .ok_or_else(|| AppError::Validation("AssemblyAI upload returned no upload_url".into()))?;
+
+    // 2. Request a transcript for that upload.
+    let mut req_body = serde_json::json!({ "audio_url": upload_url });
+    if language.is_empty() || language == "auto" {
+        req_body["language_detection"] = serde_json::json!(true);
+    } else {
+        req_body["language_code"] = serde_json::json!(language);
+    }
+    let resp = client
+        .post(format!("{ASSEMBLYAI_BASE}/transcript"))
+        .header("authorization", api_key)
+        .json(&req_body)
+        .send()
+        .await
+        .map_err(net)?;
+    let status = resp.status();
+    let body = resp.text().await.map_err(net)?;
+    if !status.is_success() {
+        return Err(AppError::Network(format!(
+            "AssemblyAI transcript request failed ({}): {}",
+            status.as_u16(),
+            provider_error_message(&body)
+        )));
+    }
+    let id = serde_json::from_str::<serde_json::Value>(&body)?
+        .get("id")
+        .and_then(|i| i.as_str())
+        .map(str::to_string)
+        .ok_or_else(|| {
+            AppError::Validation("AssemblyAI transcript request returned no id".into())
+        })?;
+
+    // 3. Poll until completed / error.
+    let poll_url = format!("{ASSEMBLYAI_BASE}/transcript/{id}");
+    for _ in 0..ASSEMBLYAI_MAX_POLLS {
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        let resp = client
+            .get(&poll_url)
+            .header("authorization", api_key)
+            .send()
+            .await
+            .map_err(net)?;
+        let status = resp.status();
+        let body = resp.text().await.map_err(net)?;
+        if !status.is_success() {
+            return Err(AppError::Network(format!(
+                "AssemblyAI polling failed ({}): {}",
+                status.as_u16(),
+                provider_error_message(&body)
+            )));
+        }
+        let v: serde_json::Value = serde_json::from_str(&body)?;
+        match v.get("status").and_then(|s| s.as_str()) {
+            Some("completed") => return parse_assemblyai_json(&body),
+            Some("error") => {
+                return Err(AppError::Network(format!(
+                    "AssemblyAI transcription error: {}",
+                    v.get("error").and_then(|e| e.as_str()).unwrap_or("unknown")
+                )))
+            }
+            _ => continue, // queued | processing
+        }
+    }
+    Err(AppError::Network(
+        "AssemblyAI transcription timed out after ~20 minutes".into(),
+    ))
+}
+
+/// Transcribe via Deepgram: one synchronous POST of the raw audio bytes.
+pub async fn transcribe_deepgram(
+    audio_path: &std::path::Path,
+    api_key: &str,
+    language: &str,
+) -> AppResult<Transcript> {
+    if api_key.trim().is_empty() {
+        return Err(AppError::Validation(
+            "Deepgram API key is not set — add it under Settings → API keys.".into(),
+        ));
+    }
+
+    let bytes = tokio::fs::read(audio_path).await?;
+    let net = |e: reqwest::Error| AppError::Network(e.to_string());
+
+    // nova-2 + punctuate/smart_format give punctuated_word + per-word confidence.
+    let mut params: Vec<(&str, &str)> = vec![
+        ("model", "nova-2"),
+        ("punctuate", "true"),
+        ("smart_format", "true"),
+    ];
+    if language.is_empty() || language == "auto" {
+        params.push(("detect_language", "true"));
+    } else {
+        params.push(("language", language));
+    }
+
+    let resp = reqwest::Client::new()
+        .post("https://api.deepgram.com/v1/listen")
+        .query(&params)
+        .header("authorization", format!("Token {api_key}"))
+        .header("content-type", mime_for(audio_path))
+        .body(bytes)
+        .send()
+        .await
+        .map_err(net)?;
+    let status = resp.status();
+    let body = resp.text().await.map_err(net)?;
+    if !status.is_success() {
+        return Err(AppError::Network(format!(
+            "Deepgram transcription failed ({}): {}",
+            status.as_u16(),
+            provider_error_message(&body)
+        )));
+    }
+    parse_deepgram_json(&body)
+}
+
 /// Dispatch a cloud transcription to the chosen provider.
 pub async fn cloud_transcribe(
     provider: CloudProvider,
@@ -418,10 +617,8 @@ pub async fn cloud_transcribe(
 ) -> AppResult<Transcript> {
     match provider {
         CloudProvider::OpenaiWhisper => transcribe_openai(audio_path, api_key, language).await,
-        CloudProvider::AssemblyAi | CloudProvider::Deepgram => Err(AppError::Validation(format!(
-            "{} cloud transcription isn't wired yet — use OpenAI or local Whisper.",
-            provider.display_name()
-        ))),
+        CloudProvider::AssemblyAi => transcribe_assemblyai(audio_path, api_key, language).await,
+        CloudProvider::Deepgram => transcribe_deepgram(audio_path, api_key, language).await,
     }
 }
 
@@ -446,16 +643,44 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cloud_transcribe_unwired_providers_error_clearly() {
-        let err = cloud_transcribe(
+    async fn wired_providers_reject_empty_key() {
+        // Every provider validates the key before any file read or network
+        // call, so an empty key is a fast `validation` error through dispatch.
+        for p in [
+            CloudProvider::OpenaiWhisper,
+            CloudProvider::AssemblyAi,
             CloudProvider::Deepgram,
-            std::path::Path::new("/tmp/x.wav"),
-            "key",
-            "en",
-        )
-        .await
-        .unwrap_err();
-        assert_eq!(err.code(), "validation");
+        ] {
+            let err = cloud_transcribe(p, std::path::Path::new("/tmp/x.wav"), "  ", "en")
+                .await
+                .unwrap_err();
+            assert_eq!(err.code(), "validation", "provider {p:?}");
+        }
+    }
+
+    #[test]
+    fn mime_for_maps_common_extensions() {
+        assert_eq!(mime_for(std::path::Path::new("a.wav")), "audio/wav");
+        assert_eq!(mime_for(std::path::Path::new("clip.MP4")), "video/mp4");
+        assert_eq!(mime_for(std::path::Path::new("x.flac")), "audio/flac");
+        assert_eq!(
+            mime_for(std::path::Path::new("weird.xyz")),
+            "application/octet-stream"
+        );
+    }
+
+    #[test]
+    fn provider_error_message_handles_common_shapes() {
+        assert_eq!(provider_error_message(r#"{"error":"bad key"}"#), "bad key");
+        assert_eq!(
+            provider_error_message(r#"{"error":{"message":"nested"}}"#),
+            "nested"
+        );
+        assert_eq!(
+            provider_error_message(r#"{"err_msg":"deepgram style"}"#),
+            "deepgram style"
+        );
+        assert_eq!(provider_error_message("plain text"), "plain text");
     }
 
     #[test]
