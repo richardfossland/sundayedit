@@ -12,13 +12,31 @@ use std::sync::Arc;
 use tauri::Emitter;
 
 use crate::error::AppResult;
-use crate::model::Caption;
+use crate::model::{Caption, Project};
 use crate::services::asr::captionize::{captionize, CaptionizeOptions};
 use crate::services::asr::cloud::{self, CloudCostEstimate, CloudProvider, CloudProviderInfo};
 use crate::services::asr::download::download_model;
 use crate::services::asr::local::LocalWhisperProvider;
 use crate::services::asr::model::{catalog, WhisperModel, WhisperModelInfo};
 use crate::services::asr::{AsrOptions, AsrProvider, TranscribeProgress};
+use crate::services::secrets::{self, SecretProvider};
+
+/// Which keychain entry + env var holds a cloud provider's key.
+fn secret_provider_for(p: CloudProvider) -> SecretProvider {
+    match p {
+        CloudProvider::OpenaiWhisper => SecretProvider::OpenAi,
+        CloudProvider::AssemblyAi => SecretProvider::AssemblyAi,
+        CloudProvider::Deepgram => SecretProvider::Deepgram,
+    }
+}
+
+fn env_var_for(p: CloudProvider) -> &'static str {
+    match p {
+        CloudProvider::OpenaiWhisper => "OPENAI_API_KEY",
+        CloudProvider::AssemblyAi => "ASSEMBLYAI_API_KEY",
+        CloudProvider::Deepgram => "DEEPGRAM_API_KEY",
+    }
+}
 
 /// Shared cancel flag for the in-flight model download (one at a time —
 /// the picker only downloads one model). Managed by the Tauri runtime.
@@ -55,6 +73,39 @@ pub fn cloud_providers() -> Vec<CloudProviderInfo> {
 #[tauri::command]
 pub fn cloud_cost_estimate(provider: CloudProvider, duration_ms: i64) -> CloudCostEstimate {
     cloud::estimate_cost(provider, duration_ms)
+}
+
+/// Transcribe the project's audio via a cloud provider (BYOK — key from the
+/// keychain). Uploads the extracted 16 kHz WAV when present (small, under the
+/// API size limit), else the source media. Returns editor-ready captions.
+#[tauri::command]
+pub async fn cloud_transcribe(
+    project: Project,
+    provider: CloudProvider,
+    api_key: Option<String>,
+    language: Option<String>,
+) -> AppResult<Vec<Caption>> {
+    let path = project
+        .audio_wav_path
+        .as_deref()
+        .filter(|p| Path::new(p).is_file())
+        .unwrap_or(project.video_path.as_str())
+        .to_string();
+
+    let key = secrets::resolve(
+        api_key,
+        secret_provider_for(provider),
+        env_var_for(provider),
+    );
+    let lang = language.unwrap_or_else(|| project.language.clone());
+
+    let transcript = cloud::cloud_transcribe(provider, Path::new(&path), &key, &lang).await?;
+    Ok(captionize(
+        &transcript,
+        CaptionizeOptions::default(),
+        now_ms(),
+        |_idx| new_id(),
+    ))
 }
 
 /// Which models are already downloaded into `models_dir`.

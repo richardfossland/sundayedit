@@ -19,10 +19,12 @@ import {
   ShieldAlert,
   ExternalLink,
   KeyRound,
+  Loader2,
 } from "lucide-react";
 
-import { ipc } from "@/lib/ipc";
+import { ipc, IPCError } from "@/lib/ipc";
 import type {
+  Caption,
   CloudProvider,
   CloudProviderInfo,
   Project,
@@ -32,6 +34,7 @@ import { cn } from "@/lib/cn";
 
 interface Props {
   project: Project;
+  onTranscribed: (captions: Caption[]) => void;
 }
 
 // CloudProvider → the keychain SecretProvider that holds its key.
@@ -51,7 +54,7 @@ async function openPrivacy(url: string) {
   }
 }
 
-export function CloudPanel({ project }: Props) {
+export function CloudPanel({ project, onTranscribed }: Props) {
   const providersQuery = useQuery({
     queryKey: ["cloud-providers"],
     queryFn: () => ipc.asr.cloudProviders(),
@@ -66,9 +69,28 @@ export function CloudPanel({ project }: Props) {
 
   const [selected, setSelected] = useState<CloudProvider | null>(null);
   const [consentFor, setConsentFor] = useState<CloudProviderInfo | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcribeErr, setTranscribeErr] = useState<string | null>(null);
 
   const keySet = (p: CloudProvider) =>
     secretsQuery.data?.find((s) => s.provider === KEY_FOR[p])?.present ?? false;
+
+  async function doTranscribe(provider: CloudProvider) {
+    setTranscribing(true);
+    setTranscribeErr(null);
+    try {
+      const captions = await ipc.asr.cloudTranscribe(project, provider);
+      onTranscribed(captions);
+    } catch (e) {
+      setTranscribeErr(
+        e instanceof IPCError
+          ? e.message
+          : `Transkripsjon feilet: ${String(e)}`,
+      );
+    } finally {
+      setTranscribing(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -159,10 +181,49 @@ export function CloudPanel({ project }: Props) {
         })}
       </ul>
 
-      {selected && (
+      {selected === "openai-whisper" && (
+        <div className="mt-4 rounded-lg border border-[var(--color-accent-600)]/40 bg-[var(--color-accent-500)]/5 p-3">
+          {keySet("openai-whisper") ? (
+            <>
+              <button
+                type="button"
+                onClick={() => doTranscribe("openai-whisper")}
+                disabled={transcribing}
+                className="flex items-center gap-2 rounded-lg bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
+              >
+                {transcribing ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <Cloud size={15} />
+                )}
+                {transcribing
+                  ? "Transkriberer i skyen…"
+                  : "Transkriber med OpenAI Whisper"}
+              </button>
+              <p className="mt-2 text-[10px] text-[var(--color-fg-subtle)]">
+                Laster opp prosjektets lyd til OpenAI. Korte klipp fungerer best
+                (API-grense ~25 MB).
+              </p>
+              {transcribeErr && (
+                <p className="mt-2 text-[var(--text-ui-sm)] text-[var(--color-danger)]">
+                  {transcribeErr}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
+              Legg inn OpenAI-nøkkelen din under Innstillinger → API-nøkler for
+              å transkribere i skyen.
+            </p>
+          )}
+        </div>
+      )}
+
+      {selected && selected !== "openai-whisper" && (
         <p className="mt-3 text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-          Sky-leverandør valgt. Selve opplastingen kobles på i
-          transkripsjons-flyten — lokal Whisper brukes inntil da.
+          Transkripsjon via{" "}
+          {selected === "assembly-ai" ? "AssemblyAI" : "Deepgram"} kommer — bruk
+          OpenAI Whisper eller lokal Whisper inntil da.
         </p>
       )}
 

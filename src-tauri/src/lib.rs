@@ -64,6 +64,7 @@ pub fn run() {
             commands::asr::asr_list_models,
             commands::asr::cloud_providers,
             commands::asr::cloud_cost_estimate,
+            commands::asr::cloud_transcribe,
             commands::asr::asr_downloaded_models,
             commands::asr::asr_download_model,
             commands::asr::asr_cancel_download,

@@ -182,6 +182,20 @@ export const asr = {
       provider,
       durationMs,
     }),
+  /** Transcribe the project's audio via a cloud provider (BYOK). OpenAI is
+   *  wired; others error clearly. Returns editor-ready captions. */
+  cloudTranscribe: (
+    project: Project,
+    provider: CloudProvider,
+    apiKey?: string,
+    language?: string,
+  ) =>
+    call<Caption[]>("cloud_transcribe", {
+      project,
+      provider,
+      apiKey: apiKey ?? null,
+      language: language ?? null,
+    }),
   downloadedModels: (modelsDir: string) =>
     call<WhisperModel[]>("asr_downloaded_models", { modelsDir }),
   /** Fetch a model into `modelsDir`. Resolves when it's on disk. Listen for

@@ -341,9 +341,122 @@ pub fn parse_deepgram_json(json: &str) -> AppResult<Transcript> {
     })
 }
 
+// ── Live transcription call ───────────────────────────────────────────────
+//
+// OpenAI Whisper API is a single synchronous multipart POST, so it's wired
+// here. AssemblyAI (upload + poll) and Deepgram (sync POST) use different
+// shapes and aren't wired yet. BYOK: the key is resolved from the OS keychain
+// in the command layer and passed in.
+
+/// Pull a human message out of an OpenAI error body, else the raw text.
+fn openai_error_message(body: &str) -> String {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| v["error"]["message"].as_str().map(str::to_string))
+        .unwrap_or_else(|| body.chars().take(300).collect())
+}
+
+/// Transcribe an audio/video file via the OpenAI Whisper API (whisper-1,
+/// `verbose_json` + word timestamps) → our normalized `Transcript`.
+pub async fn transcribe_openai(
+    audio_path: &std::path::Path,
+    api_key: &str,
+    language: &str,
+) -> AppResult<Transcript> {
+    if api_key.trim().is_empty() {
+        return Err(AppError::Validation(
+            "OpenAI API key is not set — add it under Settings → API keys.".into(),
+        ));
+    }
+
+    let bytes = tokio::fs::read(audio_path).await?;
+    let filename = audio_path
+        .file_name()
+        .and_then(|f| f.to_str())
+        .unwrap_or("audio")
+        .to_string();
+
+    let part = reqwest::multipart::Part::bytes(bytes).file_name(filename);
+    let mut form = reqwest::multipart::Form::new()
+        .text("model", "whisper-1")
+        .text("response_format", "verbose_json")
+        .text("timestamp_granularities[]", "word")
+        .part("file", part);
+    if !language.is_empty() && language != "auto" {
+        form = form.text("language", language.to_string());
+    }
+
+    let resp = reqwest::Client::new()
+        .post("https://api.openai.com/v1/audio/transcriptions")
+        .bearer_auth(api_key)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| AppError::Network(e.to_string()))?;
+
+    let status = resp.status();
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| AppError::Network(e.to_string()))?;
+    if !status.is_success() {
+        return Err(AppError::Network(format!(
+            "OpenAI transcription failed ({}): {}",
+            status.as_u16(),
+            openai_error_message(&body)
+        )));
+    }
+    parse_openai_verbose_json(&body)
+}
+
+/// Dispatch a cloud transcription to the chosen provider.
+pub async fn cloud_transcribe(
+    provider: CloudProvider,
+    audio_path: &std::path::Path,
+    api_key: &str,
+    language: &str,
+) -> AppResult<Transcript> {
+    match provider {
+        CloudProvider::OpenaiWhisper => transcribe_openai(audio_path, api_key, language).await,
+        CloudProvider::AssemblyAi | CloudProvider::Deepgram => Err(AppError::Validation(format!(
+            "{} cloud transcription isn't wired yet — use OpenAI or local Whisper.",
+            provider.display_name()
+        ))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn openai_error_message_extracts_or_falls_back() {
+        let body =
+            r#"{"error":{"message":"Invalid API key provided","type":"invalid_request_error"}}"#;
+        assert_eq!(openai_error_message(body), "Invalid API key provided");
+        assert_eq!(openai_error_message("not json at all"), "not json at all");
+    }
+
+    #[tokio::test]
+    async fn transcribe_openai_rejects_empty_key() {
+        let err = transcribe_openai(std::path::Path::new("/tmp/x.wav"), "  ", "en")
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), "validation");
+    }
+
+    #[tokio::test]
+    async fn cloud_transcribe_unwired_providers_error_clearly() {
+        let err = cloud_transcribe(
+            CloudProvider::Deepgram,
+            std::path::Path::new("/tmp/x.wav"),
+            "key",
+            "en",
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(err.code(), "validation");
+    }
 
     #[test]
     fn consent_text_names_provider() {

@@ -273,7 +273,13 @@ function App() {
                 downloading={downloading}
                 onDownload={handleDownloadModel}
               />
-              <CloudPanel project={project} />
+              <CloudPanel
+                project={project}
+                onTranscribed={(captions) => {
+                  setProject({ ...project, captions });
+                  setTab("editor");
+                }}
+              />
             </div>
           ) : tab === "editor" ? (
             <CaptionEditor
