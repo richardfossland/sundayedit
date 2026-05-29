@@ -76,6 +76,22 @@ export const ops = {
     call<Project>("op_merge_captions", { project, captionIds }),
   shiftAll: (project: Project, offsetMs: number) =>
     call<Project>("op_shift_all_captions", { project, offsetMs }),
+  /** Slide one caption (+ its words) along the timeline; clamped to neighbours. */
+  moveCaption: (project: Project, captionId: string, deltaMs: number) =>
+    call<Project>("op_move_caption", { project, captionId, deltaMs }),
+  /** Drag a caption's start/end edges; clamped to neighbours + its own words. */
+  resizeCaption: (
+    project: Project,
+    captionId: string,
+    newStartMs: number,
+    newEndMs: number,
+  ) =>
+    call<Project>("op_resize_caption", {
+      project,
+      captionId,
+      newStartMs,
+      newEndMs,
+    }),
   editWord: (
     project: Project,
     captionId: string,

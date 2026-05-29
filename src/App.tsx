@@ -15,9 +15,11 @@ import {
   Languages,
   Users,
   RefreshCw,
+  GalleryHorizontalEnd,
 } from "lucide-react";
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
+import { Timeline } from "@/features/timeline/Timeline";
 import { ContextPanel } from "@/features/context/ContextPanel";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { Onboarding } from "@/features/onboarding/Onboarding";
@@ -48,6 +50,7 @@ import { cn } from "@/lib/cn";
 type Tab =
   | "transcribe"
   | "editor"
+  | "timeline"
   | "context"
   | "speakers"
   | "polish"
@@ -196,6 +199,13 @@ function App() {
           <Captions size={18} />
         </NavIcon>
         <NavIcon
+          active={tab === "timeline"}
+          onClick={() => setTab("timeline")}
+          title="Tidslinje"
+        >
+          <GalleryHorizontalEnd size={18} />
+        </NavIcon>
+        <NavIcon
           active={tab === "context"}
           onClick={() => setTab("context")}
           title="Kontekst og ordliste"
@@ -300,6 +310,8 @@ function App() {
               project={project}
               onProjectChange={setProject}
             />
+          ) : tab === "timeline" ? (
+            <Timeline project={project} onProjectChange={setProject} />
           ) : tab === "context" ? (
             <ContextPanel project={project} onProjectChange={setProject} />
           ) : tab === "speakers" ? (

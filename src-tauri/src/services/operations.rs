@@ -316,6 +316,118 @@ pub fn retime_word(
     Ok(next)
 }
 
+// ── moveCaption (timeline drag) ───────────────────────────────────────────────
+
+/// Slide a whole caption (and all its words) by `delta_ms`, used when the user
+/// drags a caption box along the timeline. The move is clamped so the caption
+/// can't cross its neighbours or go negative — a partial slide stops at the gap,
+/// NLE-style. Returns the project unchanged if there's no room to move.
+pub fn move_caption(
+    project: &Project,
+    caption_id: &str,
+    delta_ms: i64,
+    now_ms: i64,
+) -> AppResult<Project> {
+    if delta_ms == 0 {
+        return Ok(project.clone());
+    }
+
+    let mut next = project.clone();
+    let (idx, _) = find_caption(&next, caption_id)?;
+
+    let prev_end = if idx > 0 {
+        next.captions[idx - 1].end_ms
+    } else {
+        0
+    };
+    let next_start = next.captions.get(idx + 1).map(|c| c.start_ms);
+
+    let cap = &next.captions[idx];
+    let dur = cap.end_ms - cap.start_ms;
+    let lo = prev_end.max(0);
+    let hi = next_start.map(|ns| ns - dur).unwrap_or(i64::MAX);
+
+    let applied = if hi < lo {
+        0 // no gap to move into
+    } else {
+        (cap.start_ms + delta_ms).clamp(lo, hi) - cap.start_ms
+    };
+    if applied == 0 {
+        return Ok(project.clone());
+    }
+
+    let cap = &mut next.captions[idx];
+    cap.start_ms += applied;
+    cap.end_ms += applied;
+    for w in cap.words.iter_mut() {
+        w.start_ms += applied;
+        w.end_ms += applied;
+    }
+    cap.last_edited_at = now_ms;
+    next.updated_at = now_ms;
+    next.validate().map_err(AppError::Invariant)?;
+    Ok(next)
+}
+
+// ── resizeCaption (timeline edge drag) ──────────────────────────────────────────
+
+/// Adjust a caption's start/end edges (timeline edge drag). The new bounds are
+/// clamped so the caption can't overlap a neighbour and can't shrink past its
+/// own words (you can't hide content) — words are left untouched.
+pub fn resize_caption(
+    project: &Project,
+    caption_id: &str,
+    new_start_ms: i64,
+    new_end_ms: i64,
+    now_ms: i64,
+) -> AppResult<Project> {
+    if new_start_ms >= new_end_ms {
+        return Err(AppError::Validation(
+            "start must be less than end".to_string(),
+        ));
+    }
+
+    let mut next = project.clone();
+    let (idx, _) = find_caption(&next, caption_id)?;
+
+    let prev_end = if idx > 0 {
+        next.captions[idx - 1].end_ms
+    } else {
+        0
+    };
+    let next_start = next.captions.get(idx + 1).map(|c| c.start_ms);
+
+    let cap = &mut next.captions[idx];
+    let words_lo = cap.words.first().map(|w| w.start_ms);
+    let words_hi = cap.words.last().map(|w| w.end_ms);
+
+    // Start edge: at most the first word's start, at least the previous caption end.
+    let mut start = new_start_ms.max(prev_end).max(0);
+    if let Some(wl) = words_lo {
+        start = start.min(wl);
+    }
+    // End edge: at least the last word's end, at most the next caption start.
+    let mut end = new_end_ms;
+    if let Some(ns) = next_start {
+        end = end.min(ns);
+    }
+    if let Some(wh) = words_hi {
+        end = end.max(wh);
+    }
+    if start >= end {
+        return Err(AppError::Validation(
+            "resize leaves the caption with no duration".to_string(),
+        ));
+    }
+
+    cap.start_ms = start;
+    cap.end_ms = end;
+    cap.last_edited_at = now_ms;
+    next.updated_at = now_ms;
+    next.validate().map_err(AppError::Invariant)?;
+    Ok(next)
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 fn find_caption<'a>(project: &'a Project, id: &str) -> AppResult<(usize, &'a Caption)> {
@@ -410,6 +522,67 @@ mod tests {
             created_at: 0,
             updated_at: 0,
         }
+    }
+
+    // ── moveCaption ────────────────────────────────────────────────────────
+    #[test]
+    fn move_caption_slides_caption_and_words_together() {
+        let p = fixture();
+        // c1 [0,2000] can move right up to where c2 starts (3000) − dur (2000) = 1000.
+        let next = move_caption(&p, "c1", 800, 1).unwrap();
+        let c1 = &next.captions[0];
+        assert_eq!((c1.start_ms, c1.end_ms), (800, 2800));
+        assert_eq!(c1.words[0].start_ms, 800); // first word slid with it
+        assert_eq!(c1.words[3].end_ms, 2800);
+        next.validate().unwrap();
+    }
+
+    #[test]
+    fn move_caption_clamps_at_neighbour() {
+        let p = fixture();
+        // Asking to move c1 way right: clamps so end stops at c2.start (3000).
+        let next = move_caption(&p, "c1", 9999, 1).unwrap();
+        let c1 = &next.captions[0];
+        assert_eq!(c1.end_ms, 3000);
+        assert_eq!(c1.start_ms, 1000);
+        next.validate().unwrap();
+    }
+
+    #[test]
+    fn move_caption_clamps_at_zero() {
+        let p = fixture();
+        let next = move_caption(&p, "c1", -500, 1).unwrap();
+        assert_eq!(next.captions[0].start_ms, 0); // already at 0, can't go left
+    }
+
+    // ── resizeCaption ──────────────────────────────────────────────────────
+    #[test]
+    fn resize_caption_extends_end_into_gap() {
+        let p = fixture();
+        let next = resize_caption(&p, "c1", 0, 2500, 1).unwrap();
+        assert_eq!(next.captions[0].end_ms, 2500);
+        next.validate().unwrap();
+    }
+
+    #[test]
+    fn resize_caption_cannot_cross_next_caption() {
+        let p = fixture();
+        // Try to extend c1 end past c2.start (3000) → clamped to 3000.
+        let next = resize_caption(&p, "c1", 0, 4000, 1).unwrap();
+        assert_eq!(next.captions[0].end_ms, 3000);
+        next.validate().unwrap();
+    }
+
+    #[test]
+    fn resize_caption_cannot_shrink_past_its_words() {
+        let p = fixture();
+        // c1's last word ends at 2000; asking end=1200 clamps up to 2000.
+        let next = resize_caption(&p, "c1", 0, 1200, 1).unwrap();
+        assert_eq!(next.captions[0].end_ms, 2000);
+        // Start can't pass first word start (0) either.
+        let next = resize_caption(&p, "c2", 3200, 5000, 1).unwrap();
+        assert_eq!(next.captions[1].start_ms, 3000); // first word at 3000
+        next.validate().unwrap();
     }
 
     // ── confidence tier ────────────────────────────────────────────────────

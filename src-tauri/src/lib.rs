@@ -37,6 +37,8 @@ pub fn run() {
             commands::operations::op_split_caption,
             commands::operations::op_merge_captions,
             commands::operations::op_shift_all_captions,
+            commands::operations::op_move_caption,
+            commands::operations::op_resize_caption,
             commands::operations::op_edit_word,
             commands::operations::op_lock_word,
             commands::operations::op_accept_alternate,

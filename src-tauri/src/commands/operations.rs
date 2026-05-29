@@ -47,6 +47,21 @@ pub fn op_shift_all_captions(project: Project, offset_ms: i64) -> AppResult<Proj
 }
 
 #[tauri::command]
+pub fn op_move_caption(project: Project, caption_id: String, delta_ms: i64) -> AppResult<Project> {
+    operations::move_caption(&project, &caption_id, delta_ms, now_ms())
+}
+
+#[tauri::command]
+pub fn op_resize_caption(
+    project: Project,
+    caption_id: String,
+    new_start_ms: i64,
+    new_end_ms: i64,
+) -> AppResult<Project> {
+    operations::resize_caption(&project, &caption_id, new_start_ms, new_end_ms, now_ms())
+}
+
+#[tauri::command]
 pub fn op_edit_word(
     project: Project,
     caption_id: String,
