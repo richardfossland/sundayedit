@@ -16,6 +16,7 @@ import {
   Users,
   RefreshCw,
   GalleryHorizontalEnd,
+  Scissors,
 } from "lucide-react";
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
@@ -32,6 +33,7 @@ import { ExportPanel } from "@/features/export/ExportPanel";
 import { CleanupPanel } from "@/features/cleanup/CleanupPanel";
 import { PolishPanel } from "@/features/polish/PolishPanel";
 import { SuggestPanel } from "@/features/suggest/SuggestPanel";
+import { ClipsPanel } from "@/features/clips/ClipsPanel";
 import { TranslatePanel } from "@/features/translate/TranslatePanel";
 import { SpeakersPanel } from "@/features/speakers/SpeakersPanel";
 import { Waveform } from "@/components/Waveform";
@@ -55,6 +57,7 @@ type Tab =
   | "speakers"
   | "polish"
   | "suggest"
+  | "clips"
   | "translate"
   | "cleanup"
   | "style"
@@ -234,6 +237,13 @@ function App() {
           <Lightbulb size={18} />
         </NavIcon>
         <NavIcon
+          active={tab === "clips"}
+          onClick={() => setTab("clips")}
+          title="AI-klipp"
+        >
+          <Scissors size={18} />
+        </NavIcon>
+        <NavIcon
           active={tab === "translate"}
           onClick={() => setTab("translate")}
           title="Oversett"
@@ -320,6 +330,8 @@ function App() {
             <PolishPanel project={project} onProjectChange={setProject} />
           ) : tab === "suggest" ? (
             <SuggestPanel project={project} onProjectChange={setProject} />
+          ) : tab === "clips" ? (
+            <ClipsPanel project={project} onProjectChange={setProject} />
           ) : tab === "translate" ? (
             <TranslatePanel project={project} onProjectChange={setProject} />
           ) : tab === "cleanup" ? (

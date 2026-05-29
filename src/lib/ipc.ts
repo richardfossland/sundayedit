@@ -15,6 +15,8 @@ import type {
   BurnInOptions,
   Caption,
   ClaudeModel,
+  Clip,
+  ClipPlan,
   CloudCostEstimate,
   CloudProvider,
   CloudProviderInfo,
@@ -317,6 +319,30 @@ export const polish = {
     }),
 };
 
+// ── AI social clips (SundayEdit) ─────────────────────────────────────────────
+export const clips = {
+  /** Pure cost/scope preview — no network, safe to call freely. */
+  estimate: (project: Project, model: ClaudeModel) =>
+    call<PolishEstimate>("clips_estimate", { project, model }),
+  /** Generate a reviewable clip plan from the transcript. Applies nothing. */
+  generate: (project: Project, model: ClaudeModel, apiKey?: string) =>
+    call<ClipPlan>("clips_generate", {
+      project,
+      model,
+      apiKey: apiKey ?? null,
+    }),
+  /** Persist a reviewed plan (clips + talk summary) → updated project. */
+  applyPlan: (project: Project, plan: ClipPlan) =>
+    call<Project>("clips_apply_plan", { project, plan }),
+  /** Render one clip as a vertical video with its title overlay burned in. */
+  render: (
+    project: Project,
+    clip: Clip,
+    output: string,
+    preset: ExportPreset,
+  ) => call<void>("clip_burnin_render", { project, clip, output, preset }),
+};
+
 // ── AI glossary suggestions (Phase 3.4 mode 3) ───────────────────────────────
 export const glossary = {
   /** Pure cost/scope preview — no network. */
@@ -401,6 +427,7 @@ export const ipc = {
   secrets,
   render,
   cleanup,
+  clips,
   glossary,
   polish,
   suggest,

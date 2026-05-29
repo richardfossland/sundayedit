@@ -9,6 +9,8 @@ export type { AsrOptions }       from "./AsrOptions";
 export type { Aspect }           from "./Aspect";
 export type { BurnInOptions }    from "./BurnInOptions";
 export type { Caption }          from "./Caption";
+export type { Clip }             from "./Clip";
+export type { ClipPlan }         from "./ClipPlan";
 export type { DownloadProgress } from "./DownloadProgress";
 export type { Encoder }          from "./Encoder";
 export type { ExportPreset }     from "./ExportPreset";
