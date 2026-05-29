@@ -107,6 +107,10 @@ pub fn run() {
             commands::diarize::speaker_merge,
             commands::diarize::speaker_rename,
             commands::diarize::speaker_set_color,
+            // AI social clips (SundayEdit)
+            commands::clips::clips_estimate,
+            commands::clips::clips_generate,
+            commands::clips::clips_apply_plan,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

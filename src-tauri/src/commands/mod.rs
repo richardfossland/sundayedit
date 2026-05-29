@@ -3,6 +3,7 @@
 
 pub mod asr;
 pub mod cleanup;
+pub mod clips;
 pub mod diarize;
 pub mod export;
 pub mod glossary;

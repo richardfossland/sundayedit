@@ -192,6 +192,19 @@ pub fn parse_clips_response(project: &Project, response: &str) -> AppResult<Clip
     })
 }
 
+// ── Applying a reviewed plan ───────────────────────────────────────────────────
+
+/// Persist a reviewed plan onto the project: replace its clips and talk
+/// summary. The user curates `plan` (edits titles, drops clips) before this.
+pub fn apply_plan(project: &Project, plan: &ClipPlan, now_ms: i64) -> Project {
+    let mut next = project.clone();
+    next.clips = plan.clips.clone();
+    let summary = plan.talk_summary.trim();
+    next.talk_summary = (!summary.is_empty()).then(|| summary.to_string());
+    next.updated_at = now_ms;
+    next
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -333,6 +346,40 @@ mod tests {
     #[test]
     fn rejects_non_json() {
         assert!(parse_clips_response(&sample(), "no object here").is_err());
+    }
+
+    #[test]
+    fn apply_plan_sets_clips_and_summary() {
+        let p = sample();
+        let plan = ClipPlan {
+            talk_summary: "  A talk.  ".into(),
+            clips: vec![Clip {
+                id: "clip:0".into(),
+                title: "T".into(),
+                hook: "h".into(),
+                caption_ids: vec!["c1".into()],
+                start_ms: 0,
+                end_ms: 2000,
+            }],
+        };
+        let out = apply_plan(&p, &plan, 42);
+        assert_eq!(out.clips.len(), 1);
+        assert_eq!(out.talk_summary.as_deref(), Some("A talk.")); // trimmed
+        assert_eq!(out.updated_at, 42);
+    }
+
+    #[test]
+    fn apply_plan_empty_summary_is_none() {
+        let out = apply_plan(
+            &sample(),
+            &ClipPlan {
+                talk_summary: "   ".into(),
+                clips: vec![],
+            },
+            1,
+        );
+        assert_eq!(out.talk_summary, None);
+        assert!(out.clips.is_empty());
     }
 
     #[test]
