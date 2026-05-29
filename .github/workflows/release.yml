@@ -73,16 +73,18 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # ── whisper.cpp portable CPU build ──────────────────────────────
-          # GGML_NATIVE=OFF (via the WHISPER_NATIVE deprecated alias, which
-          # whisper-rs-sys forwards since it starts with WHISPER_). Disables
-          # -mcpu=native probing so ggml's feature detection and compilation
-          # use the SAME baseline flags. Without this, GitHub's macos-latest
-          # (an M1, no i8mm) mis-detects i8mm and fails to compile ggml-cpu
+          # ── whisper.cpp portable CPU build (macOS) ──────────────────────
+          # Force GGML_NATIVE=OFF via a top-level-include cmake file. GitHub's
+          # macos-latest is an M1 (no i8mm) whose Xcode mis-detects i8mm under
+          # -mcpu=native: the macro probe defines __ARM_FEATURE_MATMUL_INT8
+          # while the compile flags carry +noi8mm, so ggml-cpu-quants.c fails
           # ("always_inline 'vmmlaq_s32' requires target feature 'i8mm'").
-          # The portable build compiles on the runner AND runs on all Apple
-          # Silicon (incl. M1/M1 Pro), trading a little inference speed.
-          WHISPER_NATIVE: "OFF"
+          # Disabling native drops -mcpu=native so detection and compilation
+          # share one baseline — builds on the runner AND runs on all Apple
+          # Silicon (incl. M1/M1 Pro). whisper-rs-sys forwards CMAKE_* env
+          # vars as cmake defines; a FORCE cache entry survives ggml's
+          # option() (the WHISPER_NATIVE alias did not — option() reset it).
+          CMAKE_PROJECT_TOP_LEVEL_INCLUDES: ${{ matrix.platform == 'macos-latest' && format('{0}/src-tauri/cmake/ggml-ci-portable.cmake', github.workspace) || '' }}
           # ── Updater signing (required) ──────────────────────────────────
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
