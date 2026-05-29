@@ -30,11 +30,17 @@ jobs:
           # macos-latest is Apple Silicon (arm64). Native-arch build so the
           # fetched ffmpeg sidecar matches. (Intel-mac/universal is a
           # follow-up — would need both-arch ffmpeg binaries.)
+          #
+          # `whisper` compiles whisper.cpp (cmake + C++) for real on-device
+          # transcription; `llm` enables the Claude-API AI features. Without
+          # them the released app stubs both. Cloud OpenAI isn't feature-gated,
+          # so it works regardless. `diarize` stays off — its sidecar binary
+          # isn't bundled yet.
           - platform: macos-latest
-            args: ""
+            args: "--features whisper,llm"
             rust-targets: ""
           - platform: windows-latest
-            args: ""
+            args: "--features whisper,llm"
             rust-targets: ""
 
     runs-on: ${{ matrix.platform }}
