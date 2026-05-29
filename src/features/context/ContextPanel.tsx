@@ -129,7 +129,7 @@ export function ContextPanel({ project, onProjectChange }: Props) {
         </h2>
       </div>
       <p className="mb-6 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-        Fortell Verbatim hva opptaket handler om og hvilke navn/fagord som
+        Fortell SundayEdit hva opptaket handler om og hvilke navn/fagord som
         forekommer. Det gjør gjenkjenningen mer nøyaktig (priming) og retter
         kjente feilstavinger automatisk.
       </p>

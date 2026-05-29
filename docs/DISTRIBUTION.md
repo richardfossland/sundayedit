@@ -1,6 +1,6 @@
 # Distribution & auto-update (Phase 9.2)
 
-Verbatim ships as signed installers for macOS and Windows, with auto-update
+SundayEdit ships as signed installers for macOS and Windows, with auto-update
 over GitHub Releases. This doc is the checklist to make the pipeline live —
 the code/config is already in place, what's left is **secrets and accounts**
 only you can provide.
@@ -12,13 +12,13 @@ only you can provide.
    signs + notarizes (macOS), signs the updater bundle, and creates a
    **draft** GitHub Release with the installers and `latest.json`.
 3. You review the draft and publish it.
-4. Installed apps check `https://github.com/richardfossland/verbatim/releases/latest/download/latest.json`
+4. Installed apps check `https://github.com/richardfossland/sundayedit/releases/latest/download/latest.json`
    on launch, verify the signature against the public key embedded in
    `tauri.conf.json`, and offer the update (the in-app banner).
 
 The updater **public** key is committed in `tauri.conf.json`
 (`plugins.updater.pubkey`). The matching **private** key was generated to
-`~/.tauri/verbatim_updater.key` (with an empty password) and is NOT in the
+`~/.tauri/sundayedit_updater.key` (with an empty password) and is NOT in the
 repo. Keep it safe — losing it means existing installs can no longer
 auto-update (they'd need a manual reinstall with a new key).
 
@@ -30,7 +30,7 @@ Settings → Secrets and variables → Actions → New repository secret.
 
 | Secret                               | Value                                                                                                                                                              |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `TAURI_SIGNING_PRIVATE_KEY`          | Contents of `~/.tauri/verbatim_updater.key`. Copy without echoing it: `cat ~/.tauri/verbatim_updater.key \| pbcopy`, then paste.                                   |
+| `TAURI_SIGNING_PRIVATE_KEY`          | Contents of `~/.tauri/sundayedit_updater.key`. Copy without echoing it: `cat ~/.tauri/sundayedit_updater.key \| pbcopy`, then paste.                               |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | The password for that key. It was generated with an **empty** password, so set this secret to an empty string (or regenerate the key with a password — see below). |
 
 ### macOS code signing + notarization (you already do this for SundayRec)
@@ -68,7 +68,7 @@ Watch the `release` workflow, then publish the draft Release it created.
 ## Regenerating the updater key with a password (optional, recommended)
 
 ```bash
-npx tauri signer generate -w ~/.tauri/verbatim_updater.key -f   # prompts for a password
+npx tauri signer generate -w ~/.tauri/sundayedit_updater.key -f   # prompts for a password
 ```
 
 Then update `plugins.updater.pubkey` in `tauri.conf.json` with the new
@@ -86,7 +86,7 @@ waveform, and burn-in work without a system ffmpeg:
   `binaries/ffprobe`.
 - At runtime `services/video.rs` resolves the binary next to the app
   executable first (the bundled sidecar), then falls back to PATH, with a
-  `VERBATIM_FFMPEG` / `VERBATIM_FFPROBE` env override for dev/tests.
+  `SUNDAYEDIT_FFMPEG` / `SUNDAYEDIT_FFPROBE` env override for dev/tests.
 - The binaries are **not committed** (too large). Fetch them before every
   build: `node scripts/fetch-ffmpeg.mjs` — it copies the `ffmpeg-static` +
   `@ffprobe-installer/ffprobe` binaries into `src-tauri/binaries/` with the

@@ -1,4 +1,4 @@
-# Verbatim — Architecture
+# SundayEdit — Architecture
 
 Last updated: 2026-05-28
 
@@ -6,7 +6,7 @@ Last updated: 2026-05-28
 
 ```mermaid
 flowchart LR
-  User[User] -- drag video --> Win[Verbatim window]
+  User[User] -- drag video --> Win[SundayEdit window]
   Win --> Probe[ffmpeg probe metadata]
   Probe --> Audio[ffmpeg extract<br/>16kHz mono WAV]
   Audio --> Waveform[Waveform render]
@@ -148,9 +148,9 @@ All operations validate invariants and return a new `Project` state. Undo is tri
 
 ## Project file format
 
-`.verbatim` files are SQLite databases — one file per project. Same engine as the in-memory data model; just persisted. This makes loading instant and avoids JSON-parse cost for projects with 5000+ captions.
+`.sundayedit` files are SQLite databases — one file per project. Same engine as the in-memory data model; just persisted. This makes loading instant and avoids JSON-parse cost for projects with 5000+ captions.
 
-Caveat for path-stability: if the user moves their video file, Verbatim detects the missing path on open, hashes candidate files in common locations, and offers to relink. Same pattern as SundayStage's MediaAsset relink (Phase 7.2 there).
+Caveat for path-stability: if the user moves their video file, SundayEdit detects the missing path on open, hashes candidate files in common locations, and offers to relink. Same pattern as SundayStage's MediaAsset relink (Phase 7.2 there).
 
 ## Phase status (May 2026)
 
@@ -158,7 +158,7 @@ Quality infra (Phase 0.2): ESLint/Prettier, Vitest, Playwright e2e, husky +
 commitlint, and a PR `ci.yml` gate (web + rust) — all wired.
 
 - [x] Phase 0 — Scaffold + design tokens + confidence color scale + quality infra (0.2)
-- [x] Phase 1.1 — Video import: ffprobe metadata, format validation, content-hash relink, `.verbatim` SQLite file format
+- [x] Phase 1.1 — Video import: ffprobe metadata, format validation, content-hash relink, `.sundayedit` SQLite file format
 - [x] Phase 1.2 — Audio extraction command + multi-zoom waveform peaks + Canvas waveform component
 - [ ] Phase 1.3 — Full timeline (caption track + ruler + J/K/L) — partial (waveform + click-seek only)
 - [x] Phase 2.1 — ASR abstraction, Whisper model registry, feature-gated `LocalWhisperProvider`, captionizer, **+ first-run model download** (`asr_download_model`, atomic + progress + cancel)

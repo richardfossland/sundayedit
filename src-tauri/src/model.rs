@@ -179,7 +179,7 @@ pub struct AnimationSpec {
 }
 
 impl Style {
-    /// "Broadcast News" — sober, accessibility-focused. Verbatim's safe default.
+    /// "Broadcast News" — sober, accessibility-focused. SundayEdit's safe default.
     pub fn broadcast_news() -> Self {
         Self {
             id: "preset:broadcast_news".to_string(),

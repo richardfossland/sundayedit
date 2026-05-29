@@ -73,7 +73,7 @@ export function SettingsPanel() {
       <p className="mb-6 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
         Nøkler lagres i operativsystemets nøkkelring (Keychain på Mac,
         Credential Manager på Windows) — aldri i klartekst og aldri i
-        prosjektfiler. Verbatim viser kun om en nøkkel er satt, ikke selve
+        prosjektfiler. SundayEdit viser kun om en nøkkel er satt, ikke selve
         verdien.
       </p>
 

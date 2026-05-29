@@ -1,4 +1,4 @@
-# Architecture Decision Records — Verbatim
+# Architecture Decision Records — SundayEdit
 
 ## ADR-001 — Tauri 2, matching SundayStage
 
@@ -48,4 +48,4 @@ The privacy + cost story. Video never leaves the machine unless the user explici
 
 **Status:** Accepted (2026-05-28)
 
-Verbatim is the world's best captioning tool, not the world's second-best video editor. No cuts/transitions/color-grading beyond what captions strictly need (the filler/silence ripple-edit in Phase 7.2 is the one deliberate exception, because it directly serves caption timing). Say no to 80% of feature requests in the first 12 months.
+SundayEdit is the world's best captioning tool, not the world's second-best video editor. No cuts/transitions/color-grading beyond what captions strictly need (the filler/silence ripple-edit in Phase 7.2 is the one deliberate exception, because it directly serves caption timing). Say no to 80% of feature requests in the first 12 months.

@@ -171,7 +171,7 @@ impl AsrProvider for LocalWhisperProvider {
         _progress: &mut dyn FnMut(TranscribeProgress),
     ) -> AppResult<Transcript> {
         Err(crate::error::AppError::Internal(
-            "This build of Verbatim does not include local transcription. \
+            "This build of SundayEdit does not include local transcription. \
              Rebuild with `--features whisper`, or configure a cloud provider in Settings."
                 .to_string(),
         ))

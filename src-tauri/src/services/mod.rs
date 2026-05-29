@@ -4,7 +4,7 @@
 //!   - `operations`   — caption split/merge/edit/shift (Phase 3.1)
 //!   - `export`       — SRT/VTT/ASS writers (Phase 6.1)
 //!   - `video`        — ffprobe metadata, format validation, content hash (Phase 1.1)
-//!   - `project_file` — .verbatim SQLite save/load (Phase 1.1)
+//!   - `project_file` — .sundayedit SQLite save/load (Phase 1.1)
 //!   - `waveform`     — audio extraction + multi-zoom peaks (Phase 1.2)
 //!   - `asr`          — speech recognition: confidence, models, cloud, local (Phase 2)
 //!   - `glossary`     — post-transcription auto-correction (Phase 3.4)

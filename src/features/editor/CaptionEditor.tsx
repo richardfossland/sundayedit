@@ -1,5 +1,5 @@
 /**
- * Caption editor — the heart of Verbatim (Phase 3.2 + 3.3 + 3.4).
+ * Caption editor — the heart of SundayEdit (Phase 3.2 + 3.3 + 3.4).
  *
  * Interactive now, not just a viewer:
  *   - Click a word → inline edit (Enter commits via Rust op_edit_word)

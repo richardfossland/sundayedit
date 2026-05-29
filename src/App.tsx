@@ -73,7 +73,7 @@ function App() {
   } | null>(null);
   const [onboarded, setOnboarded] = useState<boolean>(() => {
     try {
-      return localStorage.getItem("verbatim.onboarded") === "1";
+      return localStorage.getItem("sundayedit.onboarded") === "1";
     } catch {
       return false;
     }
@@ -134,7 +134,7 @@ function App() {
         onDownload={handleDownloadModel}
         onDone={() => {
           try {
-            localStorage.setItem("verbatim.onboarded", "1");
+            localStorage.setItem("sundayedit.onboarded", "1");
           } catch {
             /* private mode — onboarding just shows again next launch */
           }

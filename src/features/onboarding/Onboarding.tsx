@@ -54,7 +54,7 @@ export function Onboarding({
 
   function chooseProfile(id: string | null) {
     try {
-      if (id) localStorage.setItem("verbatim.profile", id);
+      if (id) localStorage.setItem("sundayedit.profile", id);
     } catch {
       /* private mode / no storage — fine, it's only a default hint */
     }
@@ -70,7 +70,7 @@ export function Onboarding({
               <Captions size={30} />
             </div>
             <h1 className="text-[var(--text-ui-2xl)] font-semibold">
-              Velkommen til Verbatim
+              Velkommen til SundayEdit
             </h1>
             <p className="mx-auto mt-3 max-w-md text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
               Fra rå video til kringkastingsklar teksting — raskt. AI gjør 92 %

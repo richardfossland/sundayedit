@@ -1,4 +1,4 @@
-# Build, sign, notarize, and publish Verbatim for macOS + Windows on a
+# Build, sign, notarize, and publish SundayEdit for macOS + Windows on a
 # version tag. Mirrors SundayRec's release flow (Phase 9.2).
 #
 # Cut a release:   npm version <patch|minor|major>  (or bump versions by hand)
@@ -97,7 +97,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "Verbatim ${{ github.ref_name }}"
+          releaseName: "SundayEdit ${{ github.ref_name }}"
           releaseBody: "See the assets below to download and install. Auto-update is enabled for existing installs."
           releaseDraft: true
           prerelease: false

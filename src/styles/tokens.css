@@ -1,4 +1,4 @@
-/* Verbatim design tokens — Tailwind v4 @theme block.
+/* SundayEdit design tokens — Tailwind v4 @theme block.
  *
  * Reference aesthetic: Linear, Final Cut Pro, DaVinci Resolve.
  * Dark-first. Dense. Keyboard-driven. Information clarity over decoration.
@@ -24,7 +24,7 @@
   --color-neutral-900: oklch(0.12 0 0);
   --color-neutral-950: oklch(0.06 0 0);
 
-  /* ── Verbatim accent — confident teal ── */
+  /* ── SundayEdit accent — confident teal ── */
   --color-accent-300: oklch(0.84 0.1 195);
   --color-accent-400: oklch(0.78 0.14 195);
   --color-accent-500: oklch(0.7 0.16 195); /* primary accent */

@@ -1,6 +1,6 @@
-//! `.verbatim` project file format — Phase 1.1.
+//! `.sundayedit` project file format — Phase 1.1.
 //!
-//! A `.verbatim` file is a SQLite database. We chose SQLite over a flat
+//! A `.sundayedit` file is a SQLite database. We chose SQLite over a flat
 //! JSON file for three reasons:
 //!   1. Atomic, crash-safe writes (WAL) — a power-cut mid-save can't
 //!      corrupt a project.
@@ -27,7 +27,7 @@ use crate::model::{Caption, GlossaryTerm, Project, Speaker, Style, Word};
 
 const SCHEMA_VERSION: i64 = 1;
 
-/// Open (creating if missing) a `.verbatim` SQLite file and ensure schema.
+/// Open (creating if missing) a `.sundayedit` SQLite file and ensure schema.
 async fn open_pool(path: &Path) -> AppResult<SqlitePool> {
     let url = format!("sqlite:{}", path.to_string_lossy());
     let opts = SqliteConnectOptions::from_str(&url)?
@@ -306,7 +306,7 @@ mod tests {
     #[tokio::test]
     async fn save_and_load_round_trips() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("project.verbatim");
+        let path = dir.path().join("project.sundayedit");
         let original = sample_project();
 
         save(&original, &path).await.unwrap();
@@ -321,7 +321,7 @@ mod tests {
     #[tokio::test]
     async fn save_overwrites_previous_content() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("project.verbatim");
+        let path = dir.path().join("project.sundayedit");
 
         let mut p = sample_project();
         save(&p, &path).await.unwrap();
@@ -338,7 +338,7 @@ mod tests {
 
     #[tokio::test]
     async fn load_missing_file_errors() {
-        let err = load(Path::new("/nonexistent/x.verbatim"))
+        let err = load(Path::new("/nonexistent/x.sundayedit"))
             .await
             .unwrap_err();
         assert_eq!(err.code(), "not_found");
@@ -347,7 +347,7 @@ mod tests {
     #[tokio::test]
     async fn caption_order_is_preserved() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("order.verbatim");
+        let path = dir.path().join("order.sundayedit");
         let p = sample_project();
         save(&p, &path).await.unwrap();
         let loaded = load(&path).await.unwrap();

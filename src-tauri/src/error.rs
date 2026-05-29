@@ -1,4 +1,4 @@
-//! Centralised error type for Verbatim backend.
+//! Centralised error type for SundayEdit backend.
 //!
 //! Serializes to `{ code, message }` JSON across the IPC boundary so
 //! React can pattern-match on `code` for UI flows like "video file

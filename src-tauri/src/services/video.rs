@@ -305,7 +305,7 @@ pub fn find_relink_candidate(
 // ── Binary resolution ──────────────────────────────────────────────────────────
 //
 // Resolution order (first hit wins):
-//   1. Env override (VERBATIM_FFMPEG / VERBATIM_FFPROBE) — dev + tests.
+//   1. Env override (SUNDAYEDIT_FFMPEG / SUNDAYEDIT_FFPROBE) — dev + tests.
 //   2. Bundled sidecar next to the app executable — production. Tauri's
 //      `externalBin` drops `ffmpeg`/`ffprobe` into Contents/MacOS (or the
 //      install dir on Windows) with the target-triple suffix stripped.
@@ -328,7 +328,7 @@ fn sidecar_path(name: &str) -> Option<String> {
 }
 
 fn ffprobe_path() -> String {
-    if let Ok(p) = std::env::var("VERBATIM_FFPROBE") {
+    if let Ok(p) = std::env::var("SUNDAYEDIT_FFPROBE") {
         return p;
     }
     sidecar_path("ffprobe").unwrap_or_else(|| "ffprobe".to_string())
@@ -336,7 +336,7 @@ fn ffprobe_path() -> String {
 
 /// Path to the ffmpeg binary (used by the waveform extractor + burn-in).
 pub fn ffmpeg_path() -> String {
-    if let Ok(p) = std::env::var("VERBATIM_FFMPEG") {
+    if let Ok(p) = std::env::var("SUNDAYEDIT_FFMPEG") {
         return p;
     }
     sidecar_path("ffmpeg").unwrap_or_else(|| "ffmpeg".to_string())

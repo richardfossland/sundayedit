@@ -1,6 +1,6 @@
-# CLAUDE.md — Verbatim
+# CLAUDE.md — SundayEdit
 
-Verbatim is a desktop AI captioning application. Mac and Windows, equal first-class support. Standalone product, own brand. Optional integration with Sunday Account.
+SundayEdit is a desktop AI captioning application. Mac and Windows, equal first-class support. Standalone product, own brand. Optional integration with Sunday Account.
 
 ## Target user
 
@@ -14,7 +14,7 @@ A content creator, video editor, podcaster, educator, journalist, marketer, or c
 ## Core promises
 
 1. **Faster than any competitor from raw video to broadcast-ready captions** — because the AI does 92% of the work and tells you exactly where to look for the 8% it's unsure about.
-2. **Context-aware:** tell Verbatim what the video is about, and accuracy on names, jargon, foreign words goes way up.
+2. **Context-aware:** tell SundayEdit what the video is about, and accuracy on names, jargon, foreign words goes way up.
 3. **Privacy-first:** local Whisper by default. Cloud transcription is optional, off by default, requires explicit consent.
 4. **Affordable:** 1/3 the price of Premiere Pro Creative Cloud.
 5. **Polished export:** SRT, VTT, ASS, plus burn-in to MP4 with full styling.
@@ -23,11 +23,11 @@ A content creator, video editor, podcaster, educator, journalist, marketer, or c
 
 ### #1 — Confidence highlighting
 
-Every word gets a confidence score from the ASR model. Verbatim shows them to you as colour-coded highlights in the editor. The 92% the AI is sure about, you don't touch. You fix only the 8% that are amber. **This makes human review 10× faster.**
+Every word gets a confidence score from the ASR model. SundayEdit shows them to you as colour-coded highlights in the editor. The 92% the AI is sure about, you don't touch. You fix only the 8% that are amber. **This makes human review 10× faster.**
 
 ### #2 — Context priming + glossary
 
-Before transcription you tell Verbatim what the video is about: names of people, technical terms, foreign words. Whisper biases recognition toward these terms. The same video goes from "Han snakker om kerigma og frelse" to "Han snakker om kerygma og frelse" without manual correction.
+Before transcription you tell SundayEdit what the video is about: names of people, technical terms, foreign words. Whisper biases recognition toward these terms. The same video goes from "Han snakker om kerigma og frelse" to "Han snakker om kerygma og frelse" without manual correction.
 
 ## Competitive positioning
 
@@ -85,7 +85,7 @@ tests/fixtures/       Test video files (Creative Commons)
 
 ## Project file format
 
-`.verbatim` files are SQLite databases with a JSON-compatible schema, or compressed JSON — final decision in Phase 3.1. Containing:
+`.sundayedit` files are SQLite databases with a JSON-compatible schema, or compressed JSON — final decision in Phase 3.1. Containing:
 
 - Reference to source video (absolute path + content hash for path stability)
 - Project settings

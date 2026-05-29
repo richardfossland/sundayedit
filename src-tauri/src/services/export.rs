@@ -309,7 +309,7 @@ pub struct TxtOptions {
 /// internals change. Per-word timing + confidence are preserved.
 pub fn write_json(project: &Project, opts: JsonOptions) -> String {
     let doc = JsonExport {
-        format: "verbatim-captions",
+        format: "sundayedit-captions",
         version: 1,
         project: project.name.clone(),
         language: project.language.clone(),
@@ -562,7 +562,7 @@ mod tests {
     fn json_is_valid_and_preserves_words() {
         let out = write_json(&p(), JsonOptions::default());
         let v: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
-        assert_eq!(v["format"], "verbatim-captions");
+        assert_eq!(v["format"], "sundayedit-captions");
         assert_eq!(v["version"], 1);
         assert_eq!(v["language"], "en");
         assert_eq!(v["captions"].as_array().unwrap().len(), 2);

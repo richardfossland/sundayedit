@@ -6,7 +6,7 @@ test("first-run onboarding walks through to the editor", async ({ page }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: /velkommen til verbatim/i }),
+    page.getByRole("heading", { name: /velkommen til sundayedit/i }),
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Kom i gang" }).click();

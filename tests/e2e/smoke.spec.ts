@@ -5,7 +5,7 @@ import { test, expect } from "@playwright/test";
 test("boots to import screen and opens the demo project", async ({ page }) => {
   // Skip first-run onboarding so this exercises the import → editor path.
   await page.addInitScript(() =>
-    localStorage.setItem("verbatim.onboarded", "1"),
+    localStorage.setItem("sundayedit.onboarded", "1"),
   );
   await page.goto("/");
 

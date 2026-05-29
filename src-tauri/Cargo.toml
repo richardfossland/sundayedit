@@ -1,12 +1,12 @@
 [package]
-name = "verbatim"
+name = "sundayedit"
 version = "0.3.0"
-description = "Verbatim — AI-assisted video captioning for desktop"
+description = "SundayEdit — AI-assisted video captioning for desktop"
 authors = ["Richard Fossland"]
 edition = "2021"
 
 [lib]
-name = "verbatim_lib"
+name = "sundayedit_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -54,7 +54,7 @@ whisper-rs = { version = "0.14", optional = true }
 # before it can transcribe — and by the Claude API client (gated on `llm`).
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "multipart"] }
 
-# Desktop-only plugins (Verbatim is a desktop app). Auto-update via GitHub
+# Desktop-only plugins (SundayEdit is a desktop app). Auto-update via GitHub
 # Releases + relaunch after install. Phase 9.2.
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
@@ -70,6 +70,6 @@ whisper = ["dep:whisper-rs"]
 # Enable real Claude API calls (AI polish). `cargo build --features llm`.
 # (reqwest itself is always built — the model downloader needs it.)
 llm = []
-# Enable speaker diarization via the `verbatim-diarize` sidecar (Phase 4.2).
+# Enable speaker diarization via the `sundayedit-diarize` sidecar (Phase 4.2).
 # No extra crate — just shells out — but gated so the default build stubs it.
 diarize = []

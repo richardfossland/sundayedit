@@ -1,6 +1,6 @@
 //! Project lifecycle Tauri commands — Phase 1.
 //!
-//! probe a video, create a project from it, open/save `.verbatim` files,
+//! probe a video, create a project from it, open/save `.sundayedit` files,
 //! compute the waveform, and relink a moved video.
 
 use std::path::{Path, PathBuf};

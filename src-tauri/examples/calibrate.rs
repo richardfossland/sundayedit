@@ -8,14 +8,14 @@
 //! Input JSON:
 //!   { "words": [ { "confidence": 95.0, "correct": true }, ... ] }
 //!
-//! `confidence` is the 0..100 score Verbatim assigned; `correct` is whether
+//! `confidence` is the 0..100 score SundayEdit assigned; `correct` is whether
 //! the word matched ground truth on manual review. See docs/CALIBRATION.md
 //! for the full procedure (and docs/calibration-sample.json for a demo).
 
 use std::process::ExitCode;
 
 use serde::Deserialize;
-use verbatim_lib::services::asr::calibration::{best_f1, default_thresholds, sweep, LabeledWord};
+use sundayedit_lib::services::asr::calibration::{best_f1, default_thresholds, sweep, LabeledWord};
 
 #[derive(Deserialize)]
 struct Input {

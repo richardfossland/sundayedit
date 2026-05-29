@@ -1,4 +1,4 @@
-# Verbatim
+# SundayEdit
 
 AI-assisted video captioning for desktop. Standalone product — own brand. Optional (never required) integration with [SundayRec](https://github.com/richardfossland/sundayrec).
 
@@ -8,17 +8,17 @@ AI-assisted video captioning for desktop. Standalone product — own brand. Opti
 
 ### #1 — Confidence highlighting
 
-Every word gets a confidence score from the ASR model. Verbatim shows them as colour-coded highlights. The 92% the AI is sure about, you don't touch. You fix only the 8% that are amber. **Human review at 10× speed.**
+Every word gets a confidence score from the ASR model. SundayEdit shows them as colour-coded highlights. The 92% the AI is sure about, you don't touch. You fix only the 8% that are amber. **Human review at 10× speed.**
 
 The editor demo (`npm run tauri dev` → Editor tab) shows this against sample data: high-confidence words look like normal text, while "kerigma" (38% — a misheard theological term) lights up red-orange with `kerygma` as a one-click alternate.
 
 ### #2 — Context priming + glossary
 
-Tell Verbatim what the video is about before transcribing. Whisper biases recognition toward your names, jargon, and foreign words. "Han snakker om kerigma" becomes "Han snakker om kerygma" with no manual correction.
+Tell SundayEdit what the video is about before transcribing. Whisper biases recognition toward your names, jargon, and foreign words. "Han snakker om kerigma" becomes "Han snakker om kerygma" with no manual correction.
 
 ## Competitive positioning
 
-|                         | Premiere Pro | Descript    | CapCut       | **Verbatim**            |
+|                         | Premiere Pro | Descript    | CapCut       | **SundayEdit**          |
 | ----------------------- | ------------ | ----------- | ------------ | ----------------------- |
 | Price                   | $23/mo       | $24/mo      | Free-ish     | **~$9/mo Pro**          |
 | Focus                   | Everything   | Doc + video | TikTok-first | **Captions only**       |

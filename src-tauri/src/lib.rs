@@ -1,4 +1,4 @@
-//! Verbatim — AI-assisted video captioning for desktop.
+//! SundayEdit — AI-assisted video captioning for desktop.
 //!
 //! Entry point. Wires up logging, registers all Tauri command handlers,
 //! and runs the Tauri runtime. The actual work happens in `services::*`.

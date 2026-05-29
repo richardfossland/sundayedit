@@ -30,7 +30,7 @@ use crate::error::{AppError, AppResult};
 pub const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
 pub const ANTHROPIC_VERSION: &str = "2023-06-01";
 
-/// The Claude models Verbatim offers for AI features. Haiku is the default
+/// The Claude models SundayEdit offers for AI features. Haiku is the default
 /// for high-volume passes (polish over a whole project); Sonnet/Opus are
 /// available when the user wants maximum quality on hard content.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -188,7 +188,7 @@ pub async fn complete(
     _max_tokens: u32,
 ) -> AppResult<String> {
     Err(AppError::Internal(
-        "This build of Verbatim does not include AI features. \
+        "This build of SundayEdit does not include AI features. \
          Rebuild with `--features llm` to enable Claude-powered polish."
             .to_string(),
     ))

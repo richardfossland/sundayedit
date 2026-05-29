@@ -11,7 +11,7 @@ use ts_rs::TS;
 
 use crate::error::{AppError, AppResult};
 
-const SERVICE: &str = "app.verbatim";
+const SERVICE: &str = "app.sundayedit";
 
 /// Providers whose API keys we store. Anthropic powers the AI features today;
 /// the cloud-ASR providers are here so the same store is ready when their

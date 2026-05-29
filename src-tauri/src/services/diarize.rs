@@ -15,7 +15,7 @@
 //!
 //! The diarization *engine* itself needs audio + a model (pyannote has no
 //! mature pure-Rust port yet), so `run_diarization` shells out to a
-//! `verbatim-diarize` sidecar behind the optional `diarize` feature. The
+//! `sundayedit-diarize` sidecar behind the optional `diarize` feature. The
 //! default build stubs it with an actionable error.
 
 use serde::{Deserialize, Serialize};
@@ -218,16 +218,16 @@ pub fn set_speaker_color(
 
 // ── The engine (feature = "diarize") ──────────────────────────────────────────
 //
-// Shells out to a `verbatim-diarize <audio.wav>` sidecar that prints the
+// Shells out to a `sundayedit-diarize <audio.wav>` sidecar that prints the
 // turn JSON parsed above. We keep the heavy model out of the Rust binary.
 #[cfg(feature = "diarize")]
 pub fn run_diarization(audio_path: &std::path::Path) -> AppResult<Vec<SpeakerTurn>> {
     use std::process::Command;
-    let output = Command::new("verbatim-diarize")
+    let output = Command::new("sundayedit-diarize")
         .arg(audio_path)
         .output()
         .map_err(|e| {
-            AppError::Internal(format!("could not launch verbatim-diarize sidecar: {e}"))
+            AppError::Internal(format!("could not launch sundayedit-diarize sidecar: {e}"))
         })?;
     if !output.status.success() {
         return Err(AppError::Internal(format!(
@@ -241,8 +241,8 @@ pub fn run_diarization(audio_path: &std::path::Path) -> AppResult<Vec<SpeakerTur
 #[cfg(not(feature = "diarize"))]
 pub fn run_diarization(_audio_path: &std::path::Path) -> AppResult<Vec<SpeakerTurn>> {
     Err(AppError::Internal(
-        "This build of Verbatim does not include speaker diarization. Rebuild with \
-         `--features diarize` and install the verbatim-diarize sidecar."
+        "This build of SundayEdit does not include speaker diarization. Rebuild with \
+         `--features diarize` and install the sundayedit-diarize sidecar."
             .to_string(),
     ))
 }
