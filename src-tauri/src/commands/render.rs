@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::error::AppResult;
-use crate::model::Project;
+use crate::model::{Clip, Project, Style};
 use crate::services::burnin::{self, BurnInOptions};
 use crate::services::export_presets::{self, ExportPreset, ExportWarning};
 
@@ -37,4 +37,23 @@ pub fn burnin_render_preset(
 ) -> AppResult<()> {
     let options = preset.to_burnin_options();
     burnin::render(&project, Path::new(&output), &options)
+}
+
+/// Render one social clip as a vertical video: the clip's captions + its
+/// main-point title overlay, burned in at the preset's dimensions.
+#[tauri::command]
+pub fn clip_burnin_render(
+    project: Project,
+    clip: Clip,
+    output: String,
+    preset: ExportPreset,
+) -> AppResult<()> {
+    let options = preset.to_clip_burnin_options(&clip);
+    burnin::render_clip(
+        &project,
+        &clip,
+        Path::new(&output),
+        &options,
+        &Style::title_overlay(),
+    )
 }

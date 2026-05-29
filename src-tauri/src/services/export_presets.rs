@@ -10,7 +10,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::model::Project;
+use crate::model::{Clip, Project};
 use crate::services::burnin::{default_encoder, BurnInOptions, VideoCodec};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -54,6 +54,16 @@ impl ExportPreset {
             bitrate_kbps: Some(self.bitrate_kbps),
             clip_start_ms: None,
             clip_end_ms: None,
+        }
+    }
+
+    /// Burn-in options that render just `clip` at this preset's vertical
+    /// dimensions — the preset's output settings plus the clip's time range.
+    pub fn to_clip_burnin_options(&self, clip: &Clip) -> BurnInOptions {
+        BurnInOptions {
+            clip_start_ms: Some(clip.start_ms),
+            clip_end_ms: Some(clip.end_ms),
+            ..self.to_burnin_options()
         }
     }
 }
@@ -206,7 +216,7 @@ pub fn catalog() -> Vec<ExportPreset> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Caption, Project, Style, Word};
+    use crate::model::{Caption, Clip, Project, Style, Word};
 
     fn project(width: i32, height: i32, dur_ms: i64, captions: usize) -> Project {
         let caps = (0..captions)
@@ -247,6 +257,24 @@ mod tests {
 
     fn preset(id: &str) -> ExportPreset {
         catalog().into_iter().find(|p| p.id == id).unwrap()
+    }
+
+    #[test]
+    fn clip_burnin_options_carry_range_and_vertical_dims() {
+        let p = preset("export:youtube_shorts"); // 1080x1920 vertical
+        let clip = Clip {
+            id: "clip:0".into(),
+            title: "T".into(),
+            hook: "".into(),
+            caption_ids: vec!["c1".into()],
+            start_ms: 8000,
+            end_ms: 23000,
+        };
+        let opts = p.to_clip_burnin_options(&clip);
+        assert_eq!(opts.clip_start_ms, Some(8000));
+        assert_eq!(opts.clip_end_ms, Some(23000));
+        assert_eq!(opts.out_width, Some(1080));
+        assert_eq!(opts.out_height, Some(1920));
     }
 
     #[test]

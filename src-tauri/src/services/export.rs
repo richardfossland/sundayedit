@@ -17,7 +17,7 @@
 use serde::Serialize;
 
 use crate::error::{AppError, AppResult};
-use crate::model::{Caption, Project, Speaker, Style};
+use crate::model::{Caption, Clip, Project, Speaker, Style};
 
 // ── SRT ─────────────────────────────────────────────────────────────────────
 
@@ -184,6 +184,77 @@ pub fn write_ass(project: &Project) -> String {
             style_name,
             ass_escape(name_field),
             ass_escape(&c.text()),
+        ));
+    }
+
+    out
+}
+
+/// Generate ASS for a single social clip (SundayEdit), for burn-in into a
+/// vertical export. Two differences from `write_ass`:
+///   1. Caption timings are offset to clip-relative 0, because ffmpeg `-ss`
+///      trims the input so the rendered clip's timeline starts at 0.
+///   2. A second `Title` style renders the clip's main-point overlay, on a
+///      higher layer, spanning the whole clip.
+///
+/// `play_res_w/h` are the OUTPUT (vertical) dimensions so libass sizes the
+/// title for the target frame.
+pub fn write_clip_ass(
+    project: &Project,
+    clip: &Clip,
+    title_style: &Style,
+    play_res_w: i32,
+    play_res_h: i32,
+) -> String {
+    let clip_dur = (clip.end_ms - clip.start_ms).max(1);
+    let mut out = String::with_capacity(512);
+
+    out.push_str("[Script Info]\n");
+    out.push_str(&format!("Title: {}\n", ass_escape(&clip.title)));
+    out.push_str("ScriptType: v4.00+\n");
+    out.push_str(&format!("PlayResX: {play_res_w}\n"));
+    out.push_str(&format!("PlayResY: {play_res_h}\n"));
+    out.push_str("WrapStyle: 0\n");
+    out.push_str("ScaledBorderAndShadow: yes\n");
+    out.push_str("YCbCr Matrix: TV.709\n");
+    out.push('\n');
+
+    out.push_str("[V4+ Styles]\n");
+    out.push_str("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n");
+    out.push_str(&format_ass_style("Default", &project.default_style));
+    out.push_str(&format_ass_style("Title", title_style));
+    out.push('\n');
+
+    out.push_str("[Events]\n");
+    out.push_str(
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
+    );
+
+    // Caption events overlapping the clip, offset to clip-relative time.
+    for c in &project.captions {
+        if c.end_ms <= clip.start_ms || c.start_ms >= clip.end_ms {
+            continue;
+        }
+        let start = (c.start_ms - clip.start_ms).max(0);
+        let end = (c.end_ms - clip.start_ms).min(clip_dur);
+        if end <= start {
+            continue;
+        }
+        out.push_str(&format!(
+            "Dialogue: 0,{},{},Default,,0,0,0,,{}\n",
+            fmt_ass_time(start),
+            fmt_ass_time(end),
+            ass_escape(&c.text()),
+        ));
+    }
+
+    // The clip's main point as a title overlay spanning the whole clip.
+    if !clip.title.trim().is_empty() {
+        out.push_str(&format!(
+            "Dialogue: 1,{},{},Title,,0,0,0,,{}\n",
+            fmt_ass_time(0),
+            fmt_ass_time(clip_dur),
+            ass_escape(&clip.title),
         ));
     }
 
@@ -550,6 +621,47 @@ mod tests {
             created_at: 0,
             updated_at: 0,
         }
+    }
+
+    // ── Clip ASS ───────────────────────────────────────────────────────────
+    #[test]
+    fn clip_ass_offsets_captions_and_adds_title() {
+        use crate::model::Clip;
+        let clip = Clip {
+            id: "clip:0".into(),
+            title: "Grace".into(),
+            hook: "h".into(),
+            caption_ids: vec!["c1".into(), "c2".into()],
+            start_ms: 1500,
+            end_ms: 7250,
+        };
+        let ass = write_clip_ass(&p(), &clip, &Style::title_overlay(), 1080, 1920);
+        assert!(ass.contains("Style: Default,"));
+        assert!(ass.contains("Style: Title,"));
+        assert!(ass.contains("PlayResX: 1080"));
+        assert!(ass.contains("PlayResY: 1920"));
+        // c1 (1500ms) becomes clip-relative 0; ends 3750-1500=2250ms = .25.
+        assert!(ass.contains("Dialogue: 0,0:00:00.00,0:00:02.25,Default,,0,0,0,,Hello world"));
+        // c2 starts 4000-1500=2500ms = 0:00:02.50.
+        assert!(ass.contains("0:00:02.50"));
+        // title overlay on layer 1 spans the whole 5750ms clip.
+        assert!(ass.contains("Dialogue: 1,0:00:00.00,0:00:05.75,Title,,0,0,0,,Grace"));
+    }
+
+    #[test]
+    fn clip_ass_excludes_out_of_range_captions() {
+        use crate::model::Clip;
+        let clip = Clip {
+            id: "x".into(),
+            title: "T".into(),
+            hook: "".into(),
+            caption_ids: vec!["c2".into()],
+            start_ms: 4000,
+            end_ms: 7250,
+        };
+        let ass = write_clip_ass(&p(), &clip, &Style::title_overlay(), 1080, 1920);
+        assert!(!ass.contains("Hello world")); // c1 is before the clip
+        assert!(ass.contains("This is two"));
     }
 
     // ── SRT ────────────────────────────────────────────────────────────────

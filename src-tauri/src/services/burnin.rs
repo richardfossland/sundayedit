@@ -181,18 +181,40 @@ pub fn render(
     output: &Path,
     opts: &BurnInOptions,
 ) -> AppResult<()> {
-    let input = Path::new(&project.video_path);
-    if !input.exists() {
-        return Err(AppError::VideoMissing(project.video_path.clone()));
+    let ass = crate::services::export::write_ass(project);
+    run_burnin(&project.video_path, ass, output, opts)
+}
+
+/// Burn one social clip into a vertical export: the clip's captions (offset to
+/// clip-relative time) plus its main-point title overlay. `opts` must carry the
+/// clip's `clip_start_ms/clip_end_ms` + the vertical output dims.
+pub fn render_clip(
+    project: &crate::model::Project,
+    clip: &crate::model::Clip,
+    output: &Path,
+    opts: &BurnInOptions,
+    title_style: &crate::model::Style,
+) -> AppResult<()> {
+    let play_res_w = opts.out_width.unwrap_or(project.video_width);
+    let play_res_h = opts.out_height.unwrap_or(project.video_height);
+    let ass =
+        crate::services::export::write_clip_ass(project, clip, title_style, play_res_w, play_res_h);
+    run_burnin(&project.video_path, ass, output, opts)
+}
+
+/// Shared tail: write the ASS sidecar, run ffmpeg burn-in, clean up. Errors
+/// clearly if ffmpeg is missing or the render fails.
+fn run_burnin(video_path: &str, ass: String, output: &Path, opts: &BurnInOptions) -> AppResult<()> {
+    if !Path::new(video_path).exists() {
+        return Err(AppError::VideoMissing(video_path.to_string()));
     }
 
     // Write the ASS file next to the output.
     let ass_path = output.with_extension("ass");
-    let ass = crate::services::export::write_ass(project);
     std::fs::write(&ass_path, ass)?;
 
     let args = build_ffmpeg_args(
-        &project.video_path,
+        video_path,
         &ass_path.to_string_lossy(),
         &output.to_string_lossy(),
         opts,

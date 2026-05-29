@@ -111,6 +111,7 @@ pub fn run() {
             commands::clips::clips_estimate,
             commands::clips::clips_generate,
             commands::clips::clips_apply_plan,
+            commands::render::clip_burnin_render,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
