@@ -17,6 +17,7 @@
 //! from the OS keychain or the `ANTHROPIC_API_KEY` env var and passes them
 //! in here.
 
+pub mod clips;
 pub mod glossary_suggest;
 pub mod polish;
 pub mod suggest;
