@@ -23,6 +23,7 @@ import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { Onboarding } from "@/features/onboarding/Onboarding";
 import { ImportScreen } from "@/features/project/ImportScreen";
 import { ModelPicker } from "@/features/transcribe/ModelPicker";
+import { LocalPanel } from "@/features/transcribe/LocalPanel";
 import { CloudPanel } from "@/features/transcribe/CloudPanel";
 import { StyleEditor } from "@/features/style/StyleEditor";
 import { ExportPanel } from "@/features/export/ExportPanel";
@@ -273,10 +274,22 @@ function App() {
                 downloading={downloading}
                 onDownload={handleDownloadModel}
               />
+              <LocalPanel
+                project={project}
+                model={model}
+                downloadedModels={downloadedModels}
+                onProjectChange={setProject}
+                onTranscribed={(captions) => {
+                  // Functional merge so the audio_wav_path LocalPanel just set
+                  // (via onProjectChange) isn't clobbered by a stale closure.
+                  setProject((prev) => (prev ? { ...prev, captions } : prev));
+                  setTab("editor");
+                }}
+              />
               <CloudPanel
                 project={project}
                 onTranscribed={(captions) => {
-                  setProject({ ...project, captions });
+                  setProject((prev) => (prev ? { ...prev, captions } : prev));
                   setTab("editor");
                 }}
               />

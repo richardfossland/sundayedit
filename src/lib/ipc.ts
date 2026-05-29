@@ -36,6 +36,7 @@ import type {
   Suggestion,
   SuggestedTerm,
   StylePreset,
+  TranscribeProgress,
   TranslationLanguage,
   TranslationResult,
   VideoMetadata,
@@ -158,6 +159,11 @@ export const project = {
   open: (path: string) => call<Project>("project_open", { path }),
   waveform: (videoPath: string, cacheDir: string) =>
     call<WaveformData>("waveform_compute", { videoPath, cacheDir }),
+  /** Extract the source media's audio to a 16 kHz mono WAV (what local
+   *  Whisper + diarization need) and return its path. Shares the cached WAV
+   *  with `waveform`. */
+  extractAudio: (videoPath: string, cacheDir: string) =>
+    call<string>("extract_audio", { videoPath, cacheDir }),
   relink: (
     targetHash: string,
     searchDirs: string[],
@@ -208,7 +214,9 @@ export const asr = {
     cb: (p: DownloadProgress) => void,
   ): Promise<UnlistenFn> =>
     listen<DownloadProgress>("model-download-progress", (e) => cb(e.payload)),
-  /** Listen for "transcribe-progress" events on the window while this runs. */
+  /** Transcribe a 16 kHz mono WAV with the local Whisper model. Streams
+   *  progress via `onTranscribeProgress`. Returns editor-ready captions. On a
+   *  build without the `whisper` feature this errors clearly. */
   transcribeLocal: (
     audioPath: string,
     modelsDir: string,
@@ -221,6 +229,11 @@ export const asr = {
       model,
       options,
     }),
+  /** Subscribe to local-transcription progress. Returns an unlisten function. */
+  onTranscribeProgress: (
+    cb: (p: TranscribeProgress) => void,
+  ): Promise<UnlistenFn> =>
+    listen<TranscribeProgress>("transcribe-progress", (e) => cb(e.payload)),
 };
 
 // ── Styling (Phase 5) ─────────────────────────────────────────────────────────

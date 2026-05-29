@@ -58,6 +58,7 @@ pub fn run() {
             commands::project::project_save,
             commands::project::project_open,
             commands::project::waveform_compute,
+            commands::project::extract_audio,
             commands::project::project_relink,
             commands::project::accepted_media_extensions,
             // ASR / transcription (Phase 2)

@@ -95,6 +95,23 @@ pub fn waveform_compute(video_path: String, cache_dir: String) -> AppResult<Wave
     Ok(waveform::compute_levels(&samples, sample_rate, 800, 4, 5))
 }
 
+/// Extract the project's audio to a 16 kHz mono WAV and return its path.
+///
+/// Local Whisper (and diarization) need a real WAV — the source video isn't
+/// enough. The WAV is written to `cache_dir/{hash}.wav`, the SAME scheme
+/// `waveform_compute` uses, so the two share one cached extraction. No-ops if
+/// the WAV is already on disk. The renderer stores the returned path on the
+/// project (`audio_wav_path`) so later steps reuse it.
+#[tauri::command]
+pub fn extract_audio(video_path: String, cache_dir: String) -> AppResult<String> {
+    let input = Path::new(&video_path);
+    let wav = Path::new(&cache_dir).join(format!("{}.wav", video::content_hash(input)?));
+    if !wav.exists() {
+        waveform::extract_audio_wav(input, &wav)?;
+    }
+    Ok(wav.to_string_lossy().to_string())
+}
+
 /// Try to relink a project whose video moved. Searches the provided dirs.
 #[tauri::command]
 pub fn project_relink(
