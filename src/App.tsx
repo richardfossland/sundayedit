@@ -47,6 +47,7 @@ import type {
   WhisperModel,
 } from "@/lib/bindings";
 import { checkForUpdate, installAndRelaunch, type Update } from "@/lib/updater";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 type Tab =
@@ -65,6 +66,7 @@ type Tab =
   | "settings";
 
 function App() {
+  const t = useT();
   const [project, setProject] = useState<Project | null>(null);
   const [tab, setTab] = useState<Tab>("editor");
   const [model, setModel] = useState<WhisperModel | null>("large-v3-turbo");
@@ -165,7 +167,7 @@ function App() {
             onClick={() => setProject(SAMPLE_PROJECT)}
             className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] underline-offset-4 hover:text-[var(--color-accent-400)] hover:underline"
           >
-            …eller utforsk demo-prosjektet (uten video)
+            {t("importDemoLink")}
           </button>
         </div>
       </div>
@@ -182,7 +184,7 @@ function App() {
         <button
           type="button"
           onClick={() => setProject(null)}
-          title="Tilbake til import"
+          title={t("navBackToImport")}
           className="mb-3 grid h-9 w-9 place-items-center rounded-lg bg-[var(--color-accent-600)] font-bold text-[var(--color-neutral-950)]"
         >
           V
@@ -190,84 +192,84 @@ function App() {
         <NavIcon
           active={tab === "transcribe"}
           onClick={() => setTab("transcribe")}
-          title="Transkriber"
+          title={t("navTranscribe")}
         >
           <Cpu size={18} />
         </NavIcon>
         <NavIcon
           active={tab === "editor"}
           onClick={() => setTab("editor")}
-          title="Editor"
+          title={t("navEditor")}
         >
           <Captions size={18} />
         </NavIcon>
         <NavIcon
           active={tab === "timeline"}
           onClick={() => setTab("timeline")}
-          title="Tidslinje"
+          title={t("navTimeline")}
         >
           <GalleryHorizontalEnd size={18} />
         </NavIcon>
         <NavIcon
           active={tab === "context"}
           onClick={() => setTab("context")}
-          title="Kontekst og ordliste"
+          title={t("navContext")}
         >
           <BookText size={18} />
         </NavIcon>
         <NavIcon
           active={tab === "speakers"}
           onClick={() => setTab("speakers")}
-          title="Talere"
+          title={t("navSpeakers")}
         >
           <Users size={18} />
         </NavIcon>
         <NavIcon
           active={tab === "polish"}
           onClick={() => setTab("polish")}
-          title="AI-tegnsetting"
+          title={t("navPolish")}
         >
           <Sparkles size={18} />
         </NavIcon>
         <NavIcon
           active={tab === "suggest"}
           onClick={() => setTab("suggest")}
-          title="Smarte forslag"
+          title={t("navSuggest")}
         >
           <Lightbulb size={18} />
         </NavIcon>
         <NavIcon
           active={tab === "clips"}
           onClick={() => setTab("clips")}
-          title="AI-klipp"
+          title={t("navClips")}
         >
           <Scissors size={18} />
         </NavIcon>
         <NavIcon
           active={tab === "translate"}
           onClick={() => setTab("translate")}
-          title="Oversett"
+          title={t("navTranslate")}
         >
           <Languages size={18} />
         </NavIcon>
         <NavIcon
           active={tab === "cleanup"}
           onClick={() => setTab("cleanup")}
-          title="Opprydding"
+          title={t("navCleanup")}
         >
           <Wand2 size={18} />
         </NavIcon>
         <NavIcon
           active={tab === "style"}
           onClick={() => setTab("style")}
-          title="Stil"
+          title={t("navStyle")}
         >
           <Palette size={18} />
         </NavIcon>
         <NavIcon
           active={tab === "export"}
           onClick={() => setTab("export")}
-          title="Eksport"
+          title={t("navExport")}
         >
           <Download size={18} />
         </NavIcon>
@@ -275,7 +277,7 @@ function App() {
         <NavIcon
           active={tab === "settings"}
           onClick={() => setTab("settings")}
-          title="Innstillinger"
+          title={t("navSettings")}
         >
           <SettingsIcon size={18} />
         </NavIcon>
@@ -398,6 +400,7 @@ function UpdateBanner({
   update: Update;
   onDismiss: () => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -417,10 +420,10 @@ function UpdateBanner({
       <RefreshCw size={14} className={cn(busy && "animate-spin")} />
       <span className="font-medium">
         {error
-          ? `Oppdatering feilet: ${error}`
+          ? t("updateFailed", { error })
           : busy
-            ? "Laster ned og installerer…"
-            : `Ny versjon ${update.version} er tilgjengelig.`}
+            ? t("updateInstalling")
+            : t("updateAvailable", { version: update.version })}
       </span>
       {!busy && !error && (
         <>
@@ -429,15 +432,15 @@ function UpdateBanner({
             onClick={install}
             className="rounded bg-[var(--color-neutral-950)]/15 px-2.5 py-0.5 font-semibold hover:bg-[var(--color-neutral-950)]/25"
           >
-            Oppdater nå
+            {t("updateNow")}
           </button>
           <button
             type="button"
             onClick={onDismiss}
             className="px-1 opacity-70 hover:opacity-100"
-            aria-label="Lukk"
+            aria-label={t("actionClose")}
           >
-            Senere
+            {t("updateLater")}
           </button>
         </>
       )}

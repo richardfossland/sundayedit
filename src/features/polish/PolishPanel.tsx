@@ -22,6 +22,7 @@ import type {
   PolishResult,
   Project,
 } from "@/lib/bindings";
+import { useT, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -29,13 +30,14 @@ interface Props {
   onProjectChange: (project: Project) => void;
 }
 
-const MODELS: { id: ClaudeModel; name: string; hint: string }[] = [
-  { id: "haiku45", name: "Haiku 4.5", hint: "Rask og billig — anbefalt" },
-  { id: "sonnet46", name: "Sonnet 4.6", hint: "Høyere kvalitet" },
-  { id: "opus47", name: "Opus 4.7", hint: "Maks kvalitet" },
+const MODELS: { id: ClaudeModel; name: string; hintKey: TKey }[] = [
+  { id: "haiku45", name: "Haiku 4.5", hintKey: "modelHaikuHint" },
+  { id: "sonnet46", name: "Sonnet 4.6", hintKey: "modelSonnetHint" },
+  { id: "opus47", name: "Opus 4.7", hintKey: "modelOpusHint" },
 ];
 
 export function PolishPanel({ project, onProjectChange }: Props) {
+  const t = useT();
   const [model, setModel] = useState<ClaudeModel>("haiku45");
   const [apiKey, setApiKey] = useState("");
   const [estimate, setEstimate] = useState<PolishEstimate | null>(null);
@@ -75,11 +77,10 @@ export function PolishPanel({ project, onProjectChange }: Props) {
       <header>
         <h2 className="mb-1 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
           <Sparkles size={16} className="text-[var(--color-accent-400)]" />{" "}
-          AI-tegnsetting
+          {t("polishTitle")}
         </h2>
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-          Retter kun tegnsetting og store/små bokstaver. Ordene endres aldri —
-          forsøk på å endre innhold avvises automatisk og listes nedenfor.
+          {t("polishIntro")}
         </p>
       </header>
 
@@ -99,7 +100,7 @@ export function PolishPanel({ project, onProjectChange }: Props) {
           >
             <div className="text-[var(--text-ui-sm)] font-medium">{m.name}</div>
             <div className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-              {m.hint}
+              {t(m.hintKey)}
             </div>
           </button>
         ))}
@@ -112,7 +113,7 @@ export function PolishPanel({ project, onProjectChange }: Props) {
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder="Anthropic API-nøkkel (valgfritt — ellers ANTHROPIC_API_KEY)"
+          placeholder={t("apiKeyPlaceholder")}
           className="flex-1 bg-transparent text-[var(--text-ui-sm)] outline-none placeholder:text-[var(--color-fg-subtle)]"
         />
       </label>
@@ -125,12 +126,14 @@ export function PolishPanel({ project, onProjectChange }: Props) {
           disabled={running || !estimate || estimate.caption_count === 0}
           className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
         >
-          <Sparkles size={14} /> {running ? "Polerer…" : "Poler tegnsetting"}
+          <Sparkles size={14} /> {running ? t("polishRunning") : t("polishRun")}
         </button>
         {estimate && (
           <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-            {estimate.caption_count} undertekster · ~
-            {formatCost(estimate.estimated_cost_usd)}
+            {t("estCaptionsCost", {
+              n: estimate.caption_count,
+              cost: formatCost(estimate.estimated_cost_usd),
+            })}
           </span>
         )}
       </div>
@@ -147,28 +150,25 @@ export function PolishPanel({ project, onProjectChange }: Props) {
 }
 
 function Results({ result }: { result: PolishResult }) {
+  const t = useT();
   const { changes, rejected } = result;
   return (
     <section className="space-y-4">
       {rejected.length > 0 && (
         <div className="flex items-start gap-2 rounded-md border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-3 py-2 text-[var(--text-ui-sm)] text-[var(--color-warning)]">
           <ShieldAlert size={15} className="mt-0.5 shrink-0" />
-          <span>
-            {rejected.length} undertekst{rejected.length === 1 ? "" : "er"} ble
-            avvist fordi modellen prøvde å endre selve ordene. De ble beholdt
-            uendret.
-          </span>
+          <span>{t("polishRejected", { n: rejected.length })}</span>
         </div>
       )}
 
       {changes.length === 0 ? (
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-          Ingen endringer trengtes — tegnsettingen så allerede bra ut. 🎉
+          {t("polishNoChanges")}
         </p>
       ) : (
         <>
           <h3 className="text-[var(--text-ui-sm)] font-semibold">
-            {changes.length} endring{changes.length === 1 ? "" : "er"}
+            {t("polishChangesHeader", { n: changes.length })}
           </h3>
           <ul className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-[var(--color-border)] p-2">
             {changes.map((c, i) => (

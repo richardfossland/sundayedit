@@ -13,6 +13,7 @@ import { Check, Download, Cpu, Star, X } from "lucide-react";
 
 import { ipc } from "@/lib/ipc";
 import type { DownloadProgress, WhisperModel } from "@/lib/bindings";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -30,6 +31,7 @@ export function ModelPicker({
   downloading = null,
   onDownload,
 }: Props) {
+  const t = useT();
   const modelsQuery = useQuery({
     queryKey: ["asr-models"],
     queryFn: () => ipc.asr.listModels(),
@@ -42,12 +44,11 @@ export function ModelPicker({
       <div className="mb-5 flex items-center gap-2">
         <Cpu size={18} className="text-[var(--color-accent-400)]" />
         <h2 className="text-[var(--text-ui-lg)] font-semibold">
-          Velg transkripsjonsmodell
+          {t("modelTitle")}
         </h2>
       </div>
       <p className="mb-5 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-        Kjører helt lokalt på maskinen din — ingenting lastes opp. Større
-        modeller er mer nøyaktige men tregere.
+        {t("modelIntro")}
       </p>
 
       <ul className="space-y-2">
@@ -84,12 +85,13 @@ export function ModelPicker({
                     </span>
                     {m.recommended && (
                       <span className="flex items-center gap-1 rounded-full bg-[var(--color-accent-600)]/20 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent-300)]">
-                        <Star size={9} fill="currentColor" /> Anbefalt
+                        <Star size={9} fill="currentColor" />{" "}
+                        {t("modelRecommended")}
                       </span>
                     )}
                     {isDownloaded ? (
                       <span className="flex items-center gap-1 text-[10px] text-[var(--color-success)]">
-                        <Check size={10} /> Lastet ned
+                        <Check size={10} /> {t("modelDownloaded")}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-[10px] text-[var(--color-fg-subtle)]">
@@ -114,7 +116,7 @@ export function ModelPicker({
                       disabled={!onDownload || !!downloading}
                       className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-3 py-1.5 text-[var(--text-ui-xs)] font-semibold text-[var(--color-neutral-950)] transition-colors hover:bg-[var(--color-accent-500)] disabled:opacity-40"
                     >
-                      <Download size={12} /> Last ned
+                      <Download size={12} /> {t("modelDownload")}
                     </button>
                   )}
                 </div>
@@ -128,17 +130,18 @@ export function ModelPicker({
 }
 
 function DownloadStatus({ progress }: { progress: DownloadProgress }) {
+  const t = useT();
   const pct =
     progress.fraction != null ? Math.round(progress.fraction * 100) : null;
   return (
     <div className="w-full">
       <div className="mb-1 flex items-center justify-between text-[10px] text-[var(--color-fg-muted)]">
-        <span>{pct != null ? `${pct}%` : "Laster ned…"}</span>
+        <span>{pct != null ? `${pct}%` : t("modelDownloading")}</span>
         <button
           type="button"
           onClick={() => void ipc.asr.cancelDownload()}
-          title="Avbryt"
-          aria-label="Avbryt nedlasting"
+          title={t("actionCancel")}
+          aria-label={t("modelCancelDownload")}
           className="opacity-70 hover:opacity-100"
         >
           <X size={12} />

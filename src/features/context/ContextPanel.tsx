@@ -16,6 +16,7 @@ import { BookText, Plus, Trash2, Wand2, Sparkles, Loader2 } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
 import type { GlossaryTerm, Project, SuggestedTerm } from "@/lib/bindings";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   project: Project;
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function ContextPanel({ project, onProjectChange }: Props) {
+  const t = useT();
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
   const [suggested, setSuggested] = useState<SuggestedTerm[] | null>(null);
   const [suggesting, setSuggesting] = useState(false);
@@ -69,11 +71,15 @@ export function ContextPanel({ project, onProjectChange }: Props) {
       onProjectChange(res.project);
       setApplyMsg(
         res.corrections.length === 0
-          ? "Ingen termer å rette."
-          : `Rettet ${res.corrections.length} forekomst(er).`,
+          ? t("contextNoTermsToCorrect")
+          : t("contextCorrected", { n: res.corrections.length }),
       );
     } catch (e) {
-      setApplyMsg(e instanceof IPCError ? `Feil: ${e.message}` : String(e));
+      setApplyMsg(
+        e instanceof IPCError
+          ? t("errorPrefix", { error: e.message })
+          : String(e),
+      );
     }
   }
 
@@ -86,12 +92,12 @@ export function ContextPanel({ project, onProjectChange }: Props) {
     try {
       const out = await ipc.glossary.suggest(project, "haiku45");
       setSuggested(out);
-      if (out.length === 0) setSuggestMsg("Fant ingen nye termer å foreslå.");
+      if (out.length === 0) setSuggestMsg(t("contextNoNewTerms"));
     } catch (e) {
       // Most likely: no Anthropic key set.
       setSuggestMsg(
         e instanceof IPCError
-          ? `Feil: ${e.message} (legg inn Anthropic-nøkkel i Innstillinger?)`
+          ? t("contextSuggestError", { error: e.message })
           : String(e),
       );
     } finally {
@@ -125,38 +131,36 @@ export function ContextPanel({ project, onProjectChange }: Props) {
       <div className="mb-1 flex items-center gap-2">
         <BookText size={18} className="text-[var(--color-accent-400)]" />
         <h2 className="text-[var(--text-ui-lg)] font-semibold">
-          Kontekst og ordliste
+          {t("navContext")}
         </h2>
       </div>
       <p className="mb-6 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-        Fortell SundayEdit hva opptaket handler om og hvilke navn/fagord som
-        forekommer. Det gjør gjenkjenningen mer nøyaktig (priming) og retter
-        kjente feilstavinger automatisk.
+        {t("contextIntro")}
       </p>
 
       {/* Mode 1 — free-text context */}
       <label className="mb-2 block text-[var(--text-ui-sm)] font-medium">
-        Beskrivelse
+        {t("contextDescriptionLabel")}
       </label>
       <textarea
         value={project.context_description ?? ""}
         onChange={(e) => setContext(e.target.value)}
         rows={3}
-        placeholder="F.eks. «En preken om kristologi og soteriologi. Taleren er norsk.»"
+        placeholder={t("contextDescriptionPlaceholder")}
         className="w-full resize-y rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 text-[var(--text-ui-sm)] outline-none focus:border-[var(--color-accent-500)]"
       />
 
       {/* Mode 2 — glossary */}
       <div className="mb-2 mt-6 flex items-center justify-between">
         <label className="text-[var(--text-ui-sm)] font-medium">
-          Ordliste ({project.glossary.length})
+          {t("contextGlossaryLabel", { n: project.glossary.length })}
         </label>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={runSuggest}
             disabled={suggesting}
-            title="La AI foreslå termer fra transkripsjonen"
+            title={t("contextSuggestTitle")}
             className="flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[var(--text-ui-xs)] font-medium hover:border-[var(--color-accent-600)] disabled:opacity-50"
           >
             {suggesting ? (
@@ -164,14 +168,14 @@ export function ContextPanel({ project, onProjectChange }: Props) {
             ) : (
               <Sparkles size={12} />
             )}
-            Foreslå termer (AI)
+            {t("contextSuggestTerms")}
           </button>
           <button
             type="button"
             onClick={addTerm}
             className="flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[var(--text-ui-xs)] font-medium hover:border-[var(--color-accent-600)]"
           >
-            <Plus size={12} /> Legg til term
+            <Plus size={12} /> {t("contextAddTerm")}
           </button>
         </div>
       </div>
@@ -185,8 +189,8 @@ export function ContextPanel({ project, onProjectChange }: Props) {
       {suggested && suggested.length > 0 && (
         <div className="mb-4 rounded-lg border border-[var(--color-accent-600)]/40 bg-[var(--color-accent-500)]/5 p-3">
           <p className="mb-2 flex items-center gap-1.5 text-[var(--text-ui-xs)] font-semibold text-[var(--color-accent-300)]">
-            <Sparkles size={12} /> {suggested.length} forslag — godta dem du vil
-            ha
+            <Sparkles size={12} />{" "}
+            {t("contextSuggestionsHeader", { n: suggested.length })}
           </p>
           <ul className="space-y-2">
             {suggested.map((s, i) => (
@@ -214,13 +218,13 @@ export function ContextPanel({ project, onProjectChange }: Props) {
                   onClick={() => acceptSuggestion(s)}
                   className="rounded-md bg-[var(--color-accent-600)] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
                 >
-                  Legg til
+                  {t("actionAdd")}
                 </button>
                 <button
                   type="button"
                   onClick={() => dismissSuggestion(s)}
-                  title="Forkast"
-                  aria-label="Forkast forslag"
+                  title={t("contextDismiss")}
+                  aria-label={t("contextDismiss")}
                   className="rounded-md p-1 text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)]"
                 >
                   <Trash2 size={13} />
@@ -233,29 +237,28 @@ export function ContextPanel({ project, onProjectChange }: Props) {
 
       {project.glossary.length === 0 ? (
         <p className="rounded-lg border border-dashed border-[var(--color-border)] px-3 py-6 text-center text-[var(--text-ui-sm)] text-[var(--color-fg-subtle)]">
-          Ingen termer ennå. Legg til navn, fagord eller fremmedord som Whisper
-          bør forvente.
+          {t("contextNoTermsYet")}
         </p>
       ) : (
         <ul className="space-y-3">
-          {project.glossary.map((t) => (
+          {project.glossary.map((term) => (
             <li
-              key={t.id}
+              key={term.id}
               className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-3"
             >
               <div className="flex items-start gap-2">
                 <div className="grid flex-1 grid-cols-2 gap-2">
                   <Field
-                    label="Term (riktig form)"
-                    value={t.term}
-                    onChange={(v) => updateTerm(t.id, { term: v })}
+                    label={t("contextFieldTerm")}
+                    value={term.term}
+                    onChange={(v) => updateTerm(term.id, { term: v })}
                     placeholder="kerygma"
                   />
                   <Field
-                    label="Feilstavinger (komma)"
-                    value={t.aliases.join(", ")}
+                    label={t("contextFieldAliases")}
+                    value={term.aliases.join(", ")}
                     onChange={(v) =>
-                      updateTerm(t.id, {
+                      updateTerm(term.id, {
                         aliases: v
                           .split(",")
                           .map((a) => a.trim())
@@ -265,18 +268,18 @@ export function ContextPanel({ project, onProjectChange }: Props) {
                     placeholder="kerigma, kerygmae"
                   />
                   <Field
-                    label="Definisjon (valgfritt)"
-                    value={t.definition ?? ""}
+                    label={t("contextFieldDefinition")}
+                    value={term.definition ?? ""}
                     onChange={(v) =>
-                      updateTerm(t.id, { definition: v.trim() || null })
+                      updateTerm(term.id, { definition: v.trim() || null })
                     }
                     placeholder="forkynnelsen av evangeliet"
                   />
                   <Field
-                    label="Uttale (valgfritt)"
-                    value={t.pronunciation_hint ?? ""}
+                    label={t("contextFieldPronunciation")}
+                    value={term.pronunciation_hint ?? ""}
                     onChange={(v) =>
-                      updateTerm(t.id, {
+                      updateTerm(term.id, {
                         pronunciation_hint: v.trim() || null,
                       })
                     }
@@ -285,9 +288,9 @@ export function ContextPanel({ project, onProjectChange }: Props) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => removeTerm(t.id)}
-                  title="Fjern term"
-                  aria-label="Fjern term"
+                  onClick={() => removeTerm(term.id)}
+                  title={t("contextRemoveTerm")}
+                  aria-label={t("contextRemoveTerm")}
                   className="mt-5 shrink-0 rounded-md p-1.5 text-[var(--color-fg-subtle)] hover:bg-[var(--color-danger)]/10 hover:text-[var(--color-danger)]"
                 >
                   <Trash2 size={14} />
@@ -305,7 +308,7 @@ export function ContextPanel({ project, onProjectChange }: Props) {
           disabled={project.glossary.length === 0}
           className="flex items-center gap-2 rounded-lg bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
         >
-          <Wand2 size={14} /> Rett termer på undertekstene nå
+          <Wand2 size={14} /> {t("contextApplyNow")}
         </button>
         {applyMsg && (
           <span className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">

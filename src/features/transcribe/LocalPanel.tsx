@@ -15,6 +15,7 @@ import { Cpu, Loader2, ShieldCheck, Download } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
 import type { Caption, Project, WhisperModel } from "@/lib/bindings";
+import { useT } from "@/lib/i18n";
 import { buildAsrOptions } from "./asrOptions";
 
 interface Props {
@@ -41,6 +42,7 @@ export function LocalPanel({
   onTranscribed,
   onProjectChange,
 }: Props) {
+  const t = useT();
   const [phase, setPhase] = useState<Phase>({ stage: "idle" });
   const [error, setError] = useState<string | null>(null);
   // Keep the latest project in a ref so the long-running async transcribe reads
@@ -91,7 +93,7 @@ export function LocalPanel({
       setError(
         e instanceof IPCError
           ? e.message
-          : `Lokal transkripsjon feilet: ${String(e)}`,
+          : t("localFailed", { error: String(e) }),
       );
     } finally {
       unlisten?.();
@@ -104,16 +106,14 @@ export function LocalPanel({
       <div className="mb-1 flex items-center gap-2">
         <Cpu size={18} className="text-[var(--color-accent-400)]" />
         <h2 className="text-[var(--text-ui-lg)] font-semibold">
-          Lokal transkripsjon
+          {t("localTitle")}
         </h2>
         <span className="flex items-center gap-1 rounded-full bg-[var(--color-success)]/15 px-2 py-0.5 text-[10px] text-[var(--color-success)]">
-          <ShieldCheck size={10} /> personvern · på maskinen
+          <ShieldCheck size={10} /> {t("localPrivacyBadge")}
         </span>
       </div>
       <p className="mb-4 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-        Whisper kjører lokalt på maskinen din. Videoen forlater aldri maskinen,
-        det koster ingenting per minutt, og det fungerer uten nett. Kontekst og
-        ordliste fra prosjektet brukes til å styre gjenkjenningen.
+        {t("localIntro")}
       </p>
 
       <div className="rounded-lg border border-[var(--color-accent-600)]/40 bg-[var(--color-accent-500)]/5 p-3">
@@ -131,12 +131,14 @@ export function LocalPanel({
                 <Cpu size={15} />
               )}
               {phase.stage === "extracting"
-                ? "Henter ut lyd…"
+                ? t("localExtracting")
                 : phase.stage === "preparing"
-                  ? "Laster modell…"
+                  ? t("localLoadingModel")
                   : phase.stage === "running"
-                    ? `Transkriberer… ${Math.round(phase.fraction * 100)}%`
-                    : "Transkriber lokalt"}
+                    ? t("localTranscribingPct", {
+                        pct: Math.round(phase.fraction * 100),
+                      })
+                    : t("localTranscribe")}
             </button>
 
             {phase.stage === "running" && (
@@ -149,8 +151,7 @@ export function LocalPanel({
             )}
 
             <p className="mt-2 text-[10px] text-[var(--color-fg-subtle)]">
-              Bruker modellen valgt over. Lengden avhenger av video­varighet og
-              maskinen din.
+              {t("localUsingModelHint")}
             </p>
             {error && (
               <p className="mt-2 text-[var(--text-ui-sm)] text-[var(--color-danger)]">
@@ -161,7 +162,7 @@ export function LocalPanel({
         ) : (
           <p className="flex items-center gap-2 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
             <Download size={14} />
-            Velg og last ned en Whisper-modell over for å transkribere lokalt.
+            {t("localNeedModel")}
           </p>
         )}
       </div>

@@ -18,6 +18,7 @@ import { Search, Wand2, Scissors, Check } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
 import type { FillerHit, Project } from "@/lib/bindings";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -36,6 +37,7 @@ export function CleanupPanel({ project, onProjectChange }: Props) {
 }
 
 function FindReplace({ project, onProjectChange }: Props) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [replacement, setReplacement] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
@@ -73,7 +75,7 @@ function FindReplace({ project, onProjectChange }: Props) {
       const res = await ipc.cleanup.replace(project, opts(), replacement);
       onProjectChange(res.project);
       setCount(0);
-      setError(res.count > 0 ? null : "Ingen treff å erstatte.");
+      setError(res.count > 0 ? null : t("cleanupNoMatches"));
     } catch (e) {
       setError(e instanceof IPCError ? e.message : String(e));
     }
@@ -82,8 +84,8 @@ function FindReplace({ project, onProjectChange }: Props) {
   return (
     <section>
       <h2 className="mb-3 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
-        <Search size={16} className="text-[var(--color-accent-400)]" /> Søk og
-        erstatt
+        <Search size={16} className="text-[var(--color-accent-400)]" />{" "}
+        {t("cleanupFindReplace")}
       </h2>
       <div className="space-y-2">
         <div className="flex gap-2">
@@ -94,7 +96,7 @@ function FindReplace({ project, onProjectChange }: Props) {
               setCount(null);
             }}
             onKeyDown={(e) => e.key === "Enter" && doFind()}
-            placeholder="Søk…"
+            placeholder={t("cleanupSearchPlaceholder")}
             className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-input)] px-3 py-1.5 text-[var(--text-ui-sm)] outline-none focus:border-[var(--color-accent-500)]"
           />
           <button
@@ -102,14 +104,14 @@ function FindReplace({ project, onProjectChange }: Props) {
             onClick={doFind}
             className="rounded-md bg-[var(--color-bg-surface)] px-3 py-1.5 text-[var(--text-ui-sm)] hover:text-[var(--color-accent-400)]"
           >
-            Finn
+            {t("cleanupFind")}
           </button>
         </div>
         <div className="flex gap-2">
           <input
             value={replacement}
             onChange={(e) => setReplacement(e.target.value)}
-            placeholder="Erstatt med… (tom = slett)"
+            placeholder={t("cleanupReplacePlaceholder")}
             className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-input)] px-3 py-1.5 text-[var(--text-ui-sm)] outline-none focus:border-[var(--color-accent-500)]"
           />
           <button
@@ -117,29 +119,31 @@ function FindReplace({ project, onProjectChange }: Props) {
             onClick={doReplace}
             className="rounded-md bg-[var(--color-accent-600)] px-3 py-1.5 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
           >
-            Erstatt alle
+            {t("cleanupReplaceAll")}
           </button>
         </div>
         <div className="flex items-center gap-4 text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
           <Toggle
             label="Aa"
-            title="Skill store/små"
+            title={t("cleanupCaseTitle")}
             on={caseSensitive}
             onChange={setCaseSensitive}
           />
           <Toggle
-            label="Ord"
-            title="Kun hele ord"
+            label={t("cleanupWholeWordLabel")}
+            title={t("cleanupWholeWordTitle")}
             on={wholeWord}
             onChange={setWholeWord}
           />
           <Toggle
             label=".*"
-            title="Regulært uttrykk"
+            title={t("cleanupRegexTitle")}
             on={regex}
             onChange={setRegex}
           />
-          {count !== null && <span className="ml-auto">{count} treff</span>}
+          {count !== null && (
+            <span className="ml-auto">{t("cleanupMatches", { n: count })}</span>
+          )}
         </div>
         {error && (
           <p className="text-[var(--text-ui-xs)] text-[var(--color-danger)]">
@@ -152,6 +156,7 @@ function FindReplace({ project, onProjectChange }: Props) {
 }
 
 function FillerRemoval({ project, onProjectChange }: Props) {
+  const t = useT();
   const [hits, setHits] = useState<FillerHit[] | null>(null);
   const [approved, setApproved] = useState<Set<number>>(new Set());
 
@@ -177,12 +182,11 @@ function FillerRemoval({ project, onProjectChange }: Props) {
   return (
     <section>
       <h2 className="mb-3 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
-        <Wand2 size={16} className="text-[var(--color-accent-400)]" /> Fjern
-        fyllord
+        <Wand2 size={16} className="text-[var(--color-accent-400)]" />{" "}
+        {t("cleanupFillerTitle")}
       </h2>
       <p className="mb-3 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-        Finn «eh», «øh», «um», «liksom» osv. Godkjente klipp fjernes og resten
-        av tidslinjen forskyves tidligere (ripple).
+        {t("cleanupFillerIntro")}
       </p>
 
       {hits === null ? (
@@ -191,11 +195,11 @@ function FillerRemoval({ project, onProjectChange }: Props) {
           onClick={detect}
           className="rounded-md bg-[var(--color-bg-surface)] px-4 py-2 text-[var(--text-ui-sm)] font-medium hover:text-[var(--color-accent-400)]"
         >
-          Finn fyllord
+          {t("cleanupFindFillers")}
         </button>
       ) : hits.length === 0 ? (
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-          Ingen fyllord funnet 🎉
+          {t("cleanupNoFillers")}
         </p>
       ) : (
         <div className="space-y-3">
@@ -228,7 +232,8 @@ function FillerRemoval({ project, onProjectChange }: Props) {
               onClick={removeApproved}
               className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
             >
-              <Scissors size={14} /> Fjern {approved.size} valgte
+              <Scissors size={14} />{" "}
+              {t("cleanupRemoveSelected", { n: approved.size })}
             </button>
             <button
               type="button"
@@ -238,10 +243,10 @@ function FillerRemoval({ project, onProjectChange }: Props) {
               }}
               className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
             >
-              Avbryt
+              {t("actionCancel")}
             </button>
             <span className="ml-auto flex items-center gap-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-              <Check size={11} /> {hits.length} funnet
+              <Check size={11} /> {t("cleanupFound", { n: hits.length })}
             </span>
           </div>
         </div>

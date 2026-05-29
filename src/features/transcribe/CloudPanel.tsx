@@ -30,6 +30,7 @@ import type {
   Project,
   SecretProvider,
 } from "@/lib/bindings";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -55,6 +56,7 @@ async function openPrivacy(url: string) {
 }
 
 export function CloudPanel({ project, onTranscribed }: Props) {
+  const t = useT();
   const providersQuery = useQuery({
     queryKey: ["cloud-providers"],
     queryFn: () => ipc.asr.cloudProviders(),
@@ -86,7 +88,7 @@ export function CloudPanel({ project, onTranscribed }: Props) {
       setTranscribeErr(
         e instanceof IPCError
           ? e.message
-          : `Transkripsjon feilet: ${String(e)}`,
+          : t("cloudTranscribeFailed", { error: String(e) }),
       );
     } finally {
       setTranscribing(false);
@@ -98,13 +100,11 @@ export function CloudPanel({ project, onTranscribed }: Props) {
       <div className="mb-1 flex items-center gap-2">
         <Cloud size={18} className="text-[var(--color-accent-400)]" />
         <h2 className="text-[var(--text-ui-lg)] font-semibold">
-          Sky-transkripsjon (valgfritt)
+          {t("cloudTitle")}
         </h2>
       </div>
       <p className="mb-4 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-        Lokal Whisper er standard og holder videoen på maskinen din. Sky gir av
-        og til høyere nøyaktighet, men lyden lastes opp og koster per minutt —
-        derfor er den av som standard og krever et bevisst samtykke.
+        {t("cloudIntro")}
       </p>
 
       <ul className="space-y-2">
@@ -134,38 +134,39 @@ export function CloudPanel({ project, onTranscribed }: Props) {
                     {!p.word_confidence && (
                       <span
                         className="text-[10px] text-[var(--color-warning)]"
-                        title="Killer-feature #1 (confidence) blir bare anslått fra segment-nivå"
+                        title={t("cloudSegmentOnlyTitle")}
                       >
-                        kun segment-confidence
+                        {t("cloudSegmentOnly")}
                       </span>
                     )}
                     {hasKey ? (
                       <span className="flex items-center gap-1 text-[10px] text-[var(--color-success)]">
-                        <KeyRound size={9} /> nøkkel satt
+                        <KeyRound size={9} /> {t("cloudKeySet")}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-[10px] text-[var(--color-fg-subtle)]">
-                        <KeyRound size={9} /> nøkkel mangler (Innstillinger)
+                        <KeyRound size={9} /> {t("cloudKeyMissing")}
                       </span>
                     )}
                   </div>
                   <div className="mt-1 flex items-center gap-3 text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
                     <span>
-                      Estimert: <strong>${cost.toFixed(2)}</strong> for{" "}
-                      {minutes.toFixed(1)} min
+                      {t("cloudEstimatedLabel")}{" "}
+                      <strong>${cost.toFixed(2)}</strong>{" "}
+                      {t("cloudForMinutes", { minutes: minutes.toFixed(1) })}
                     </span>
                     <button
                       type="button"
                       onClick={() => openPrivacy(p.privacy_url)}
                       className="flex items-center gap-1 underline-offset-2 hover:text-[var(--color-accent-400)] hover:underline"
                     >
-                      Personvern <ExternalLink size={10} />
+                      {t("cloudPrivacy")} <ExternalLink size={10} />
                     </button>
                   </div>
                 </div>
                 {isSelected ? (
                   <span className="flex items-center gap-1 text-[var(--text-ui-xs)] font-semibold text-[var(--color-accent-300)]">
-                    <Check size={13} /> Valgt
+                    <Check size={13} /> {t("cloudSelected")}
                   </span>
                 ) : (
                   <button
@@ -173,7 +174,7 @@ export function CloudPanel({ project, onTranscribed }: Props) {
                     onClick={() => setConsentFor(p)}
                     className="shrink-0 rounded-md border border-[var(--color-border)] px-3 py-1 text-[var(--text-ui-xs)] font-medium hover:border-[var(--color-accent-600)]"
                   >
-                    Velg
+                    {t("cloudSelect")}
                   </button>
                 )}
               </div>
@@ -198,14 +199,15 @@ export function CloudPanel({ project, onTranscribed }: Props) {
                   <Cloud size={15} />
                 )}
                 {transcribing
-                  ? "Transkriberer i skyen…"
-                  : `Transkriber med ${selectedInfo.display_name}`}
+                  ? t("cloudTranscribing")
+                  : t("cloudTranscribeWith", {
+                      provider: selectedInfo.display_name,
+                    })}
               </button>
               <p className="mt-2 text-[10px] text-[var(--color-fg-subtle)]">
-                Laster opp prosjektets lyd til {selectedInfo.display_name}.
-                Korte klipp fungerer best (API-grense ~25 MB).
+                {t("cloudUploadHint", { provider: selectedInfo.display_name })}
                 {selectedInfo.provider === "assembly-ai" &&
-                  " AssemblyAI laster opp og venter på resultat, så det kan ta litt tid."}
+                  t("cloudAssemblyNote")}
               </p>
               {transcribeErr && (
                 <p className="mt-2 text-[var(--text-ui-sm)] text-[var(--color-danger)]">
@@ -215,8 +217,7 @@ export function CloudPanel({ project, onTranscribed }: Props) {
             </>
           ) : (
             <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-              Legg inn {selectedInfo.display_name}-nøkkelen din under
-              Innstillinger → API-nøkler for å transkribere i skyen.
+              {t("cloudNeedKey", { provider: selectedInfo.display_name })}
             </p>
           )}
         </div>
@@ -245,13 +246,14 @@ function ConsentDialog({
   onAccept: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-5 shadow-xl">
         <div className="mb-2 flex items-center gap-2">
           <ShieldAlert size={18} className="text-[var(--color-warning)]" />
           <h3 className="text-[var(--text-ui-md)] font-semibold">
-            Last opp lyd til {info.display_name}?
+            {t("consentTitle", { provider: info.display_name })}
           </h3>
         </div>
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
@@ -262,7 +264,7 @@ function ConsentDialog({
           onClick={() => openPrivacy(info.privacy_url)}
           className="mt-2 flex items-center gap-1 text-[var(--text-ui-sm)] text-[var(--color-accent-400)] underline-offset-2 hover:underline"
         >
-          Les personvernerklæringen <ExternalLink size={11} />
+          {t("consentReadPrivacy")} <ExternalLink size={11} />
         </button>
         <div className="mt-5 flex justify-end gap-2">
           <button
@@ -270,14 +272,14 @@ function ConsentDialog({
             onClick={onCancel}
             className="rounded-md px-3 py-1.5 text-[var(--text-ui-sm)] hover:bg-[var(--color-bg-surface)]"
           >
-            Avbryt
+            {t("actionCancel")}
           </button>
           <button
             type="button"
             onClick={onAccept}
             className="rounded-md bg-[var(--color-accent-600)] px-4 py-1.5 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
           >
-            Jeg forstår — fortsett
+            {t("consentAccept")}
           </button>
         </div>
       </div>

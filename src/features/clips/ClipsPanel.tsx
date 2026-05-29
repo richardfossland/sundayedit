@@ -36,6 +36,7 @@ import type {
   PolishEstimate,
   Project,
 } from "@/lib/bindings";
+import { useT, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -43,13 +44,14 @@ interface Props {
   onProjectChange: (project: Project) => void;
 }
 
-const MODELS: { id: ClaudeModel; name: string; hint: string }[] = [
-  { id: "haiku45", name: "Haiku 4.5", hint: "Rask og billig — anbefalt" },
-  { id: "sonnet46", name: "Sonnet 4.6", hint: "Høyere kvalitet" },
-  { id: "opus47", name: "Opus 4.7", hint: "Maks kvalitet" },
+const MODELS: { id: ClaudeModel; name: string; hintKey: TKey }[] = [
+  { id: "haiku45", name: "Haiku 4.5", hintKey: "modelHaikuHint" },
+  { id: "sonnet46", name: "Sonnet 4.6", hintKey: "modelSonnetHint" },
+  { id: "opus47", name: "Opus 4.7", hintKey: "modelOpusHint" },
 ];
 
 export function ClipsPanel({ project, onProjectChange }: Props) {
+  const t = useT();
   const [model, setModel] = useState<ClaudeModel>("haiku45");
   const [apiKey, setApiKey] = useState("");
   const [estimate, setEstimate] = useState<PolishEstimate | null>(null);
@@ -131,13 +133,10 @@ export function ClipsPanel({ project, onProjectChange }: Props) {
       <header>
         <h2 className="mb-1 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
           <Scissors size={16} className="text-[var(--color-accent-400)]" />{" "}
-          AI-klipp for sosiale medier
+          {t("clipsTitle")}
         </h2>
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-          Finn de korte, selvstendige øyeblikkene i talen — hver med en tydelig
-          tittel og hook. Tidspunktene hentes fra de faktiske undertekstene, så
-          modellen kan aldri finne på timing. Ingenting lagres før du trykker
-          «Bruk plan».
+          {t("clipsIntro")}
         </p>
       </header>
 
@@ -157,7 +156,7 @@ export function ClipsPanel({ project, onProjectChange }: Props) {
           >
             <div className="text-[var(--text-ui-sm)] font-medium">{m.name}</div>
             <div className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-              {m.hint}
+              {t(m.hintKey)}
             </div>
           </button>
         ))}
@@ -170,7 +169,7 @@ export function ClipsPanel({ project, onProjectChange }: Props) {
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder="Anthropic API-nøkkel (valgfritt — ellers ANTHROPIC_API_KEY)"
+          placeholder={t("apiKeyPlaceholder")}
           className="flex-1 bg-transparent text-[var(--text-ui-sm)] outline-none placeholder:text-[var(--color-fg-subtle)]"
         />
       </label>
@@ -189,22 +188,24 @@ export function ClipsPanel({ project, onProjectChange }: Props) {
             <Scissors size={14} />
           )}
           {running
-            ? "Finner klipp…"
+            ? t("clipsFinding")
             : plan
-              ? "Generer på nytt"
-              : "Foreslå klipp"}
+              ? t("clipsRegenerate")
+              : t("clipsGenerate")}
         </button>
         {estimate && (
           <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
-            {estimate.caption_count} undertekster · ~
-            {formatCost(estimate.estimated_cost_usd)}
+            {t("estCaptionsCost", {
+              n: estimate.caption_count,
+              cost: formatCost(estimate.estimated_cost_usd),
+            })}
           </span>
         )}
       </div>
 
       {!hasCaptions && (
         <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-          Transkriber talen først — klippene bygges på undertekstene.
+          {t("clipsNeedCaptions")}
         </p>
       )}
 
@@ -249,18 +250,19 @@ function PlanReview({
   onChangeSummary: (s: string) => void;
   onApply: () => void;
 }) {
+  const t = useT();
   return (
     <section className="space-y-5 border-t border-[var(--color-border)] pt-5">
       {/* Talk summary */}
       <div>
         <h3 className="mb-1.5 text-[var(--text-ui-sm)] font-semibold">
-          Sammendrag av talen
+          {t("clipsSummaryLabel")}
         </h3>
         <textarea
           value={plan.talk_summary}
           onChange={(e) => onChangeSummary(e.target.value)}
           rows={3}
-          placeholder="Kort sammendrag av hele talen…"
+          placeholder={t("clipsSummaryPlaceholder")}
           className="w-full resize-y rounded-md border border-[var(--color-border)] bg-[var(--color-bg-input)] px-3 py-2 text-[var(--text-ui-sm)] outline-none placeholder:text-[var(--color-fg-subtle)] focus:border-[var(--color-accent-500)]"
         />
       </div>
@@ -268,11 +270,11 @@ function PlanReview({
       {/* Clips */}
       <div>
         <h3 className="mb-2 text-[var(--text-ui-sm)] font-semibold">
-          {plan.clips.length} klipp
+          {t("clipsCountHeader", { n: plan.clips.length })}
         </h3>
         {plan.clips.length === 0 ? (
           <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-            Ingen klipp i planen. Generer på nytt eller juster talen.
+            {t("clipsNoneInPlan")}
           </p>
         ) : (
           <ul className="space-y-3">
@@ -297,11 +299,11 @@ function PlanReview({
           disabled={plan.clips.length === 0}
           className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
         >
-          <Check size={14} /> Bruk plan
+          <Check size={14} /> {t("clipsApply")}
         </button>
         {applied && (
           <span className="flex items-center gap-1 text-[var(--text-ui-sm)] text-[var(--color-accent-400)]">
-            <Check size={13} /> Lagret på prosjektet
+            <Check size={13} /> {t("clipsApplied")}
           </span>
         )}
       </div>
@@ -320,6 +322,7 @@ function ClipCard({
   onUpdate: (patch: Partial<Clip>) => void;
   onDrop: () => void;
 }) {
+  const t = useT();
   // Vertical platform presets only — clips are 9:16 by nature.
   const presetsQuery = useQuery({
     queryKey: ["export-presets"],
@@ -355,9 +358,13 @@ function ClipCard({
     setRenderMsg(null);
     try {
       await ipc.clips.render(project, clip, out, preset);
-      setRenderMsg(`Ferdig: ${out}`);
+      setRenderMsg(t("doneFile", { path: out }));
     } catch (e) {
-      setRenderMsg(e instanceof IPCError ? `Feil: ${e.message}` : String(e));
+      setRenderMsg(
+        e instanceof IPCError
+          ? t("errorPrefix", { error: e.message })
+          : String(e),
+      );
     } finally {
       setRendering(false);
     }
@@ -371,14 +378,14 @@ function ClipCard({
           <input
             value={clip.title}
             onChange={(e) => onUpdate({ title: e.target.value })}
-            placeholder="Tittel (vises som overlay)"
+            placeholder={t("clipsTitlePlaceholder")}
             className="w-full rounded border border-transparent bg-transparent text-[var(--text-ui-sm)] font-semibold outline-none hover:border-[var(--color-border)] focus:border-[var(--color-accent-500)] focus:bg-[var(--color-bg-input)] focus:px-2 focus:py-1"
           />
           {/* Hook */}
           <input
             value={clip.hook}
             onChange={(e) => onUpdate({ hook: e.target.value })}
-            placeholder="Hook (én linje)"
+            placeholder={t("clipsHookPlaceholder")}
             className="w-full rounded border border-transparent bg-transparent text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] outline-none hover:border-[var(--color-border)] focus:border-[var(--color-accent-500)] focus:bg-[var(--color-bg-input)] focus:px-2 focus:py-1"
           />
           <div className="flex items-center gap-3 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
@@ -388,14 +395,16 @@ function ClipCard({
             <span>·</span>
             <span>{fmtDuration(clip.end_ms - clip.start_ms)}</span>
             <span>·</span>
-            <span>{clip.caption_ids.length} undertekster</span>
+            <span>
+              {t("clipsCaptionsCount", { n: clip.caption_ids.length })}
+            </span>
           </div>
         </div>
         <button
           type="button"
           onClick={onDrop}
-          title="Fjern klipp"
-          aria-label="Fjern klipp"
+          title={t("clipsRemove")}
+          aria-label={t("clipsRemove")}
           className="shrink-0 rounded p-1.5 text-[var(--color-fg-subtle)] hover:bg-[var(--color-danger)]/10 hover:text-[var(--color-danger)]"
         >
           <Trash2 size={14} />
@@ -427,7 +436,7 @@ function ClipCard({
           ) : (
             <Film size={12} />
           )}
-          {rendering ? "Brenner inn…" : "Render vertikalt"}
+          {rendering ? t("clipsRendering") : t("clipsRenderVertical")}
         </button>
         {renderMsg && (
           <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">

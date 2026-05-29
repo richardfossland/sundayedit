@@ -7,27 +7,30 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { KeyRound, Check, Trash2, Save } from "lucide-react";
+import { KeyRound, Check, Trash2, Save, Languages } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
 import type { SecretProvider } from "@/lib/bindings";
+import { useT, useLocale, LANGS, LANG_NAMES, type TKey } from "@/lib/i18n";
+import { cn } from "@/lib/cn";
 
-const PROVIDERS: Array<{ id: SecretProvider; label: string; note: string }> = [
+const PROVIDERS: Array<{
+  id: SecretProvider;
+  label: string;
+  noteKey: TKey;
+}> = [
   {
     id: "anthropic",
     label: "Anthropic (Claude)",
-    note: "Brukes av AI-tegnsetting, smarte forslag og oversettelse.",
+    noteKey: "providerAnthropicNote",
   },
-  { id: "open-ai", label: "OpenAI", note: "Sky-transkripsjon (kommer)." },
-  {
-    id: "assembly-ai",
-    label: "AssemblyAI",
-    note: "Sky-transkripsjon (kommer).",
-  },
-  { id: "deepgram", label: "Deepgram", note: "Sky-transkripsjon (kommer)." },
+  { id: "open-ai", label: "OpenAI", noteKey: "providerCloudNote" },
+  { id: "assembly-ai", label: "AssemblyAI", noteKey: "providerCloudNote" },
+  { id: "deepgram", label: "Deepgram", noteKey: "providerCloudNote" },
 ];
 
 export function SettingsPanel() {
+  const t = useT();
   const statusQuery = useQuery({
     queryKey: ["secret-status"],
     queryFn: () => ipc.secrets.status(),
@@ -47,9 +50,13 @@ export function SettingsPanel() {
       await ipc.secrets.set(id, value);
       setDrafts((d) => ({ ...d, [id]: "" }));
       await statusQuery.refetch();
-      setMsg("Nøkkel lagret i nøkkelringen.");
+      setMsg(t("settingsKeySaved"));
     } catch (e) {
-      setMsg(e instanceof IPCError ? `Feil: ${e.message}` : String(e));
+      setMsg(
+        e instanceof IPCError
+          ? t("errorPrefix", { error: e.message })
+          : String(e),
+      );
     }
   }
 
@@ -58,23 +65,28 @@ export function SettingsPanel() {
     try {
       await ipc.secrets.delete(id);
       await statusQuery.refetch();
-      setMsg("Nøkkel fjernet.");
+      setMsg(t("settingsKeyRemoved"));
     } catch (e) {
-      setMsg(e instanceof IPCError ? `Feil: ${e.message}` : String(e));
+      setMsg(
+        e instanceof IPCError
+          ? t("errorPrefix", { error: e.message })
+          : String(e),
+      );
     }
   }
 
   return (
     <div className="mx-auto max-w-2xl p-6">
+      <LanguagePicker />
+
       <div className="mb-1 flex items-center gap-2">
         <KeyRound size={18} className="text-[var(--color-accent-400)]" />
-        <h2 className="text-[var(--text-ui-lg)] font-semibold">API-nøkler</h2>
+        <h2 className="text-[var(--text-ui-lg)] font-semibold">
+          {t("settingsApiKeys")}
+        </h2>
       </div>
       <p className="mb-6 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
-        Nøkler lagres i operativsystemets nøkkelring (Keychain på Mac,
-        Credential Manager på Windows) — aldri i klartekst og aldri i
-        prosjektfiler. SundayEdit viser kun om en nøkkel er satt, ikke selve
-        verdien.
+        {t("settingsIntro")}
       </p>
 
       <ul className="space-y-3">
@@ -91,18 +103,20 @@ export function SettingsPanel() {
                 </span>
                 {isSet && (
                   <span className="flex items-center gap-1 rounded-full bg-[var(--color-success)]/15 px-2 py-0.5 text-[10px] text-[var(--color-success)]">
-                    <Check size={10} /> satt
+                    <Check size={10} /> {t("settingsSet")}
                   </span>
                 )}
               </div>
               <p className="mb-2 text-[10px] text-[var(--color-fg-subtle)]">
-                {p.note}
+                {t(p.noteKey)}
               </p>
               <div className="flex items-center gap-2">
                 <input
                   type="password"
                   value={drafts[p.id] ?? ""}
-                  placeholder={isSet ? "•••••••• (lagret)" : "Lim inn nøkkel"}
+                  placeholder={
+                    isSet ? t("settingsKeyStored") : t("settingsKeyPlaceholder")
+                  }
                   onChange={(e) =>
                     setDrafts((d) => ({ ...d, [p.id]: e.target.value }))
                   }
@@ -114,14 +128,14 @@ export function SettingsPanel() {
                   disabled={!(drafts[p.id] ?? "").trim()}
                   className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-3 py-1.5 text-[var(--text-ui-xs)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-40"
                 >
-                  <Save size={12} /> Lagre
+                  <Save size={12} /> {t("actionSave")}
                 </button>
                 {isSet && (
                   <button
                     type="button"
                     onClick={() => clear(p.id)}
-                    title="Fjern nøkkel"
-                    aria-label="Fjern nøkkel"
+                    title={t("settingsRemoveKey")}
+                    aria-label={t("settingsRemoveKey")}
                     className="rounded-md p-1.5 text-[var(--color-fg-subtle)] hover:bg-[var(--color-danger)]/10 hover:text-[var(--color-danger)]"
                   >
                     <Trash2 size={14} />
@@ -138,6 +152,42 @@ export function SettingsPanel() {
           {msg}
         </p>
       )}
+    </div>
+  );
+}
+
+function LanguagePicker() {
+  const t = useT();
+  const lang = useLocale((s) => s.lang);
+  const setLang = useLocale((s) => s.setLang);
+  return (
+    <div className="mb-8">
+      <div className="mb-1 flex items-center gap-2">
+        <Languages size={18} className="text-[var(--color-accent-400)]" />
+        <h2 className="text-[var(--text-ui-lg)] font-semibold">
+          {t("settingsLanguage")}
+        </h2>
+      </div>
+      <p className="mb-3 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
+        {t("settingsLanguageIntro")}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {LANGS.map((l) => (
+          <button
+            key={l}
+            type="button"
+            onClick={() => setLang(l)}
+            className={cn(
+              "rounded-md border px-3 py-1.5 text-[var(--text-ui-sm)] transition-colors",
+              l === lang
+                ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/8 font-medium text-[var(--color-accent-300)]"
+                : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]",
+            )}
+          >
+            {LANG_NAMES[l]}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
