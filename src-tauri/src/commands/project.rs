@@ -60,6 +60,8 @@ pub fn project_create_from_video(path: String) -> AppResult<Project> {
         captions: vec![],
         speakers: vec![],
         glossary: vec![],
+        clips: vec![],
+        talk_summary: None,
         created_at: now,
         updated_at: now,
     })

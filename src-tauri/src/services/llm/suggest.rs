@@ -279,6 +279,8 @@ mod tests {
             captions,
             speakers: vec![],
             glossary: vec![],
+            clips: vec![],
+            talk_summary: None,
             created_at: 0,
             updated_at: 0,
         }

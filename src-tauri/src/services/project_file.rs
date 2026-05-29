@@ -23,9 +23,9 @@ use sqlx::{Row, SqlitePool};
 use std::str::FromStr;
 
 use crate::error::{AppError, AppResult};
-use crate::model::{Caption, GlossaryTerm, Project, Speaker, Style, Word};
+use crate::model::{Caption, Clip, GlossaryTerm, Project, Speaker, Style, Word};
 
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
 /// Open (creating if missing) a `.sundayedit` SQLite file and ensure schema.
 async fn open_pool(path: &Path) -> AppResult<SqlitePool> {
@@ -70,6 +70,8 @@ async fn ensure_schema(pool: &SqlitePool) -> AppResult<()> {
             context_description TEXT,
             speakers_json       TEXT NOT NULL,
             glossary_json       TEXT NOT NULL,
+            clips_json          TEXT NOT NULL DEFAULT '[]',
+            talk_summary        TEXT,
             created_at          INTEGER NOT NULL,
             updated_at          INTEGER NOT NULL
         );
@@ -77,6 +79,17 @@ async fn ensure_schema(pool: &SqlitePool) -> AppResult<()> {
     )
     .execute(pool)
     .await?;
+
+    // Schema v2 migration: bring v1 project tables (no clip columns) forward.
+    // Idempotent — on a fresh v2 table these ALTERs fail with "duplicate
+    // column" and are intentionally ignored; on a v1 table they add the
+    // columns (existing rows get the DEFAULT).
+    let _ = sqlx::query("ALTER TABLE project ADD COLUMN clips_json TEXT NOT NULL DEFAULT '[]'")
+        .execute(pool)
+        .await;
+    let _ = sqlx::query("ALTER TABLE project ADD COLUMN talk_summary TEXT")
+        .execute(pool)
+        .await;
 
     sqlx::query(
         r#"
@@ -122,8 +135,9 @@ pub async fn save(project: &Project, path: &Path) -> AppResult<()> {
         INSERT INTO project (id, name, video_path, video_content_hash,
             video_duration_ms, video_width, video_height, video_fps,
             audio_wav_path, language, default_style_json, context_description,
-            speakers_json, glossary_json, created_at, updated_at)
-        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16)
+            speakers_json, glossary_json, created_at, updated_at,
+            clips_json, talk_summary)
+        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)
         "#,
     )
     .bind(&project.id)
@@ -142,6 +156,8 @@ pub async fn save(project: &Project, path: &Path) -> AppResult<()> {
     .bind(serde_json::to_string(&project.glossary)?)
     .bind(project.created_at)
     .bind(project.updated_at)
+    .bind(serde_json::to_string(&project.clips)?)
+    .bind(&project.talk_summary)
     .execute(&mut *tx)
     .await?;
 
@@ -195,6 +211,8 @@ pub async fn load(path: &Path) -> AppResult<Project> {
         serde_json::from_str(row.get::<String, _>("speakers_json").as_str())?;
     let glossary: Vec<GlossaryTerm> =
         serde_json::from_str(row.get::<String, _>("glossary_json").as_str())?;
+    let clips: Vec<Clip> = serde_json::from_str(row.get::<String, _>("clips_json").as_str())?;
+    let talk_summary: Option<String> = row.get("talk_summary");
 
     let caption_rows = sqlx::query("SELECT * FROM caption ORDER BY position")
         .fetch_all(&pool)
@@ -232,6 +250,8 @@ pub async fn load(path: &Path) -> AppResult<Project> {
         captions,
         speakers,
         glossary,
+        clips,
+        talk_summary,
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     };
@@ -298,6 +318,15 @@ mod tests {
                 definition: None,
                 pronunciation_hint: None,
             }],
+            clips: vec![Clip {
+                id: "clip1".into(),
+                title: "Grace changes everything".into(),
+                hook: "The one line that reframes the whole talk.".into(),
+                caption_ids: vec!["c1".into(), "c2".into()],
+                start_ms: 0,
+                end_ms: 4000,
+            }],
+            talk_summary: Some("A short sermon about grace.".into()),
             created_at: 1000,
             updated_at: 2000,
         }
@@ -342,6 +371,58 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), "not_found");
+    }
+
+    #[tokio::test]
+    async fn clips_and_summary_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("clips.sundayedit");
+        let p = sample_project();
+        save(&p, &path).await.unwrap();
+        let loaded = load(&path).await.unwrap();
+        assert_eq!(loaded.clips, p.clips);
+        assert_eq!(loaded.talk_summary, p.talk_summary);
+    }
+
+    #[tokio::test]
+    async fn loads_v1_file_without_clip_columns() {
+        // Build a v1-shaped project table (no clip columns), then load —
+        // ensure_schema must migrate the columns in and default to empty clips.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("v1.sundayedit");
+        let url = format!("sqlite:{}", path.to_string_lossy());
+        let opts = SqliteConnectOptions::from_str(&url)
+            .unwrap()
+            .create_if_missing(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .unwrap();
+        sqlx::query(
+            r#"CREATE TABLE project (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, video_path TEXT NOT NULL,
+                video_content_hash TEXT NOT NULL, video_duration_ms INTEGER NOT NULL,
+                video_width INTEGER NOT NULL, video_height INTEGER NOT NULL, video_fps REAL NOT NULL,
+                audio_wav_path TEXT, language TEXT NOT NULL, default_style_json TEXT NOT NULL,
+                context_description TEXT, speakers_json TEXT NOT NULL, glossary_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO project VALUES ('p','n','/v','h',1000,1920,1080,30.0,NULL,'no',?1,NULL,'[]','[]',0,0)",
+        )
+        .bind(serde_json::to_string(&Style::broadcast_news()).unwrap())
+        .execute(&pool)
+        .await
+        .unwrap();
+        pool.close().await;
+
+        let loaded = load(&path).await.unwrap();
+        assert!(loaded.clips.is_empty());
+        assert_eq!(loaded.talk_summary, None);
     }
 
     #[tokio::test]

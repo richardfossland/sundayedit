@@ -161,6 +161,8 @@ mod tests {
             }],
             speakers: vec![],
             glossary,
+            clips: vec![],
+            talk_summary: None,
             created_at: 0,
             updated_at: 0,
         }

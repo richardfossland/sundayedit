@@ -152,6 +152,8 @@ export const SAMPLE_PROJECT: Project = {
       pronunciation_hint: null,
     },
   ],
+  clips: [],
+  talk_summary: null,
   created_at: 0,
   updated_at: 0,
 };

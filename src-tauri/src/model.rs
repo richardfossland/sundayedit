@@ -138,6 +138,28 @@ pub struct GlossaryTerm {
     pub pronunciation_hint: Option<String>,
 }
 
+// ── Clip ──────────────────────────────────────────────────────────────────────
+
+/// A social-media clip carved out of the talk (Phase: SundayEdit clips).
+/// `caption_ids` are the source captions the clip covers; `start_ms`/`end_ms`
+/// are derived from those captions' real timings (never model-invented). The
+/// `title` is the clip's main point, rendered as a large on-screen overlay.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/Clip.ts")]
+pub struct Clip {
+    pub id: String,
+    /// The main point — shown as a large title overlay on the clip.
+    pub title: String,
+    /// One-line summary / hook for the clip.
+    pub hook: String,
+    /// Source captions this clip covers.
+    pub caption_ids: Vec<String>,
+    #[ts(type = "number")]
+    pub start_ms: i64,
+    #[ts(type = "number")]
+    pub end_ms: i64,
+}
+
 // ── Style ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -211,6 +233,40 @@ impl Style {
             }),
         }
     }
+
+    /// Title-overlay style for social clips — large, bold, top-centre, so the
+    /// clip's main point reads at a glance above the captions.
+    pub fn title_overlay() -> Self {
+        Self {
+            id: "preset:title_overlay".to_string(),
+            name: "Title".to_string(),
+            font_family: "Helvetica Neue".to_string(),
+            font_size_px: 72,
+            font_weight: 800,
+            italic: false,
+            color_fg: "#FFFFFF".to_string(),
+            outline_color: "#000000".to_string(),
+            outline_width_px: 4,
+            shadow_color: "#000000A0".to_string(),
+            shadow_offset_x: 0,
+            shadow_offset_y: 3,
+            shadow_blur: 10,
+            background_color: None,
+            background_padding_px: 0,
+            background_radius_px: 0,
+            align_h: "center".into(),
+            align_v: "top".into(),
+            anchor: "tc".into(),
+            max_width_pct: 88.0,
+            line_spacing: 1.1,
+            letter_spacing: 0.0,
+            animation: Some(AnimationSpec {
+                kind: "fade".into(),
+                duration_ms: 250,
+                per_word_delay_ms: 0,
+            }),
+        }
+    }
 }
 
 // ── Project ─────────────────────────────────────────────────────────────────
@@ -234,6 +290,12 @@ pub struct Project {
     pub captions: Vec<Caption>,
     pub speakers: Vec<Speaker>,
     pub glossary: Vec<GlossaryTerm>,
+    /// AI-generated social clips carved from the talk (SundayEdit).
+    #[serde(default)]
+    pub clips: Vec<Clip>,
+    /// Short AI summary of the whole talk (SundayEdit).
+    #[serde(default)]
+    pub talk_summary: Option<String>,
     #[ts(type = "number")]
     pub created_at: i64,
     #[ts(type = "number")]
