@@ -158,6 +158,58 @@ fn split_glossary(value: &str) -> Vec<String> {
     out
 }
 
+/// Build the hand-back URL the deep-link caller listens for, once captions have
+/// been written to a sidecar next to the source video. It points the caller's
+/// own scheme at that file: `sundayrec://captions?path=<encoded sidecar>`.
+///
+/// `return_to` must be a clean URL scheme (RFC 3986: ALPHA followed by
+/// alphanumerics / `+` / `-` / `.`); the path is percent-encoded.
+pub fn captions_callback_url(return_to: &str, sidecar_path: &str) -> AppResult<String> {
+    let scheme = return_to.trim();
+    let valid_scheme = !scheme.is_empty()
+        && scheme.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
+        && scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'));
+    if !valid_scheme {
+        return Err(AppError::Validation(format!(
+            "invalid returnTo scheme: {return_to:?}"
+        )));
+    }
+    Ok(format!(
+        "{scheme}://captions?path={}",
+        encode_component(sidecar_path)
+    ))
+}
+
+/// Percent-encode a string as a URL query-component value: RFC 3986 unreserved
+/// characters (`A-Z a-z 0-9 - _ . ~`) pass through, everything else (including
+/// `/`, spaces and non-ASCII) becomes `%XX`. The exact inverse of
+/// [`decode_component`] for any input (spaces round-trip via `%20`, never `+`).
+pub fn encode_component(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for &b in s.as_bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char);
+            }
+            _ => {
+                out.push('%');
+                out.push(hex_digit(b >> 4));
+                out.push(hex_digit(b & 0x0f));
+            }
+        }
+    }
+    out
+}
+
+fn hex_digit(n: u8) -> char {
+    match n {
+        0..=9 => (b'0' + n) as char,
+        _ => (b'A' + (n - 10)) as char,
+    }
+}
+
 /// Percent-decode one query component. `%XX` → byte, `+` → space, everything
 /// else verbatim. Invalid `%` escapes are left as-is rather than rejected, so a
 /// stray `%` in a path never sinks the whole import. Bytes are reassembled and
@@ -284,5 +336,35 @@ mod tests {
         // A stray '%' (not a valid escape) must not lose the rest of the path.
         let req = parse_import_url("sundayedit://import?path=/a%b/c.mp4").unwrap();
         assert_eq!(req.path, "/a%b/c.mp4");
+    }
+
+    #[test]
+    fn encode_decode_round_trips() {
+        for s in [
+            "/Users/ola/My Talk (2026).srt",
+            "C:\\Users\\Ola\\tale.vtt",
+            "kerygma + søndag/æøå",
+            "",
+        ] {
+            assert_eq!(decode_component(&encode_component(s)), s, "round-trip {s:?}");
+        }
+        // Spaces encode as %20 (not +), so they survive the +→space decode rule.
+        assert_eq!(encode_component("a b"), "a%20b");
+    }
+
+    #[test]
+    fn builds_a_callback_url() {
+        let url = captions_callback_url("sundayrec", "/Users/ola/a b.srt").unwrap();
+        assert_eq!(url, "sundayrec://captions?path=%2FUsers%2Fola%2Fa%20b.srt");
+        // The caller can parse it straight back to the path.
+        assert_eq!(decode_component("%2FUsers%2Fola%2Fa%20b.srt"), "/Users/ola/a b.srt");
+    }
+
+    #[test]
+    fn rejects_a_bad_return_to_scheme() {
+        assert!(captions_callback_url("", "/a.srt").is_err());
+        assert!(captions_callback_url("ht tp", "/a.srt").is_err());
+        assert!(captions_callback_url("1bad", "/a.srt").is_err()); // must start with a letter
+        assert!(captions_callback_url("a/b", "/a.srt").is_err());
     }
 }

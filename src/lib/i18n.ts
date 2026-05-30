@@ -340,6 +340,7 @@ const en = {
   exportBurningIn: "Burning in…",
   exportSaveFormat: "Save {format}…",
   exportChooseHint: "Choose a text format or a platform on the left.",
+  exportSentBack: "Captions handed back to the source app.",
 
   // ── Import screen ───────────────────────────────────────────────────────
   importFilterName: "Video & audio",
@@ -662,6 +663,7 @@ const no: Catalog = {
   exportBurningIn: "Brenner inn…",
   exportSaveFormat: "Lagre {format}…",
   exportChooseHint: "Velg et tekstformat eller en plattform til venstre.",
+  exportSentBack: "Teksting sendt tilbake til kildeappen.",
 
   // ── Import screen ───────────────────────────────────────────────────────
   importFilterName: "Video & lyd",
@@ -953,6 +955,7 @@ const sv: Catalog = {
   exportBurningIn: "Bränner in…",
   exportSaveFormat: "Spara {format}…",
   exportChooseHint: "Välj ett textformat eller en plattform till vänster.",
+  exportSentBack: "Undertexter skickade tillbaka till källappen.",
   importFilterName: "Video & ljud",
   importFileMissing: "Filen finns inte längre.",
   importReadError: "Kunde inte läsa filen: {error}",
@@ -1237,6 +1240,7 @@ const da: Catalog = {
   exportBurningIn: "Brænder ind…",
   exportSaveFormat: "Gem {format}…",
   exportChooseHint: "Vælg et tekstformat eller en platform til venstre.",
+  exportSentBack: "Undertekster sendt tilbage til kildeappen.",
   importFilterName: "Video & lyd",
   importFileMissing: "Filen findes ikke længere.",
   importReadError: "Kunne ikke læse filen: {error}",
@@ -1526,6 +1530,7 @@ const de: Catalog = {
   exportBurningIn: "Wird eingebrannt…",
   exportSaveFormat: "{format} speichern…",
   exportChooseHint: "Wählen Sie links ein Textformat oder eine Plattform.",
+  exportSentBack: "Untertitel an die Quell-App zurückgegeben.",
   importFilterName: "Video & Audio",
   importFileMissing: "Die Datei existiert nicht mehr.",
   importReadError: "Datei konnte nicht gelesen werden: {error}",
@@ -1814,6 +1819,7 @@ const fr: Catalog = {
   exportBurningIn: "Incrustation…",
   exportSaveFormat: "Enregistrer {format}…",
   exportChooseHint: "Choisissez un format texte ou une plateforme à gauche.",
+  exportSentBack: "Sous-titres renvoyés à l'application source.",
   importFilterName: "Vidéo et audio",
   importFileMissing: "Le fichier n'existe plus.",
   importReadError: "Impossible de lire le fichier : {error}",
@@ -2099,6 +2105,7 @@ const pl: Catalog = {
   exportBurningIn: "Wypalanie…",
   exportSaveFormat: "Zapisz {format}…",
   exportChooseHint: "Wybierz format tekstowy lub platformę po lewej stronie.",
+  exportSentBack: "Napisy odesłane do aplikacji źródłowej.",
   importFilterName: "Wideo i audio",
   importFileMissing: "Plik już nie istnieje.",
   importReadError: "Nie można odczytać pliku: {error}",

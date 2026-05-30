@@ -70,6 +70,9 @@ function App() {
   const t = useT();
   const [project, setProject] = useState<Project | null>(null);
   const [tab, setTab] = useState<Tab>("editor");
+  // Scheme of the Sunday-suite app that deep-linked us here (Phase 8), so the
+  // Export panel can offer to hand the captions back. Null for normal launches.
+  const [returnTo, setReturnTo] = useState<string | null>(null);
   const [model, setModel] = useState<WhisperModel | null>("large-v3-turbo");
   const [update, setUpdate] = useState<Update | null>(null);
   const [downloadedModels, setDownloadedModels] = useState<WhisperModel[]>([]);
@@ -119,6 +122,7 @@ function App() {
             const proj = await ipc.project.createFromVideo(req.path);
             if (cancelled) return;
             setProject(seedProjectFromImport(proj, req));
+            setReturnTo(req.return_to);
             setTab("transcribe");
           } catch (e) {
             console.error("deep-link import failed", e);
@@ -214,7 +218,10 @@ function App() {
       <nav className="flex w-14 flex-col items-center gap-1 border-r border-[var(--color-border)] bg-[var(--color-bg-elevated)] py-3">
         <button
           type="button"
-          onClick={() => setProject(null)}
+          onClick={() => {
+            setProject(null);
+            setReturnTo(null);
+          }}
           title={t("navBackToImport")}
           className="mb-3 grid h-9 w-9 place-items-center rounded-lg bg-[var(--color-accent-600)] font-bold text-[var(--color-neutral-950)]"
         >
@@ -377,7 +384,7 @@ function App() {
               }
             />
           ) : tab === "export" ? (
-            <ExportPanel project={project} />
+            <ExportPanel project={project} returnTo={returnTo} />
           ) : (
             <SettingsPanel />
           )}

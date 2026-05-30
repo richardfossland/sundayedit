@@ -133,6 +133,7 @@ pub fn run() {
             commands::render::clip_burnin_render,
             // Sunday-link deep-link import (Phase 8)
             commands::deeplink::deeplink_parse_import,
+            commands::deeplink::deeplink_captions_callback_url,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

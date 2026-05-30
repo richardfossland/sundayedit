@@ -46,18 +46,35 @@ the aliases `lang`/`return_to`.
      case-insensitively against any existing terms
 4. The user lands on the **Transcribe** tab, ready to run.
 
-## Return path (not yet implemented)
+## Return path
 
-`returnTo` is parsed and carried but not yet acted on. The intended contract:
-once captions are exported, write a predictable sidecar next to the source video
-(`<video>.srt` / `.vtt`) and/or call `<returnTo>://captions?path=…` back so the
-caller can pick the result up. Tracked as Phase 8 follow-up.
+When the project arrived via a deep link with a `returnTo` scheme, the Export
+panel hands the captions back automatically: after the user **saves an SRT or
+VTT sidecar**, SundayEdit builds
+
+```text
+<returnTo>://captions?path=<percent-encoded absolute path to the saved sidecar>
+```
+
+(via the `deeplink_captions_callback_url` command) and opens it, so the source
+app can pick the file up. The hand-back is best-effort — the sidecar is saved to
+the path the user chose regardless of whether the callback opens.
+
+The caller (e.g. SundayRec) is responsible for registering its own `captions`
+handler and reading `path`. `path` is decoded with the same rules as the import
+link (`%XX`, `+`→space).
+
+> The scheme is validated (RFC 3986: a letter followed by alphanumerics / `+` /
+> `-` / `.`) before the URL is built, so a malformed `returnTo` can't inject
+> anything.
 
 ## Status
 
-- **Done & tested headlessly:** URL parser (9 Rust unit tests), `ImportRequest`
-  binding, `deeplink_parse_import` command, renderer seeding (5 vitest), event
-  wiring, scheme + capability config.
+- **Done & tested headlessly:** URL parser + callback-URL builder + percent
+  codec round-trip (12 Rust unit tests), `ImportRequest` binding,
+  `deeplink_parse_import` / `deeplink_captions_callback_url` commands, renderer
+  seeding (5 vitest), import event wiring, Export-panel hand-back, scheme +
+  capability config.
 - **Needs native verification on Richard's machine:** the OS scheme round-trip
   (launch via `open sundayedit://import?…` on macOS / a registered handler on
   Windows) and cold-start handoff. Deep-link OS registration only takes effect

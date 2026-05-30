@@ -22,11 +22,15 @@ import { cn } from "@/lib/cn";
 
 interface Props {
   project: Project;
+  /** When set, this project arrived via a `sundayedit://import` deep link from
+   *  the named app's scheme; after saving SRT/VTT we hand the file back to it
+   *  (Phase 8). */
+  returnTo?: string | null;
 }
 
 type SidecarFormat = "srt" | "vtt" | "ass" | "txt" | "json";
 
-export function ExportPanel({ project }: Props) {
+export function ExportPanel({ project, returnTo }: Props) {
   const t = useT();
   const [exported, setExported] = useState<{
     format: string;
@@ -101,6 +105,18 @@ export function ExportPanel({ project }: Props) {
     try {
       await ipc.exporters.save(project, out, format);
       setSaveMsg(t("doneFile", { path: out }));
+      // Sunday-link hand-back: notify the source app that captions are ready.
+      // Best-effort — the sidecar is saved regardless of whether this succeeds.
+      if (returnTo && (format === "srt" || format === "vtt")) {
+        try {
+          const url = await ipc.deeplink.captionsCallbackUrl(returnTo, out);
+          const { openUrl } = await import("@tauri-apps/plugin-opener");
+          await openUrl(url);
+          setSaveMsg(t("exportSentBack"));
+        } catch (cbErr) {
+          console.error("deep-link hand-back failed", cbErr);
+        }
+      }
     } catch (e) {
       setSaveMsg(
         e instanceof IPCError

@@ -6,10 +6,18 @@
 //! import + context/glossary seeding flow itself.
 
 use crate::error::AppResult;
-use crate::services::deeplink::{parse_import_url, ImportRequest};
+use crate::services::deeplink::{captions_callback_url, parse_import_url, ImportRequest};
 
 /// Parse a `sundayedit://import?…` URL into a validated [`ImportRequest`].
 #[tauri::command]
 pub fn deeplink_parse_import(url: String) -> AppResult<ImportRequest> {
     parse_import_url(&url)
+}
+
+/// Build the hand-back URL (`<returnTo>://captions?path=…`) for the caller that
+/// launched us, pointing at a freshly written caption sidecar. The renderer
+/// opens it after a successful export so the source app can pick up the result.
+#[tauri::command]
+pub fn deeplink_captions_callback_url(return_to: String, sidecar_path: String) -> AppResult<String> {
+    captions_callback_url(&return_to, &sidecar_path)
 }
