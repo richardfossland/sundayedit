@@ -12,7 +12,16 @@
  */
 
 import { useState } from "react";
-import { BookText, Plus, Trash2, Wand2, Sparkles, Loader2 } from "lucide-react";
+import {
+  BookText,
+  FileText,
+  Plus,
+  Trash2,
+  Wand2,
+  Sparkles,
+  Loader2,
+} from "lucide-react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 import { ipc, IPCError } from "@/lib/ipc";
 import type { GlossaryTerm, Project, SuggestedTerm } from "@/lib/bindings";
@@ -105,6 +114,48 @@ export function ContextPanel({ project, onProjectChange }: Props) {
     }
   }
 
+  // Killer feature #2, mode 4: seed the glossary from a reference document the
+  // speaker is working from (script, manuscript, notes) — runnable *before*
+  // transcription. Same propose-and-approve review queue as mode 3.
+  async function runFromDocument() {
+    const selected = await openDialog({
+      multiple: false,
+      filters: [
+        {
+          name: t("contextDocFilterName"),
+          extensions: ["txt", "md", "markdown", "docx"],
+        },
+      ],
+    });
+    if (typeof selected !== "string") return; // cancelled
+
+    setSuggesting(true);
+    setSuggestMsg(null);
+    setSuggested(null);
+    try {
+      const doc = await ipc.glossary.extractDocument(selected);
+      const out = await ipc.glossary.suggestFromDocument(
+        project,
+        "haiku45",
+        doc.text,
+      );
+      setSuggested(out);
+      const note = doc.truncated
+        ? " " + t("contextDocTruncatedNote", { n: doc.char_count })
+        : "";
+      if (out.length === 0) setSuggestMsg(t("contextNoNewTerms") + note);
+      else if (doc.truncated) setSuggestMsg(note.trim());
+    } catch (e) {
+      setSuggestMsg(
+        e instanceof IPCError
+          ? t("contextSuggestError", { error: e.message })
+          : String(e),
+      );
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
   function acceptSuggestion(s: SuggestedTerm) {
     const exists = project.glossary.some(
       (t) => t.term.toLowerCase() === s.term.toLowerCase(),
@@ -169,6 +220,16 @@ export function ContextPanel({ project, onProjectChange }: Props) {
               <Sparkles size={12} />
             )}
             {t("contextSuggestTerms")}
+          </button>
+          <button
+            type="button"
+            onClick={runFromDocument}
+            disabled={suggesting}
+            title={t("contextFromDocumentTitle")}
+            className="flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[var(--text-ui-xs)] font-medium hover:border-[var(--color-accent-600)] disabled:opacity-50"
+          >
+            <FileText size={12} />
+            {t("contextFromDocument")}
           </button>
           <button
             type="button"

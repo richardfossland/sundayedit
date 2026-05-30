@@ -15,6 +15,7 @@ export type { DownloadProgress } from "./DownloadProgress";
 export type { Encoder }          from "./Encoder";
 export type { ExportPreset }     from "./ExportPreset";
 export type { ExportWarning }    from "./ExportWarning";
+export type { ExtractedDocument } from "./ExtractedDocument";
 export type { VideoCodec }       from "./VideoCodec";
 export type { CloudProvider }    from "./CloudProvider";
 export type { CloudProviderInfo } from "./CloudProviderInfo";

@@ -66,6 +66,10 @@ pub fn run() {
             // AI glossary suggestions (Phase 3.4 mode 3)
             commands::glossary::glossary_suggest_estimate,
             commands::glossary::glossary_suggest,
+            // Glossary terms from a reference document (Phase 3.4 mode 4)
+            commands::glossary::glossary_extract_document,
+            commands::glossary::glossary_from_document_estimate,
+            commands::glossary::glossary_from_document,
             // Export (Phase 6.1)
             commands::export::export_srt,
             commands::export::export_vtt,

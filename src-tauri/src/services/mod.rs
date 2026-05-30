@@ -20,6 +20,7 @@ pub mod asr;
 pub mod burnin;
 pub mod deeplink;
 pub mod diarize;
+pub mod document;
 pub mod export;
 pub mod export_presets;
 pub mod filler;

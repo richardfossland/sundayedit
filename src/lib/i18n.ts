@@ -172,6 +172,12 @@ const en = {
   contextNoNewTerms: "Found no new terms to suggest.",
   contextSuggestError: "Error: {error} (add an Anthropic key in Settings?)",
   contextSuggestionsHeader: "{n} suggestions — accept the ones you want",
+  contextFromDocument: "From document (AI)",
+  contextFromDocumentTitle:
+    "Suggest glossary terms from a reference document (script, notes)",
+  contextDocFilterName: "Documents (txt, md, docx)",
+  contextDocTruncatedNote:
+    "The document was long — analysed the first {n} characters.",
   contextDismiss: "Dismiss suggestion",
   contextNoTermsYet:
     "No terms yet. Add names, jargon or foreign words Whisper should expect.",
@@ -496,6 +502,12 @@ const no: Catalog = {
   contextSuggestError:
     "Feil: {error} (legg inn Anthropic-nøkkel i Innstillinger?)",
   contextSuggestionsHeader: "{n} forslag — godta dem du vil ha",
+  contextFromDocument: "Fra dokument (AI)",
+  contextFromDocumentTitle:
+    "Foreslå termer fra et referansedokument (manus, notater)",
+  contextDocFilterName: "Dokumenter (txt, md, docx)",
+  contextDocTruncatedNote:
+    "Dokumentet var langt — analyserte de første {n} tegnene.",
   contextDismiss: "Forkast forslag",
   contextNoTermsYet:
     "Ingen termer ennå. Legg til navn, fagord eller fremmedord som Whisper bør forvente.",
@@ -809,6 +821,12 @@ const sv: Catalog = {
   contextSuggestError:
     "Fel: {error} (lägg till en Anthropic-nyckel i Inställningar?)",
   contextSuggestionsHeader: "{n} förslag — godkänn de du vill ha",
+  contextFromDocument: "Från dokument (AI)",
+  contextFromDocumentTitle:
+    "Föreslå termer från ett referensdokument (manus, anteckningar)",
+  contextDocFilterName: "Dokument (txt, md, docx)",
+  contextDocTruncatedNote:
+    "Dokumentet var långt — analyserade de första {n} tecknen.",
   contextDismiss: "Avfärda förslag",
   contextNoTermsYet:
     "Inga termer än. Lägg till namn, jargong eller främmande ord som Whisper bör förvänta sig.",
@@ -1096,6 +1114,12 @@ const da: Catalog = {
   contextSuggestError:
     "Fejl: {error} (tilføj en Anthropic-nøgle i Indstillinger?)",
   contextSuggestionsHeader: "{n} forslag — accepter dem, du vil have",
+  contextFromDocument: "Fra dokument (AI)",
+  contextFromDocumentTitle:
+    "Foreslå termer fra et referencedokument (manuskript, noter)",
+  contextDocFilterName: "Dokumenter (txt, md, docx)",
+  contextDocTruncatedNote:
+    "Dokumentet var langt — analyserede de første {n} tegn.",
   contextDismiss: "Afvis forslag",
   contextNoTermsYet:
     "Ingen termer endnu. Tilføj navne, fagudtryk eller fremmedord, Whisper bør forvente.",
@@ -1385,6 +1409,12 @@ const de: Catalog = {
   contextSuggestError:
     "Fehler: {error} (Anthropic-Schlüssel in den Einstellungen hinzufügen?)",
   contextSuggestionsHeader: "{n} Vorschläge — übernehmen Sie die gewünschten",
+  contextFromDocument: "Aus Dokument (KI)",
+  contextFromDocumentTitle:
+    "Begriffe aus einem Referenzdokument vorschlagen (Skript, Notizen)",
+  contextDocFilterName: "Dokumente (txt, md, docx)",
+  contextDocTruncatedNote:
+    "Das Dokument war lang — die ersten {n} Zeichen wurden analysiert.",
   contextDismiss: "Vorschlag verwerfen",
   contextNoTermsYet:
     "Noch keine Begriffe. Fügen Sie Namen, Fachjargon oder Fremdwörter hinzu, die Whisper erwarten soll.",
@@ -1677,6 +1707,12 @@ const fr: Catalog = {
     "Erreur : {error} (ajouter une clé Anthropic dans les Paramètres ?)",
   contextSuggestionsHeader:
     "{n} suggestions — acceptez celles que vous souhaitez",
+  contextFromDocument: "Depuis un document (IA)",
+  contextFromDocumentTitle:
+    "Suggérer des termes à partir d'un document de référence (script, notes)",
+  contextDocFilterName: "Documents (txt, md, docx)",
+  contextDocTruncatedNote:
+    "Le document était long — les {n} premiers caractères ont été analysés.",
   contextDismiss: "Ignorer la suggestion",
   contextNoTermsYet:
     "Aucun terme pour l'instant. Ajoutez les noms, le jargon ou les mots étrangers que Whisper doit anticiper.",
@@ -1966,6 +2002,12 @@ const pl: Catalog = {
   contextNoNewTerms: "Nie znaleziono nowych terminów do zaproponowania.",
   contextSuggestError: "Błąd: {error} (dodać klucz Anthropic w Ustawieniach?)",
   contextSuggestionsHeader: "{n} sugestii — zaakceptuj te, które chcesz",
+  contextFromDocument: "Z dokumentu (AI)",
+  contextFromDocumentTitle:
+    "Zaproponuj terminy z dokumentu referencyjnego (skrypt, notatki)",
+  contextDocFilterName: "Dokumenty (txt, md, docx)",
+  contextDocTruncatedNote:
+    "Dokument był długi — przeanalizowano pierwsze {n} znaków.",
   contextDismiss: "Odrzuć sugestię",
   contextNoTermsYet:
     "Brak terminów. Dodaj nazwy, żargon lub obce słowa, których ma się spodziewać Whisper.",

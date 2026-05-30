@@ -167,7 +167,7 @@ commitlint, and a PR `ci.yml` gate (web + rust) — all wired.
 - [x] Phase 3.1 — Caption data model + operations
 - [x] Phase 3.2 — Editor UX: inline word edit, alternate-picker popover, lock, undo/redo, focus mode
 - [x] Phase 3.3 — Confidence highlighting (killer #1): 4 tiers, Tab/Shift-Tab review, threshold, progress
-- [x] Phase 3.4 — Context priming + glossary (killer #2): priming + auto-correction + **ContextPanel CRUD UI** + **AI term-suggestion from transcript**. Pending: reference-document extraction.
+- [x] Phase 3.4 — Context priming + glossary (killer #2): priming + auto-correction + **ContextPanel CRUD UI** + **AI term-suggestion from transcript** (mode 3) + **reference-document extraction** (mode 4: `.txt`/`.md`/`.docx` → LLM term proposals, runnable before transcription; `services::document` does the dependency-free extraction, DOCX via the `zip` crate we already ship). PDF deliberately deferred (no reliable dependency-free parser).
 - [x] Phase 4 — AI polish (4.1, substance-guarded), diarization (4.2, sidecar-gated), smart suggestions (4.3, propose-and-approve)
 - [x] Phase 5.1/5.3 — Style model + bundled presets + `styleToCss` WYSIWYG (mirrors ASS burn-in)
 - [x] Phase 5.2 — Visual style editor: preset gallery, live preview, font/colour/outline/9-grid, safe-area guide

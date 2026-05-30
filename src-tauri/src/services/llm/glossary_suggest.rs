@@ -91,6 +91,54 @@ pub fn estimate_output_tokens(project: &Project) -> usize {
     (transcript / 12).clamp(48, 1024) + 32
 }
 
+// ── Mode 4: terms from a reference document (pre-transcription) ───────────────
+//
+// Same propose-and-approve contract as mode 3 — these only build prompts; the
+// response is parsed by `parse_glossary_suggestions` and reviewed by the user.
+// The difference is the source: a document the speaker is working from, fed in
+// *before* a transcript exists, so Whisper can be primed on its vocabulary.
+
+pub fn build_doc_glossary_system_prompt(language: &str) -> String {
+    format!(
+        "You are helping build a glossary that improves speech-to-text accuracy for an upcoming \
+         recording in {lang}. You are given a REFERENCE DOCUMENT the speaker is working from — a \
+         script, manuscript, lecture notes, or article. From it, identify the terms a speech \
+         recognizer is most likely to get wrong: proper nouns (people, places, organizations), \
+         technical or domain jargon, and foreign words. For each, give the correct canonical \
+         spelling, plausible misrecognitions a recognizer might produce instead (aliases), and \
+         one short reason.\n\n\
+         Ignore ordinary vocabulary and anything common and easy to recognize. Do NOT propose \
+         terms that are already in the existing glossary you are given.\n\n\
+         Output ONLY a JSON array, with no prose and no code fences. Each element is \
+         {{\"term\": <canonical spelling>, \"aliases\": [<likely misrecognitions>], \"reason\": \
+         <one short sentence>}}. Return an empty array [] if nothing qualifies.",
+        lang = language_name(language),
+    )
+}
+
+pub fn build_doc_glossary_user_prompt(project: &Project, document: &str) -> String {
+    let existing: Vec<&str> = project.glossary.iter().map(|t| t.term.as_str()).collect();
+    let existing_line = if existing.is_empty() {
+        "(none yet)".to_string()
+    } else {
+        existing.join(", ")
+    };
+    format!(
+        "Existing glossary terms (do not repeat these): {existing}\n\n\
+         Reference document:\n{body}",
+        existing = existing_line,
+        body = document.trim(),
+    )
+}
+
+/// Output-token estimate for a document pass. The candidate list scales with
+/// how much unique vocabulary the document holds, so scale gently with its
+/// size and floor it.
+pub fn estimate_doc_output_tokens(document: &str) -> usize {
+    let doc = rough_token_count(document);
+    (doc / 10).clamp(48, 1024) + 32
+}
+
 fn extract_json_array(s: &str) -> Option<&str> {
     let start = s.find('[')?;
     let end = s.rfind(']')?;
@@ -243,5 +291,48 @@ mod tests {
     #[test]
     fn empty_array_is_ok() {
         assert!(parse_glossary_suggestions("[]").unwrap().is_empty());
+    }
+
+    #[test]
+    fn doc_system_prompt_targets_a_reference_document() {
+        let p = build_doc_glossary_system_prompt("no");
+        assert!(p.contains("Norwegian"));
+        assert!(p.contains("REFERENCE DOCUMENT"));
+        assert!(p.contains("JSON array"));
+    }
+
+    #[test]
+    fn doc_user_prompt_embeds_document_and_existing_terms() {
+        let p = project_with(
+            vec![],
+            vec![GlossaryTerm {
+                id: "g1".into(),
+                term: "soteriologi".into(),
+                aliases: vec![],
+                definition: None,
+                pronunciation_hint: None,
+            }],
+        );
+        let prompt = build_doc_glossary_user_prompt(&p, "  Vi snakker om kerygma  ");
+        assert!(prompt.contains("kerygma"));
+        assert!(prompt.contains("soteriologi")); // existing term listed
+        assert!(prompt.contains("do not repeat"));
+        assert!(prompt.contains("Reference document:"));
+    }
+
+    #[test]
+    fn doc_user_prompt_works_without_a_transcript() {
+        // Mode 4 runs before transcription — empty captions must be fine.
+        let p = project_with(vec![], vec![]);
+        let prompt = build_doc_glossary_user_prompt(&p, "Bonhoeffer");
+        assert!(prompt.contains("(none yet)"));
+        assert!(prompt.contains("Bonhoeffer"));
+    }
+
+    #[test]
+    fn doc_output_estimate_is_floored_and_capped() {
+        assert_eq!(estimate_doc_output_tokens(""), 48 + 32); // floored
+        let huge = "term ".repeat(100_000);
+        assert_eq!(estimate_doc_output_tokens(&huge), 1024 + 32); // capped
     }
 }

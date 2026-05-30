@@ -23,6 +23,7 @@ import type {
   DownloadProgress,
   ExportPreset,
   ExportWarning,
+  ExtractedDocument,
   FillerHit,
   FindMatch,
   FindOptions,
@@ -371,6 +372,33 @@ export const glossary = {
     call<SuggestedTerm[]>("glossary_suggest", {
       project,
       model,
+      apiKey: apiKey ?? null,
+    }),
+  /** Mode 4: read a reference document (.txt/.md/.docx) to plain text. */
+  extractDocument: (path: string) =>
+    call<ExtractedDocument>("glossary_extract_document", { path }),
+  /** Mode 4: pure cost preview for a document pass — no network. */
+  estimateFromDocument: (
+    project: Project,
+    model: ClaudeModel,
+    documentText: string,
+  ) =>
+    call<PolishEstimate>("glossary_from_document_estimate", {
+      project,
+      model,
+      documentText,
+    }),
+  /** Mode 4: propose terms from a reference document. Adds nothing. */
+  suggestFromDocument: (
+    project: Project,
+    model: ClaudeModel,
+    documentText: string,
+    apiKey?: string,
+  ) =>
+    call<SuggestedTerm[]>("glossary_from_document", {
+      project,
+      model,
+      documentText,
       apiKey: apiKey ?? null,
     }),
 };
