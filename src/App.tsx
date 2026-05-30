@@ -25,6 +25,7 @@ import { ContextPanel } from "@/features/context/ContextPanel";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { Onboarding } from "@/features/onboarding/Onboarding";
 import { ImportScreen } from "@/features/project/ImportScreen";
+import { seedProjectFromImport } from "@/features/project/deepLinkImport";
 import { ModelPicker } from "@/features/transcribe/ModelPicker";
 import { LocalPanel } from "@/features/transcribe/LocalPanel";
 import { CloudPanel } from "@/features/transcribe/CloudPanel";
@@ -102,6 +103,36 @@ function App() {
   useEffect(() => {
     void refreshDownloaded();
   }, [refreshDownloaded]);
+
+  // Sunday-link: a sister app launched us with `sundayedit://import?…`. Create
+  // the project from the carried video and seed its language/context/glossary,
+  // then drop the user straight on the Transcribe tab (Phase 8). No-op outside
+  // Tauri / when no link arrives.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        unlisten = await ipc.deeplink.onImport(async (url) => {
+          try {
+            const req = await ipc.deeplink.parseImport(url);
+            const proj = await ipc.project.createFromVideo(req.path);
+            if (cancelled) return;
+            setProject(seedProjectFromImport(proj, req));
+            setTab("transcribe");
+          } catch (e) {
+            console.error("deep-link import failed", e);
+          }
+        });
+      } catch {
+        // Not in Tauri (browser dev) — no deep-link bridge; ignore.
+      }
+    })();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
 
   // Fetch the chosen Whisper model on first use. Streams progress; refreshes
   // the downloaded set on completion.

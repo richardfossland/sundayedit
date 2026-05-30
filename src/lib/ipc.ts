@@ -27,6 +27,7 @@ import type {
   FindMatch,
   FindOptions,
   GlossaryApplyResult,
+  ImportRequest,
   PolishEstimate,
   PolishResult,
   Project,
@@ -193,6 +194,20 @@ export const project = {
       originalFilename,
     }),
   acceptedExtensions: () => call<string[]>("accepted_media_extensions"),
+};
+
+// ── Sunday-link deep-link import (Phase 8) ───────────────────────────────────
+/** Inbound `sundayedit://import?…` links from sister Sunday-suite apps. The
+ *  native handler emits the raw URL on `EVENT_DEEP_LINK_IMPORT`; the app then
+ *  validates it via `parseImport` and drives the normal import + context flow. */
+export const EVENT_DEEP_LINK_IMPORT = "deep-link://import";
+export const deeplink = {
+  /** Validate + structure a raw `sundayedit://import?…` URL. */
+  parseImport: (url: string) =>
+    call<ImportRequest>("deeplink_parse_import", { url }),
+  /** Subscribe to inbound deep-link import URLs (emitted by the native layer). */
+  onImport: (cb: (url: string) => void): Promise<UnlistenFn> =>
+    listen<string>(EVENT_DEEP_LINK_IMPORT, (e) => cb(e.payload)),
 };
 
 // ── ASR / transcription (Phase 2) ────────────────────────────────────────────
@@ -422,6 +437,7 @@ export const ipc = {
   ops,
   exporters,
   project,
+  deeplink,
   asr,
   style,
   secrets,

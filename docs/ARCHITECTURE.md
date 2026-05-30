@@ -175,8 +175,8 @@ commitlint, and a PR `ci.yml` gate (web + rust) — all wired.
 - [x] Phase 6.2 — Burn-in via libass: pure ffmpeg-arg builder (HW encoder per platform), ASS sidecar, `render()`
 - [x] Phase 6.3 — Platform export presets + pre-render validation
 - [x] Phase 7 — translation (7.1), filler/silence removal with ripple (7.2), find & replace (7.3)
-- [ ] Phase 8 — Sunday Account integration (optional) — not started
-- [~] Phase 9 — Onboarding (9.1) done; **distribution pipeline (9.2) live** (signed/notarized release on `v*` tag, ffmpeg sidecars, auto-update). Pending: full i18n (UI is Norwegian-hardcoded), landing site (9.3).
+- [~] Phase 8 — Sunday-link: **inbound `sundayedit://import?…` deep-link import done** (pure parser + `deeplink_parse_import` + renderer seeding of language/context/glossary, see `docs/integration.md`). Pending native verification (OS scheme round-trip) + the optional Sunday **Account** (cloud) integration.
+- [~] Phase 9 — Onboarding (9.1) done; **distribution pipeline (9.2) live** (signed/notarized release on `v*` tag, ffmpeg sidecars, auto-update); **full i18n done** (all 7 locales carry the complete catalog). Pending: landing site (9.3).
 
 **Not yet wired end-to-end:** there is no in-app "Transcribe" action connecting
 model + audio → `asr_transcribe_local` → editor yet (each piece exists; the

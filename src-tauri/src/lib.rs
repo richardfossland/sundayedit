@@ -23,15 +23,34 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(commands::asr::DownloadControl::default());
 
-    // Auto-update + relaunch are desktop-only (Phase 9.2).
+    // Auto-update + relaunch + deep-link import are desktop-only.
     #[cfg(desktop)]
     {
         builder = builder
             .plugin(tauri_plugin_updater::Builder::new().build())
-            .plugin(tauri_plugin_process::init());
+            .plugin(tauri_plugin_process::init())
+            .plugin(tauri_plugin_deep_link::init());
     }
 
     builder
+        // Sunday-link (Phase 8): forward inbound `sundayedit://import?…` URLs
+        // to the renderer, which validates them via `deeplink_parse_import`
+        // and drives the import. The URL scheme itself is registered by the
+        // bundler from `tauri.conf.json` → plugins.deep-link.
+        .setup(|app| {
+            #[cfg(desktop)]
+            {
+                use tauri::Emitter;
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    for url in event.urls() {
+                        let _ = handle.emit("deep-link://import", url.to_string());
+                    }
+                });
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             // Caption operations (Phase 3.1)
             commands::operations::op_split_caption,
@@ -112,6 +131,8 @@ pub fn run() {
             commands::clips::clips_generate,
             commands::clips::clips_apply_plan,
             commands::render::clip_burnin_render,
+            // Sunday-link deep-link import (Phase 8)
+            commands::deeplink::deeplink_parse_import,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

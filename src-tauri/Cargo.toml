@@ -55,10 +55,12 @@ whisper-rs = { version = "0.14", optional = true }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "multipart"] }
 
 # Desktop-only plugins (SundayEdit is a desktop app). Auto-update via GitHub
-# Releases + relaunch after install. Phase 9.2.
+# Releases + relaunch after install (Phase 9.2); Sunday-link deep-link import
+# (Phase 8).
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-deep-link = "2"
 
 [dev-dependencies]
 tempfile = "3"

@@ -26,6 +26,7 @@ export type { FindOptions }      from "./FindOptions";
 export type { GlossaryCorrection } from "./GlossaryCorrection";
 export type { GlossaryApplyResult } from "./GlossaryApplyResult";
 export type { GlossaryTerm }     from "./GlossaryTerm";
+export type { ImportRequest }    from "./ImportRequest";
 export type { LengthWarning }    from "./LengthWarning";
 export type { MediaKind }        from "./MediaKind";
 export type { PolishChange }     from "./PolishChange";
