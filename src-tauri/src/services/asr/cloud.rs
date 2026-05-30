@@ -76,6 +76,18 @@ impl CloudProvider {
         }
     }
 
+    /// Hard upload-size cap for a single request, in bytes. `None` = no
+    /// practical cap we enforce client-side. OpenAI's `/audio/transcriptions`
+    /// rejects payloads over 25 MB outright, so we catch that before uploading
+    /// and point the user at local Whisper. AssemblyAI/Deepgram accept large
+    /// files (multi-GB), so we don't pre-block them.
+    pub fn max_upload_bytes(&self) -> Option<u64> {
+        match self {
+            CloudProvider::OpenaiWhisper => Some(25 * 1024 * 1024),
+            CloudProvider::AssemblyAi | CloudProvider::Deepgram => None,
+        }
+    }
+
     pub fn all() -> [CloudProvider; 3] {
         [
             CloudProvider::OpenaiWhisper,
@@ -92,7 +104,34 @@ impl CloudProvider {
             privacy_url: self.privacy_url().to_string(),
             word_confidence: self.has_word_confidence(),
             consent_text: self.consent_text(),
+            max_upload_bytes: self.max_upload_bytes(),
         }
+    }
+}
+
+/// Format a byte count as a compact "12.3 MB" for user-facing messages.
+pub fn format_mb(bytes: u64) -> String {
+    format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+}
+
+/// `Some(limit)` if `bytes` exceeds the provider's hard upload cap, else `None`.
+pub fn upload_limit_exceeded(provider: CloudProvider, bytes: u64) -> Option<u64> {
+    provider.max_upload_bytes().filter(|&limit| bytes > limit)
+}
+
+/// Fail early, with a clear and actionable message, when an audio file is too
+/// large for the provider's single-request upload limit — rather than reading
+/// the whole file into memory only to get an opaque API error.
+pub fn check_upload_size(provider: CloudProvider, bytes: u64) -> AppResult<()> {
+    match upload_limit_exceeded(provider, bytes) {
+        Some(limit) => Err(AppError::Validation(format!(
+            "This audio is {} — over {}'s {} upload limit. Transcribe locally with \
+             Whisper (no size limit), or trim the clip first.",
+            format_mb(bytes),
+            provider.display_name(),
+            format_mb(limit),
+        ))),
+        None => Ok(()),
     }
 }
 
@@ -106,6 +145,9 @@ pub struct CloudProviderInfo {
     pub privacy_url: String,
     pub word_confidence: bool,
     pub consent_text: String,
+    /// Hard single-request upload cap in bytes, or `null` for no enforced cap.
+    #[ts(type = "number | null")]
+    pub max_upload_bytes: Option<u64>,
 }
 
 /// A pre-submit cost preview, per the plan's cost-transparency requirement.
@@ -615,6 +657,11 @@ pub async fn cloud_transcribe(
     api_key: &str,
     language: &str,
 ) -> AppResult<Transcript> {
+    // Preflight: refuse oversized uploads up front with a clear message. A
+    // missing file falls through to the provider call, which errors clearly.
+    if let Ok(meta) = tokio::fs::metadata(audio_path).await {
+        check_upload_size(provider, meta.len())?;
+    }
     match provider {
         CloudProvider::OpenaiWhisper => transcribe_openai(audio_path, api_key, language).await,
         CloudProvider::AssemblyAi => transcribe_assemblyai(audio_path, api_key, language).await,
@@ -640,6 +687,44 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), "validation");
+    }
+
+    #[test]
+    fn openai_enforces_a_25mb_upload_cap() {
+        let cap = CloudProvider::OpenaiWhisper.max_upload_bytes().unwrap();
+        assert_eq!(cap, 25 * 1024 * 1024);
+        assert!(upload_limit_exceeded(CloudProvider::OpenaiWhisper, cap + 1).is_some());
+        assert!(upload_limit_exceeded(CloudProvider::OpenaiWhisper, cap).is_none());
+        assert!(upload_limit_exceeded(CloudProvider::OpenaiWhisper, 1_000).is_none());
+    }
+
+    #[test]
+    fn large_providers_have_no_enforced_cap() {
+        for p in [CloudProvider::AssemblyAi, CloudProvider::Deepgram] {
+            assert!(p.max_upload_bytes().is_none());
+            assert!(upload_limit_exceeded(p, 2_000_000_000).is_none());
+        }
+    }
+
+    #[test]
+    fn check_upload_size_message_is_clear_and_actionable() {
+        let err = check_upload_size(CloudProvider::OpenaiWhisper, 40 * 1024 * 1024)
+            .unwrap_err();
+        assert_eq!(err.code(), "validation");
+        let msg = err.to_string();
+        assert!(msg.contains("40.0 MB"));
+        assert!(msg.contains("25.0 MB"));
+        assert!(msg.contains("locally"));
+        // Within the cap → Ok.
+        assert!(check_upload_size(CloudProvider::OpenaiWhisper, 1024).is_ok());
+        // Uncapped provider always Ok.
+        assert!(check_upload_size(CloudProvider::Deepgram, 999_999_999).is_ok());
+    }
+
+    #[test]
+    fn format_mb_is_human_readable() {
+        assert_eq!(format_mb(25 * 1024 * 1024), "25.0 MB");
+        assert_eq!(format_mb(0), "0.0 MB");
     }
 
     #[tokio::test]

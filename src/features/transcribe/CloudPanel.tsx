@@ -131,6 +131,13 @@ export function CloudPanel({ project, onTranscribed }: Props) {
                     <span className="text-[10px] text-[var(--color-fg-subtle)]">
                       ~${p.price_per_min_usd.toFixed(4)}/min
                     </span>
+                    {p.max_upload_bytes != null && (
+                      <span className="text-[10px] text-[var(--color-fg-subtle)]">
+                        {t("cloudMaxUpload", {
+                          size: `${Math.round(p.max_upload_bytes / (1024 * 1024))} MB`,
+                        })}
+                      </span>
+                    )}
                     {!p.word_confidence && (
                       <span
                         className="text-[10px] text-[var(--color-warning)]"

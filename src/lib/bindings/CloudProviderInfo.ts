@@ -4,4 +4,8 @@ import type { CloudProvider } from "./CloudProvider";
 /**
  * Catalog row for the cloud-provider picker.
  */
-export type CloudProviderInfo = { provider: CloudProvider, display_name: string, price_per_min_usd: number, privacy_url: string, word_confidence: boolean, consent_text: string, };
+export type CloudProviderInfo = { provider: CloudProvider, display_name: string, price_per_min_usd: number, privacy_url: string, word_confidence: boolean, consent_text: string, 
+/**
+ * Hard single-request upload cap in bytes, or `null` for no enforced cap.
+ */
+max_upload_bytes: number | null, };
