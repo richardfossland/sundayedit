@@ -10,16 +10,12 @@
  * Tauri event payload.
  */
 
-import { useEffect, useState } from "react";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { FileVideo, Upload, AlertTriangle } from "lucide-react";
 
-import { ipc, IPCError } from "@/lib/ipc";
-import { project as projectApi } from "@/lib/ipc";
 import type { Project } from "@/lib/bindings";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
+import { useVideoImport } from "@/lib/useVideoImport";
 
 interface Props {
   onProjectReady: (project: Project) => void;
@@ -27,88 +23,7 @@ interface Props {
 
 export function ImportScreen({ onProjectReady }: Props) {
   const t = useT();
-  const [dragging, setDragging] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Tauri window-level drag-drop gives us real file paths.
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let webview: ReturnType<typeof getCurrentWebview>;
-    try {
-      // Throws synchronously outside Tauri (browser dev/preview); the demo
-      // and file picker still work, so degrade quietly.
-      webview = getCurrentWebview();
-    } catch {
-      return;
-    }
-    webview
-      .onDragDropEvent((event) => {
-        if (event.payload.type === "over" || event.payload.type === "enter") {
-          setDragging(true);
-        } else if (event.payload.type === "drop") {
-          setDragging(false);
-          const path = event.payload.paths[0];
-          if (path) void importPath(path);
-        } else {
-          setDragging(false);
-        }
-      })
-      .then((fn) => {
-        unlisten = fn;
-      })
-      .catch(() => {
-        /* not in Tauri (browser dev) — picker still works */
-      });
-    return () => unlisten?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function pickFile() {
-    const exts = await projectApi
-      .acceptedExtensions()
-      .catch(() => [
-        "mp4",
-        "mov",
-        "mkv",
-        "webm",
-        "avi",
-        "m4v",
-        "mp3",
-        "wav",
-        "m4a",
-        "flac",
-        "ogg",
-      ]);
-    const selected = await openDialog({
-      multiple: false,
-      filters: [{ name: t("importFilterName"), extensions: exts }],
-    });
-    if (typeof selected === "string") void importPath(selected);
-  }
-
-  async function importPath(path: string) {
-    setBusy(true);
-    setError(null);
-    try {
-      const proj = await ipc.project.createFromVideo(path);
-      onProjectReady(proj);
-    } catch (e) {
-      if (e instanceof IPCError) {
-        setError(
-          e.code === "video_missing"
-            ? t("importFileMissing")
-            : e.code === "validation"
-              ? t("importReadError", { error: e.message })
-              : e.message,
-        );
-      } else {
-        setError(String(e));
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { dragging, busy, error, pickFile } = useVideoImport(onProjectReady);
 
   return (
     <div className="grid h-full place-items-center p-8">

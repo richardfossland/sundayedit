@@ -4,7 +4,6 @@ import {
   Download,
   Settings as SettingsIcon,
   BookText,
-  Captions,
   FileVideo,
   Clock,
   Cpu,
@@ -15,8 +14,10 @@ import {
   Languages,
   Users,
   RefreshCw,
-  GalleryHorizontalEnd,
   Scissors,
+  PanelRightClose,
+  Play,
+  type LucideIcon,
 } from "lucide-react";
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
@@ -37,39 +38,57 @@ import { SuggestPanel } from "@/features/suggest/SuggestPanel";
 import { ClipsPanel } from "@/features/clips/ClipsPanel";
 import { TranslatePanel } from "@/features/translate/TranslatePanel";
 import { SpeakersPanel } from "@/features/speakers/SpeakersPanel";
-import { Waveform } from "@/components/Waveform";
 import { SAMPLE_PROJECT } from "@/lib/sampleProject";
 import { ipc } from "@/lib/ipc";
 import type {
   DownloadProgress,
   Project,
   Style,
-  WaveformData,
   WhisperModel,
 } from "@/lib/bindings";
 import { checkForUpdate, installAndRelaunch, type Update } from "@/lib/updater";
-import { useT } from "@/lib/i18n";
+import { Modal } from "@/components/Modal";
+import { useT, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
-type Tab =
-  | "transcribe"
-  | "editor"
-  | "timeline"
+// The editing tools that live in the right-hand dock — each operates on the
+// captions visible in the centre workspace.
+type DockTool =
   | "context"
+  | "style"
   | "speakers"
   | "polish"
   | "suggest"
-  | "clips"
   | "translate"
-  | "cleanup"
-  | "style"
-  | "export"
-  | "settings";
+  | "cleanup";
+
+// Pipeline / output / config operations that open as a modal over the
+// workspace rather than docking beside it.
+type ModalKind = "transcribe" | "clips" | "export" | "settings";
+
+// The dock tools, in rail order. One source of truth for icon + label.
+const DOCK_TOOLS: Array<{ id: DockTool; icon: LucideIcon; labelKey: TKey }> = [
+  { id: "context", icon: BookText, labelKey: "navContext" },
+  { id: "style", icon: Palette, labelKey: "navStyle" },
+  { id: "speakers", icon: Users, labelKey: "navSpeakers" },
+  { id: "polish", icon: Sparkles, labelKey: "navPolish" },
+  { id: "suggest", icon: Lightbulb, labelKey: "navSuggest" },
+  { id: "translate", icon: Languages, labelKey: "navTranslate" },
+  { id: "cleanup", icon: Wand2, labelKey: "navCleanup" },
+];
+
+function dockLabelKey(tool: DockTool): TKey {
+  return DOCK_TOOLS.find((d) => d.id === tool)?.labelKey ?? "navContext";
+}
 
 function App() {
   const t = useT();
   const [project, setProject] = useState<Project | null>(null);
-  const [tab, setTab] = useState<Tab>("editor");
+  // Which tool the right dock shows, and whether the dock is open.
+  const [dockTool, setDockTool] = useState<DockTool>("context");
+  const [dockOpen, setDockOpen] = useState(true);
+  // The active modal (transcribe / clips / export / settings), or null.
+  const [modal, setModal] = useState<ModalKind | null>(null);
   // Scheme of the Sunday-suite app that deep-linked us here (Phase 8), so the
   // Export panel can offer to hand the captions back. Null for normal launches.
   const [returnTo, setReturnTo] = useState<string | null>(null);
@@ -123,7 +142,7 @@ function App() {
             if (cancelled) return;
             setProject(seedProjectFromImport(proj, req));
             setReturnTo(req.return_to);
-            setTab("transcribe");
+            setModal("transcribe");
           } catch (e) {
             console.error("deep-link import failed", e);
           }
@@ -172,13 +191,14 @@ function App() {
         downloadedModels={downloadedModels}
         downloading={downloading}
         onDownload={handleDownloadModel}
-        onDone={() => {
+        onImported={(proj) => {
           try {
             localStorage.setItem("sundayedit.onboarded", "1");
           } catch {
             /* private mode — onboarding just shows again next launch */
           }
           setOnboarded(true);
+          setProject(proj);
         }}
         onTryDemo={() => setProject(SAMPLE_PROJECT)}
       />
@@ -209,12 +229,24 @@ function App() {
     );
   }
 
+  // Click a dock tool: focus it, opening the dock; click the active one again
+  // to collapse the dock.
+  function selectDockTool(tool: DockTool) {
+    if (dockOpen && dockTool === tool) {
+      setDockOpen(false);
+    } else {
+      setDockTool(tool);
+      setDockOpen(true);
+    }
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg)] text-[var(--color-fg)]">
       {update && (
         <UpdateBanner update={update} onDismiss={() => setUpdate(null)} />
       )}
-      {/* Sidebar */}
+
+      {/* Left rail — picks which tool the right dock shows. */}
       <nav className="flex w-14 flex-col items-center gap-1 border-r border-[var(--color-border)] bg-[var(--color-bg-elevated)] py-3">
         <button
           type="button"
@@ -225,208 +257,250 @@ function App() {
           title={t("navBackToImport")}
           className="mb-3 grid h-9 w-9 place-items-center rounded-lg bg-[var(--color-accent-600)] font-bold text-[var(--color-neutral-950)]"
         >
-          V
+          S
         </button>
-        <NavIcon
-          active={tab === "transcribe"}
-          onClick={() => setTab("transcribe")}
-          title={t("navTranscribe")}
-        >
-          <Cpu size={18} />
-        </NavIcon>
-        <NavIcon
-          active={tab === "editor"}
-          onClick={() => setTab("editor")}
-          title={t("navEditor")}
-        >
-          <Captions size={18} />
-        </NavIcon>
-        <NavIcon
-          active={tab === "timeline"}
-          onClick={() => setTab("timeline")}
-          title={t("navTimeline")}
-        >
-          <GalleryHorizontalEnd size={18} />
-        </NavIcon>
-        <NavIcon
-          active={tab === "context"}
-          onClick={() => setTab("context")}
-          title={t("navContext")}
-        >
-          <BookText size={18} />
-        </NavIcon>
-        <NavIcon
-          active={tab === "speakers"}
-          onClick={() => setTab("speakers")}
-          title={t("navSpeakers")}
-        >
-          <Users size={18} />
-        </NavIcon>
-        <NavIcon
-          active={tab === "polish"}
-          onClick={() => setTab("polish")}
-          title={t("navPolish")}
-        >
-          <Sparkles size={18} />
-        </NavIcon>
-        <NavIcon
-          active={tab === "suggest"}
-          onClick={() => setTab("suggest")}
-          title={t("navSuggest")}
-        >
-          <Lightbulb size={18} />
-        </NavIcon>
-        <NavIcon
-          active={tab === "clips"}
-          onClick={() => setTab("clips")}
-          title={t("navClips")}
-        >
-          <Scissors size={18} />
-        </NavIcon>
-        <NavIcon
-          active={tab === "translate"}
-          onClick={() => setTab("translate")}
-          title={t("navTranslate")}
-        >
-          <Languages size={18} />
-        </NavIcon>
-        <NavIcon
-          active={tab === "cleanup"}
-          onClick={() => setTab("cleanup")}
-          title={t("navCleanup")}
-        >
-          <Wand2 size={18} />
-        </NavIcon>
-        <NavIcon
-          active={tab === "style"}
-          onClick={() => setTab("style")}
-          title={t("navStyle")}
-        >
-          <Palette size={18} />
-        </NavIcon>
-        <NavIcon
-          active={tab === "export"}
-          onClick={() => setTab("export")}
-          title={t("navExport")}
-        >
-          <Download size={18} />
-        </NavIcon>
-        <div className="flex-1" />
-        <NavIcon
-          active={tab === "settings"}
-          onClick={() => setTab("settings")}
-          title={t("navSettings")}
-        >
-          <SettingsIcon size={18} />
-        </NavIcon>
+        {DOCK_TOOLS.map(({ id, icon: Icon, labelKey }) => (
+          <NavIcon
+            key={id}
+            active={dockOpen && dockTool === id}
+            onClick={() => selectDockTool(id)}
+            title={t(labelKey)}
+          >
+            <Icon size={18} />
+          </NavIcon>
+        ))}
       </nav>
 
-      {/* Main */}
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <ProjectHeader project={project} />
-        <div className="flex-1 overflow-y-auto">
-          {tab === "transcribe" ? (
-            <div className="space-y-10 p-6">
-              <ModelPicker
-                selected={model}
-                onSelect={setModel}
-                downloadedModels={downloadedModels}
-                downloading={downloading}
-                onDownload={handleDownloadModel}
-              />
-              <LocalPanel
-                project={project}
-                model={model}
-                downloadedModels={downloadedModels}
-                onProjectChange={setProject}
-                onTranscribed={(captions) => {
-                  // Functional merge so the audio_wav_path LocalPanel just set
-                  // (via onProjectChange) isn't clobbered by a stale closure.
-                  setProject((prev) => (prev ? { ...prev, captions } : prev));
-                  setTab("editor");
-                }}
-              />
-              <CloudPanel
-                project={project}
-                onTranscribed={(captions) => {
-                  setProject((prev) => (prev ? { ...prev, captions } : prev));
-                  setTab("editor");
-                }}
-              />
-            </div>
-          ) : tab === "editor" ? (
-            <CaptionEditor
-              key={project.id}
-              project={project}
-              onProjectChange={setProject}
-            />
-          ) : tab === "timeline" ? (
-            <Timeline project={project} onProjectChange={setProject} />
-          ) : tab === "context" ? (
-            <ContextPanel project={project} onProjectChange={setProject} />
-          ) : tab === "speakers" ? (
-            <SpeakersPanel project={project} onProjectChange={setProject} />
-          ) : tab === "polish" ? (
-            <PolishPanel project={project} onProjectChange={setProject} />
-          ) : tab === "suggest" ? (
-            <SuggestPanel project={project} onProjectChange={setProject} />
-          ) : tab === "clips" ? (
-            <ClipsPanel project={project} onProjectChange={setProject} />
-          ) : tab === "translate" ? (
-            <TranslatePanel project={project} onProjectChange={setProject} />
-          ) : tab === "cleanup" ? (
-            <CleanupPanel project={project} onProjectChange={setProject} />
-          ) : tab === "style" ? (
-            <StyleEditor
-              style={project.default_style}
-              onChange={(s: Style) =>
-                setProject({ ...project, default_style: s })
-              }
-            />
-          ) : tab === "export" ? (
-            <ExportPanel project={project} returnTo={returnTo} />
-          ) : (
-            <SettingsPanel />
-          )}
+      {/* Centre workspace — always: preview, editor, timeline. */}
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <Topbar
+          project={project}
+          onTranscribe={() => setModal("transcribe")}
+          onClips={() => setModal("clips")}
+          onExport={() => setModal("export")}
+          onSettings={() => setModal("settings")}
+        />
+        <PreviewZone project={project} />
+        <div className="min-h-0 flex-1 overflow-y-auto border-t border-[var(--color-border)]">
+          <CaptionEditor
+            key={project.id}
+            project={project}
+            onProjectChange={setProject}
+          />
+        </div>
+        <div className="h-56 shrink-0 border-t border-[var(--color-border)]">
+          <Timeline project={project} onProjectChange={setProject} />
         </div>
       </main>
+
+      {/* Right dock — the focused editing tool. */}
+      {dockOpen && (
+        <aside className="flex w-[380px] shrink-0 flex-col border-l border-[var(--color-border)] bg-[var(--color-bg)]">
+          <div className="flex shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-4 py-2.5">
+            <span className="text-[var(--text-ui-sm)] font-semibold">
+              {t(dockLabelKey(dockTool))}
+            </span>
+            <button
+              type="button"
+              onClick={() => setDockOpen(false)}
+              title={t("actionClose")}
+              aria-label={t("actionClose")}
+              className="rounded-md p-1 text-[var(--color-fg-subtle)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-fg)]"
+            >
+              <PanelRightClose size={16} />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {dockTool === "context" ? (
+              <ContextPanel project={project} onProjectChange={setProject} />
+            ) : dockTool === "style" ? (
+              <StyleEditor
+                style={project.default_style}
+                onChange={(s: Style) =>
+                  setProject({ ...project, default_style: s })
+                }
+              />
+            ) : dockTool === "speakers" ? (
+              <SpeakersPanel project={project} onProjectChange={setProject} />
+            ) : dockTool === "polish" ? (
+              <PolishPanel project={project} onProjectChange={setProject} />
+            ) : dockTool === "suggest" ? (
+              <SuggestPanel project={project} onProjectChange={setProject} />
+            ) : dockTool === "translate" ? (
+              <TranslatePanel project={project} onProjectChange={setProject} />
+            ) : (
+              <CleanupPanel project={project} onProjectChange={setProject} />
+            )}
+          </div>
+        </aside>
+      )}
+
+      {/* Pipeline / output / config — modal over the workspace. */}
+      {modal === "transcribe" && (
+        <Modal title={t("navTranscribe")} onClose={() => setModal(null)}>
+          <div className="space-y-10 p-6">
+            <ModelPicker
+              selected={model}
+              onSelect={setModel}
+              downloadedModels={downloadedModels}
+              downloading={downloading}
+              onDownload={handleDownloadModel}
+            />
+            <LocalPanel
+              project={project}
+              model={model}
+              downloadedModels={downloadedModels}
+              onProjectChange={setProject}
+              onTranscribed={(captions) => {
+                // Functional merge so the audio_wav_path LocalPanel just set
+                // (via onProjectChange) isn't clobbered by a stale closure.
+                setProject((prev) => (prev ? { ...prev, captions } : prev));
+                setModal(null);
+              }}
+            />
+            <CloudPanel
+              project={project}
+              onTranscribed={(captions) => {
+                setProject((prev) => (prev ? { ...prev, captions } : prev));
+                setModal(null);
+              }}
+            />
+          </div>
+        </Modal>
+      )}
+      {modal === "clips" && (
+        <Modal
+          title={t("navClips")}
+          onClose={() => setModal(null)}
+          widthClass="max-w-4xl"
+        >
+          <ClipsPanel project={project} onProjectChange={setProject} />
+        </Modal>
+      )}
+      {modal === "export" && (
+        <Modal title={t("navExport")} onClose={() => setModal(null)}>
+          <ExportPanel project={project} returnTo={returnTo} />
+        </Modal>
+      )}
+      {modal === "settings" && (
+        <Modal title={t("navSettings")} onClose={() => setModal(null)}>
+          <SettingsPanel />
+        </Modal>
+      )}
     </div>
   );
 }
 
-function ProjectHeader({ project }: { project: Project }) {
-  // Demo waveform data so the component is visible without real extraction.
-  const demoWaveform: WaveformData = {
-    sample_rate: 16000,
-    total_samples: 16000 * 18,
-    levels: [
-      Array.from({ length: 240 }, (_, i) => {
-        const env =
-          Math.sin((i / 240) * Math.PI * 6) * 0.6 + Math.sin(i * 0.7) * 0.3;
-        return { min: -Math.abs(env), max: Math.abs(env) };
-      }),
-    ],
-  };
+function Topbar({
+  project,
+  onTranscribe,
+  onClips,
+  onExport,
+  onSettings,
+}: {
+  project: Project;
+  onTranscribe: () => void;
+  onClips: () => void;
+  onExport: () => void;
+  onSettings: () => void;
+}) {
+  const t = useT();
   return (
-    <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-5 py-2.5">
-      <div className="mb-2 flex items-center gap-2 text-[var(--text-ui-sm)]">
-        <FileVideo size={14} className="text-[var(--color-fg-muted)]" />
-        <span className="font-medium">{project.name}</span>
-        {project.video_width > 0 && (
-          <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-            {project.video_width}×{project.video_height} ·{" "}
-            {project.video_fps.toFixed(2)} fps
-          </span>
-        )}
-        <span className="flex items-center gap-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-          <Clock size={11} /> {fmtDuration(project.video_duration_ms)}
+    <div className="flex shrink-0 items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-5 py-2">
+      <FileVideo size={15} className="shrink-0 text-[var(--color-fg-muted)]" />
+      <span className="truncate text-[var(--text-ui-sm)] font-medium">
+        {project.name}
+      </span>
+      {project.video_width > 0 && (
+        <span className="shrink-0 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
+          {project.video_width}×{project.video_height} ·{" "}
+          {project.video_fps.toFixed(2)} fps
         </span>
-      </div>
-      <Waveform
-        data={demoWaveform}
-        durationMs={project.video_duration_ms}
-        height={64}
+      )}
+      <span className="flex shrink-0 items-center gap-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
+        <Clock size={11} /> {fmtDuration(project.video_duration_ms)}
+      </span>
+
+      <div className="flex-1" />
+
+      <TopbarButton
+        icon={Cpu}
+        label={t("navTranscribe")}
+        onClick={onTranscribe}
       />
+      <TopbarButton icon={Scissors} label={t("navClips")} onClick={onClips} />
+      <TopbarButton
+        icon={Download}
+        label={t("navExport")}
+        onClick={onExport}
+        primary
+      />
+      <button
+        type="button"
+        onClick={onSettings}
+        title={t("navSettings")}
+        aria-label={t("navSettings")}
+        className="grid h-8 w-8 place-items-center rounded-md text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-fg)]"
+      >
+        <SettingsIcon size={16} />
+      </button>
+    </div>
+  );
+}
+
+function TopbarButton({
+  icon: Icon,
+  label,
+  onClick,
+  primary,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[var(--text-ui-sm)] font-medium transition-colors",
+        primary
+          ? "bg-[var(--color-accent-600)] text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
+          : "text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-fg)]",
+      )}
+    >
+      <Icon size={15} /> {label}
+    </button>
+  );
+}
+
+// The centre-stage preview. The real <video> attaches here once the asset
+// protocol + playhead clock land (Phase 1.3); for now it's a ready placeholder
+// so the workspace reads as "video on top, captions below".
+function PreviewZone({ project }: { project: Project }) {
+  const aspect =
+    project.video_width > 0 && project.video_height > 0
+      ? project.video_width / project.video_height
+      : 16 / 9;
+  return (
+    <div className="grid h-64 shrink-0 place-items-center bg-black">
+      <div
+        className="grid h-full max-h-full place-items-center"
+        style={{ aspectRatio: aspect }}
+      >
+        <div className="flex flex-col items-center gap-2 text-center text-[var(--color-fg-subtle)]">
+          <div className="grid h-12 w-12 place-items-center rounded-full bg-white/5">
+            <Play size={20} className="ml-0.5" />
+          </div>
+          <span className="text-[var(--text-ui-sm)]">{project.name}</span>
+          {project.video_width > 0 && (
+            <span className="text-[var(--text-ui-xs)]">
+              {project.video_width}×{project.video_height}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
