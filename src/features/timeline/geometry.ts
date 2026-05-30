@@ -59,6 +59,50 @@ export function snapToFrame(ms: number, fps: number): number {
   return Math.round((frame / fps) * 1000);
 }
 
+/** Top shuttle speed (×) reachable by repeated J/L taps. */
+export const MAX_SHUTTLE = 8;
+
+/**
+ * The J/K/L transport state machine, returning the next signed playback rate
+ * (negative = reverse, 0 = stop, 1 = realtime). Standard NLE behaviour:
+ *   - `k` stops.
+ *   - `l` plays forward — first tap from stop/reverse → 1×, then doubles
+ *     (1→2→4→8, capped).
+ *   - `j` mirrors `l` in reverse.
+ */
+export function shuttleRate(current: number, key: "j" | "k" | "l"): number {
+  if (key === "k") return 0;
+  if (key === "l") {
+    return current < 1 ? 1 : Math.min(MAX_SHUTTLE, current * 2);
+  }
+  // "j"
+  return current > -1 ? -1 : Math.max(-MAX_SHUTTLE, current * 2);
+}
+
+/**
+ * Snap `ms` to the nearest target whose on-screen distance is within
+ * `tolerancePx`; otherwise return `ms` unchanged. Targets are caption edges,
+ * the playhead, and the timeline bounds — so dragging an edge "clicks" onto a
+ * neighbour. Ties go to the closer pixel distance.
+ */
+export function snap(
+  ms: number,
+  targets: number[],
+  pxPerMs: number,
+  tolerancePx = 6,
+): number {
+  let best = ms;
+  let bestPx = tolerancePx;
+  for (const target of targets) {
+    const dpx = Math.abs(target - ms) * pxPerMs;
+    if (dpx <= bestPx) {
+      bestPx = dpx;
+      best = target;
+    }
+  }
+  return best;
+}
+
 interface Spanned {
   start_ms: number;
   end_ms: number;

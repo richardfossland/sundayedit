@@ -6,12 +6,15 @@ import {
   visibleRange,
   zoomAround,
   snapToFrame,
+  shuttleRate,
+  snap,
   visibleCaptions,
   tickIntervalMs,
   rulerTicks,
   formatTimecode,
   MIN_PX_PER_MS,
   MAX_PX_PER_MS,
+  MAX_SHUTTLE,
   type TimelineView,
 } from "./geometry";
 
@@ -120,5 +123,40 @@ describe("formatTimecode", () => {
   });
   it("never emits a frame >= fps", () => {
     expect(formatTimecode(999, 30)).toBe("00:00:29"); // clamped to frame 29
+  });
+});
+
+describe("shuttleRate (J/K/L transport)", () => {
+  it("l ramps forward by doubling, capped", () => {
+    expect(shuttleRate(0, "l")).toBe(1);
+    expect(shuttleRate(1, "l")).toBe(2);
+    expect(shuttleRate(2, "l")).toBe(4);
+    expect(shuttleRate(8, "l")).toBe(MAX_SHUTTLE);
+  });
+  it("j mirrors l in reverse", () => {
+    expect(shuttleRate(0, "j")).toBe(-1);
+    expect(shuttleRate(-1, "j")).toBe(-2);
+    expect(shuttleRate(-8, "j")).toBe(-MAX_SHUTTLE);
+  });
+  it("k stops, and the opposite key reverses direction at 1×", () => {
+    expect(shuttleRate(4, "k")).toBe(0);
+    expect(shuttleRate(4, "j")).toBe(-1);
+    expect(shuttleRate(-4, "l")).toBe(1);
+  });
+});
+
+describe("snap", () => {
+  const targets = [1000, 2000, 5000];
+  it("snaps to a target within the pixel tolerance", () => {
+    expect(snap(1010, targets, 0.1, 6)).toBe(1000); // 1px away
+  });
+  it("leaves the value when no target is close enough", () => {
+    expect(snap(1200, targets, 0.1, 6)).toBe(1200); // 20px away
+  });
+  it("picks the nearest of competing targets", () => {
+    expect(snap(1600, [1000, 2000], 0.01, 100)).toBe(2000);
+  });
+  it("is a no-op with no targets", () => {
+    expect(snap(1234, [], 0.1)).toBe(1234);
   });
 });

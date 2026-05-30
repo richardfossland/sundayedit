@@ -323,7 +323,8 @@ const en = {
   timelineZoomOut: "Zoom out",
   timelineZoomIn: "Zoom in",
   timelineHelp:
-    "Space: play/pause · ←/→: previous/next caption (⇧ = 5) · drag a caption to move it, drag the edges to retime · ⌘+scroll: zoom",
+    "Space: play/pause · J/K/L: shuttle (reverse/stop/forward) · ←/→: previous/next caption (⇧ = 5) · drag to move, drag the edges to retime · S: snap · ⌘+scroll: zoom",
+  timelineSnap: "Snap",
 
   // ── Export ──────────────────────────────────────────────────────────────
   exportSidecarHeader: "Text formats (sidecar)",
@@ -646,7 +647,8 @@ const no: Catalog = {
   timelineZoomOut: "Zoom ut",
   timelineZoomIn: "Zoom inn",
   timelineHelp:
-    "Mellomrom: spill av/pause · ←/→: forrige/neste caption (⇧ = 5) · dra caption for å flytte, dra kantene for å endre timing · ⌘+rull: zoom",
+    "Mellomrom: spill av/pause · J/K/L: jog (revers/stopp/forover) · ←/→: forrige/neste caption (⇧ = 5) · dra for å flytte, dra kantene for å endre timing · S: snap · ⌘+rull: zoom",
+  timelineSnap: "Snap",
 
   // ── Export ──────────────────────────────────────────────────────────────
   exportSidecarHeader: "Tekstformater (sidecar)",
@@ -940,7 +942,8 @@ const sv: Catalog = {
   timelineZoomOut: "Zooma ut",
   timelineZoomIn: "Zooma in",
   timelineHelp:
-    "Space: spela/pausa · ←/→: föregående/nästa undertext (⇧ = 5) · dra en undertext för att flytta den, dra kanterna för att ändra timing · ⌘+scroll: zooma",
+    "Space: spela/pausa · J/K/L: shuttle (bakåt/stopp/framåt) · ←/→: föregående/nästa undertext (⇧ = 5) · dra för att flytta, dra kanterna för att ändra timing · S: snäpp · ⌘+scroll: zooma",
+  timelineSnap: "Snäpp",
   exportSidecarHeader: "Textformat (sidecar)",
   exportSrtDesc: "Universell — YouTube, de flesta spelare",
   exportVttDesc: "Webbstandard, med talare",
@@ -1225,7 +1228,8 @@ const da: Catalog = {
   timelineZoomOut: "Zoom ud",
   timelineZoomIn: "Zoom ind",
   timelineHelp:
-    "Space: afspil/pause · ←/→: forrige/næste undertekst (⇧ = 5) · træk en undertekst for at flytte den, træk i kanterne for at justere timing · ⌘+scroll: zoom",
+    "Space: afspil/pause · J/K/L: shuttle (tilbage/stop/frem) · ←/→: forrige/næste undertekst (⇧ = 5) · træk for at flytte, træk i kanterne for at justere timing · S: snap · ⌘+scroll: zoom",
+  timelineSnap: "Snap",
   exportSidecarHeader: "Tekstformater (sidecar)",
   exportSrtDesc: "Universelt — YouTube, de fleste afspillere",
   exportVttDesc: "Webstandard, med talere",
@@ -1515,7 +1519,8 @@ const de: Catalog = {
   timelineZoomOut: "Verkleinern",
   timelineZoomIn: "Vergrößern",
   timelineHelp:
-    "Space: Wiedergabe/Pause · ←/→: vorheriger/nächster Untertitel (⇧ = 5) · Untertitel ziehen, um ihn zu verschieben, Kanten ziehen, um das Timing zu ändern · ⌘+Scrollen: Zoom",
+    "Space: Wiedergabe/Pause · J/K/L: Shuttle (rückwärts/Stopp/vorwärts) · ←/→: vorheriger/nächster Untertitel (⇧ = 5) · ziehen zum Verschieben, Kanten ziehen zum Timing-Ändern · S: Einrasten · ⌘+Scrollen: Zoom",
+  timelineSnap: "Einrasten",
   exportSidecarHeader: "Textformate (Sidecar)",
   exportSrtDesc: "Universell — YouTube, die meisten Player",
   exportVttDesc: "Webstandard, mit Sprechern",
@@ -1804,7 +1809,8 @@ const fr: Catalog = {
   timelineZoomOut: "Dézoomer",
   timelineZoomIn: "Zoomer",
   timelineHelp:
-    "Space : lecture/pause · ←/→ : sous-titre précédent/suivant (⇧ = 5) · faites glisser un sous-titre pour le déplacer, faites glisser les bords pour ajuster le minutage · ⌘+molette : zoom",
+    "Space : lecture/pause · J/K/L : navette (arrière/arrêt/avant) · ←/→ : sous-titre précédent/suivant (⇧ = 5) · glisser pour déplacer, glisser les bords pour ajuster le minutage · S : magnétisme · ⌘+molette : zoom",
+  timelineSnap: "Magnétisme",
   exportSidecarHeader: "Formats texte (fichier annexe)",
   exportSrtDesc: "Universel — YouTube, la plupart des lecteurs",
   exportVttDesc: "Standard web, avec intervenants",
@@ -2090,7 +2096,8 @@ const pl: Catalog = {
   timelineZoomOut: "Pomniejsz",
   timelineZoomIn: "Powiększ",
   timelineHelp:
-    "Space: odtwórz/wstrzymaj · ←/→: poprzedni/następny napis (⇧ = 5) · przeciągnij napis, aby go przesunąć, przeciągnij krawędzie, aby zmienić czas · ⌘+przewijanie: powiększenie",
+    "Space: odtwórz/wstrzymaj · J/K/L: przewijanie (wstecz/stop/naprzód) · ←/→: poprzedni/następny napis (⇧ = 5) · przeciągnij, aby przesunąć, przeciągnij krawędzie, aby zmienić czas · S: przyciąganie · ⌘+przewijanie: powiększenie",
+  timelineSnap: "Przyciąganie",
   exportSidecarHeader: "Formaty tekstowe (sidecar)",
   exportSrtDesc: "Uniwersalny — YouTube, większość odtwarzaczy",
   exportVttDesc: "Standard internetowy, z mówcami",

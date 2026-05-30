@@ -8,9 +8,11 @@
  * caption to move it, drag its edges to retime; both commit through the pure
  * backend ops (clamped to neighbours).
  *
- * Video playback isn't wired yet — Space drives an internal playhead clock so
- * the timeline is usable on its own; a real <video> can attach to the same
- * playheadMs/onSeek contract later.
+ * Transport is J/K/L shuttle (reverse/stop/forward, doubling on repeat) plus
+ * Space; an internal playhead clock advances by the signed rate so the timeline
+ * is usable on its own — a real <video> can attach to the same playheadMs/rate
+ * contract later. Drags snap to neighbouring caption edges, the playhead and the
+ * bounds (S toggles snapping).
  */
 
 import {
@@ -22,7 +24,7 @@ import {
   useState,
 } from "react";
 import { appCacheDir } from "@tauri-apps/api/path";
-import { ZoomIn, ZoomOut, Play, Pause } from "lucide-react";
+import { ZoomIn, ZoomOut, Play, Pause, Magnet } from "lucide-react";
 
 import type { Caption, Project, WaveformData } from "@/lib/bindings";
 import { confidenceTier } from "@/lib/bindings";
@@ -82,7 +84,10 @@ export function Timeline({ project, onProjectChange }: Props) {
     widthPx: 800,
   });
   const [playheadMs, setPlayheadMs] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  // Signed playback rate (J/K/L shuttle): <0 reverse, 0 stopped, 1 realtime.
+  const [rate, setRate] = useState(0);
+  const playing = rate !== 0;
+  const [snapEnabled, setSnapEnabled] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [waveform, setWaveform] = useState<WaveformData | null>(null);
@@ -132,18 +137,23 @@ export function Timeline({ project, onProjectChange }: Props) {
     };
   }, [project.video_path]);
 
-  // Internal playback clock — advances the playhead in real time while playing.
+  // Internal playback clock — advances the playhead by the shuttle `rate`
+  // (direction + speed) in real time. Stops cleanly at either bound.
   useEffect(() => {
-    if (!playing) return;
+    if (rate === 0) return;
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
       setPlayheadMs((p) => {
-        const next = p + dt;
+        const next = p + dt * rate;
+        if (next <= 0) {
+          setRate(0);
+          return 0;
+        }
         if (next >= durationMs) {
-          setPlaying(false);
+          setRate(0);
           return durationMs;
         }
         return next;
@@ -152,7 +162,7 @@ export function Timeline({ project, onProjectChange }: Props) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, durationMs]);
+  }, [rate, durationMs]);
 
   // Draw the ruler-aligned waveform window into the canvas.
   useEffect(() => {
@@ -263,10 +273,22 @@ export function Timeline({ project, onProjectChange }: Props) {
 
   function onPointerMove(e: React.PointerEvent) {
     if (!drag) return;
-    const deltaMs = tl.snapToFrame(
-      (e.clientX - drag.startClientX) / view.pxPerMs,
-      fps,
-    );
+    const rawDelta = (e.clientX - drag.startClientX) / view.pxPerMs;
+    // The edge the cursor is dragging: the start for move/resize-start, the
+    // end for resize-end.
+    const base = drag.kind === "resize-end" ? drag.origEnd : drag.origStart;
+    let edge = base + rawDelta;
+    if (snapEnabled) {
+      // Snap to nearby caption boundaries, the playhead and the bounds.
+      const [vs, ve] = tl.visibleRange(view);
+      const targets = [0, durationMs, playheadMs];
+      for (const { item } of tl.visibleCaptions(captions, vs, ve)) {
+        if (item.id === drag.id) continue;
+        targets.push(item.start_ms, item.end_ms);
+      }
+      edge = tl.snap(edge, targets, view.pxPerMs);
+    }
+    const deltaMs = tl.snapToFrame(edge, fps) - base;
     setDrag({ ...drag, deltaMs });
   }
 
@@ -314,10 +336,21 @@ export function Timeline({ project, onProjectChange }: Props) {
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
+    const lower = e.key.toLowerCase();
+    if (lower === "j" || lower === "k" || lower === "l") {
+      e.preventDefault();
+      setRate((r) => tl.shuttleRate(r, lower));
+      return;
+    }
+    if (lower === "s") {
+      e.preventDefault();
+      setSnapEnabled((s) => !s);
+      return;
+    }
     switch (e.key) {
       case " ":
         e.preventDefault();
-        setPlaying((p) => !p);
+        setRate((r) => (r !== 0 ? 0 : 1));
         break;
       case "ArrowLeft":
         e.preventDefault();
@@ -367,7 +400,7 @@ export function Timeline({ project, onProjectChange }: Props) {
       <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-1.5">
         <button
           type="button"
-          onClick={() => setPlaying((p) => !p)}
+          onClick={() => setRate((r) => (r !== 0 ? 0 : 1))}
           className="grid h-7 w-7 place-items-center rounded-md hover:bg-[var(--color-bg-surface)]"
           aria-label={playing ? t("timelinePause") : t("timelinePlay")}
         >
@@ -376,7 +409,27 @@ export function Timeline({ project, onProjectChange }: Props) {
         <span className="font-mono text-[var(--text-ui-xs)] tabular-nums text-[var(--color-fg-muted)]">
           {tl.formatTimecode(playheadMs, fps)}
         </span>
+        {rate !== 0 && rate !== 1 && (
+          <span className="font-mono text-[var(--text-ui-xs)] tabular-nums text-[var(--color-accent-400)]">
+            {rate < 0 ? `◂ ${-rate}×` : `${rate}× ▸`}
+          </span>
+        )}
         <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => setSnapEnabled((s) => !s)}
+          aria-pressed={snapEnabled}
+          className={cn(
+            "grid h-7 w-7 place-items-center rounded-md hover:bg-[var(--color-bg-surface)]",
+            snapEnabled
+              ? "text-[var(--color-accent-400)]"
+              : "text-[var(--color-fg-subtle)]",
+          )}
+          aria-label={t("timelineSnap")}
+          title={t("timelineSnap")}
+        >
+          <Magnet size={15} />
+        </button>
         <span className="text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
           {(view.pxPerMs * 1000).toFixed(1)} px/s
         </span>

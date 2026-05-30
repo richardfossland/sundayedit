@@ -160,7 +160,7 @@ commitlint, and a PR `ci.yml` gate (web + rust) — all wired.
 - [x] Phase 0 — Scaffold + design tokens + confidence color scale + quality infra (0.2)
 - [x] Phase 1.1 — Video import: ffprobe metadata, format validation, content-hash relink, `.sundayedit` SQLite file format
 - [x] Phase 1.2 — Audio extraction command + multi-zoom waveform peaks + Canvas waveform component
-- [ ] Phase 1.3 — Full timeline (caption track + ruler + J/K/L) — partial (waveform + click-seek only)
+- [x] Phase 1.3 — Full timeline: windowed waveform + ruler + virtualized caption track, drag-move/resize with snap-to-edges/playhead (S toggles), J/K/L shuttle transport, ←/→ caption step, ⌘+scroll zoom-to-cursor. Pending: real `<video>` attached to the playhead clock.
 - [x] Phase 2.1 — ASR abstraction, Whisper model registry, feature-gated `LocalWhisperProvider`, captionizer, **+ first-run model download** (`asr_download_model`, atomic + progress + cancel)
 - [x] Phase 2.2 — Cloud: response normalization (OpenAI/AssemblyAI/Deepgram) + **provider picker, cost preview, upload-consent UX** + **API keys in the OS keychain** (`keyring`). Pending: the live audio-upload call.
 - [x] Phase 2.3 — Per-word confidence normalization + **calibration harness** (`cargo run --example calibrate`). Curve still uses the v1 estimate until real labelled data is fed in.
