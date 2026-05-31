@@ -85,12 +85,18 @@ pub async fn cloud_transcribe(
     api_key: Option<String>,
     language: Option<String>,
 ) -> AppResult<Vec<Caption>> {
-    let path = project
+    // Prefer the small extracted WAV when it's actually on disk; the choice
+    // rule itself lives in (tested) `cloud::select_upload_source`.
+    let wav_exists = project
         .audio_wav_path
         .as_deref()
-        .filter(|p| Path::new(p).is_file())
-        .unwrap_or(project.video_path.as_str())
-        .to_string();
+        .is_some_and(|p| Path::new(p).is_file());
+    let path = cloud::select_upload_source(
+        project.audio_wav_path.as_deref(),
+        project.video_path.as_str(),
+        wav_exists,
+    )
+    .to_string();
 
     let key = secrets::resolve(
         api_key,

@@ -37,6 +37,11 @@ impl LocalWhisperProvider {
 }
 
 // ── Real implementation (feature = "whisper") ────────────────────────────────
+// HARDWARE-UNVERIFIED: building whisper.cpp + running a real model on a real WAV
+// needs `--features whisper`, a downloaded model, and a device (P2c — see
+// docs/NEEDS-RICHARD.md). The pieces it leans on — `AsrOptions::initial_prompt`,
+// `word_confidence_from_token_logprobs`, `read_wav_samples` — are unit-tested;
+// only the whisper-rs invocation itself is unverified.
 #[cfg(feature = "whisper")]
 impl AsrProvider for LocalWhisperProvider {
     fn name(&self) -> String {

@@ -177,6 +177,25 @@ fn sec_to_ms(sec: f64) -> i64 {
     (sec * 1000.0).round() as i64
 }
 
+/// Decide which file to upload for cloud transcription: the extracted 16 kHz
+/// mono WAV when it exists (small — typically well under provider caps), else
+/// the source media as a fallback.
+///
+/// Pure decision rule, split out from the command so it's unit-tested: the
+/// caller passes the (filesystem-resolved) `wav_exists` flag; this picks the
+/// path. Keeping the choice here means the "prefer the small WAV" policy lives
+/// in one tested place rather than inline in the IPC handler.
+pub fn select_upload_source<'a>(
+    audio_wav_path: Option<&'a str>,
+    video_path: &'a str,
+    wav_exists: bool,
+) -> &'a str {
+    match audio_wav_path {
+        Some(wav) if wav_exists && !wav.trim().is_empty() => wav,
+        _ => video_path,
+    }
+}
+
 // ── OpenAI Whisper API (verbose_json) ─────────────────────────────────────────
 //
 // The /audio/transcriptions endpoint with response_format=verbose_json
@@ -440,6 +459,11 @@ fn mime_for(path: &std::path::Path) -> &'static str {
 
 /// Transcribe an audio/video file via the OpenAI Whisper API (whisper-1,
 /// `verbose_json` + word timestamps) → our normalized `Transcript`.
+///
+// NETWORK-UNVERIFIED: the live HTTP round-trip needs a real OpenAI key + an
+// audio file (P2c — see docs/NEEDS-RICHARD.md). The key/empty-key guard and
+// the response→Transcript mapping (`parse_openai_verbose_json`) are pure and
+// unit-tested; only the actual POST is unverified.
 pub async fn transcribe_openai(
     audio_path: &std::path::Path,
     api_key: &str,
@@ -497,6 +521,10 @@ const ASSEMBLYAI_MAX_POLLS: u32 = 400;
 
 /// Transcribe via AssemblyAI: upload the audio, request a transcript, then poll
 /// until it's `completed` (or `error`). Returns our normalized `Transcript`.
+///
+// NETWORK-UNVERIFIED: the upload→request→poll loop needs a real AssemblyAI key
+// + an audio file (P2c — see docs/NEEDS-RICHARD.md). The key guard, error-body
+// extraction, and `parse_assemblyai_json` mapping are pure and unit-tested.
 pub async fn transcribe_assemblyai(
     audio_path: &std::path::Path,
     api_key: &str,
@@ -603,6 +631,10 @@ pub async fn transcribe_assemblyai(
 }
 
 /// Transcribe via Deepgram: one synchronous POST of the raw audio bytes.
+///
+// NETWORK-UNVERIFIED: the live POST needs a real Deepgram key + an audio file
+// (P2c — see docs/NEEDS-RICHARD.md). The key guard, MIME inference, error-body
+// extraction, and `parse_deepgram_json` mapping are pure and unit-tested.
 pub async fn transcribe_deepgram(
     audio_path: &std::path::Path,
     api_key: &str,
@@ -900,6 +932,45 @@ mod tests {
         assert!(
             (a - d).abs() < 0.5,
             "AssemblyAI {a} vs Deepgram {d} for same prob"
+        );
+    }
+
+    #[test]
+    fn upload_source_prefers_existing_wav() {
+        assert_eq!(
+            select_upload_source(Some("/tmp/clip.wav"), "/tmp/clip.mp4", true),
+            "/tmp/clip.wav"
+        );
+    }
+
+    #[test]
+    fn upload_source_falls_back_to_video_when_wav_missing() {
+        // WAV path is set but the file isn't on disk → use the source media.
+        assert_eq!(
+            select_upload_source(Some("/tmp/clip.wav"), "/tmp/clip.mp4", false),
+            "/tmp/clip.mp4"
+        );
+    }
+
+    #[test]
+    fn upload_source_falls_back_when_no_wav_path() {
+        // No extracted WAV at all → source media, regardless of the exists flag.
+        assert_eq!(
+            select_upload_source(None, "/tmp/clip.mp4", true),
+            "/tmp/clip.mp4"
+        );
+        assert_eq!(
+            select_upload_source(None, "/tmp/clip.mp4", false),
+            "/tmp/clip.mp4"
+        );
+    }
+
+    #[test]
+    fn upload_source_ignores_blank_wav_path() {
+        // A present-but-empty WAV path must never win over the real media.
+        assert_eq!(
+            select_upload_source(Some("   "), "/tmp/clip.mp4", true),
+            "/tmp/clip.mp4"
         );
     }
 
