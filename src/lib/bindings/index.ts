@@ -33,6 +33,8 @@ export type { MediaKind }        from "./MediaKind";
 export type { PolishChange }     from "./PolishChange";
 export type { PolishEstimate }   from "./PolishEstimate";
 export type { PolishResult }     from "./PolishResult";
+export type { ReflowConfig }     from "./ReflowConfig";
+export type { ReflowIssue }      from "./ReflowIssue";
 export type { ReplaceResult }    from "./ReplaceResult";
 export type { SilenceGap }       from "./SilenceGap";
 export type { Peak }             from "./Peak";
