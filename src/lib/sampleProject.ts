@@ -154,6 +154,20 @@ export const SAMPLE_PROJECT: Project = {
   ],
   clips: [],
   talk_summary: null,
+  export_config: {
+    format: "srt",
+    burn_in: false,
+    caption_size_px: 24,
+    caption_color: "white",
+    caption_background: "semitransparent",
+    max_chars_per_line: 42,
+  },
+  project_meta: {
+    title: "",
+    description: "",
+    proper_nouns: "",
+    language: "auto",
+  },
   created_at: 0,
   updated_at: 0,
 };

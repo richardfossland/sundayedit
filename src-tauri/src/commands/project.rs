@@ -6,7 +6,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::error::{AppError, AppResult};
-use crate::model::{Project, Style};
+use crate::model::{ExportConfig, Project, ProjectMeta, Style};
 use crate::services::video::VideoMetadata;
 use crate::services::waveform::WaveformData;
 use crate::services::{project_file, video, waveform};
@@ -62,6 +62,8 @@ pub fn project_create_from_video(path: String) -> AppResult<Project> {
         glossary: vec![],
         clips: vec![],
         talk_summary: None,
+        export_config: ExportConfig::default(),
+        project_meta: ProjectMeta::default(),
         created_at: now,
         updated_at: now,
     })

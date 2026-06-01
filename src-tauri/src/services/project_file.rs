@@ -23,9 +23,9 @@ use sqlx::{Row, SqlitePool};
 use std::str::FromStr;
 
 use crate::error::{AppError, AppResult};
-use crate::model::{Caption, Clip, GlossaryTerm, Project, Speaker, Style, Word};
+use crate::model::{Caption, Clip, ExportConfig, GlossaryTerm, Project, ProjectMeta, Speaker, Style, Word};
 
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 
 /// Open (creating if missing) a `.sundayedit` SQLite file and ensure schema.
 async fn open_pool(path: &Path) -> AppResult<SqlitePool> {
@@ -72,6 +72,8 @@ async fn ensure_schema(pool: &SqlitePool) -> AppResult<()> {
             glossary_json       TEXT NOT NULL,
             clips_json          TEXT NOT NULL DEFAULT '[]',
             talk_summary        TEXT,
+            export_config_json  TEXT,
+            project_meta_json   TEXT,
             created_at          INTEGER NOT NULL,
             updated_at          INTEGER NOT NULL
         );
@@ -88,6 +90,14 @@ async fn ensure_schema(pool: &SqlitePool) -> AppResult<()> {
         .execute(pool)
         .await;
     let _ = sqlx::query("ALTER TABLE project ADD COLUMN talk_summary TEXT")
+        .execute(pool)
+        .await;
+
+    // Schema v3 migration: export config + project metadata columns.
+    let _ = sqlx::query("ALTER TABLE project ADD COLUMN export_config_json TEXT")
+        .execute(pool)
+        .await;
+    let _ = sqlx::query("ALTER TABLE project ADD COLUMN project_meta_json TEXT")
         .execute(pool)
         .await;
 
@@ -136,8 +146,8 @@ pub async fn save(project: &Project, path: &Path) -> AppResult<()> {
             video_duration_ms, video_width, video_height, video_fps,
             audio_wav_path, language, default_style_json, context_description,
             speakers_json, glossary_json, created_at, updated_at,
-            clips_json, talk_summary)
-        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18)
+            clips_json, talk_summary, export_config_json, project_meta_json)
+        VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20)
         "#,
     )
     .bind(&project.id)
@@ -158,6 +168,8 @@ pub async fn save(project: &Project, path: &Path) -> AppResult<()> {
     .bind(project.updated_at)
     .bind(serde_json::to_string(&project.clips)?)
     .bind(&project.talk_summary)
+    .bind(serde_json::to_string(&project.export_config)?)
+    .bind(serde_json::to_string(&project.project_meta)?)
     .execute(&mut *tx)
     .await?;
 
@@ -213,6 +225,16 @@ pub async fn load(path: &Path) -> AppResult<Project> {
         serde_json::from_str(row.get::<String, _>("glossary_json").as_str())?;
     let clips: Vec<Clip> = serde_json::from_str(row.get::<String, _>("clips_json").as_str())?;
     let talk_summary: Option<String> = row.get("talk_summary");
+    let export_config: ExportConfig = row
+        .get::<Option<String>, _>("export_config_json")
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or_default();
+    let project_meta: ProjectMeta = row
+        .get::<Option<String>, _>("project_meta_json")
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or_default();
 
     let caption_rows = sqlx::query("SELECT * FROM caption ORDER BY position")
         .fetch_all(&pool)
@@ -252,6 +274,8 @@ pub async fn load(path: &Path) -> AppResult<Project> {
         glossary,
         clips,
         talk_summary,
+        export_config,
+        project_meta,
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     };
@@ -266,6 +290,7 @@ mod tests {
     use crate::model::Word;
 
     fn sample_project() -> Project {
+        use crate::model::{ExportConfig, ProjectMeta};
         Project {
             id: "p1".into(),
             name: "test.mp4".into(),
@@ -279,6 +304,20 @@ mod tests {
             language: "no".into(),
             default_style: Style::broadcast_news(),
             context_description: Some("A sermon about grace.".into()),
+            export_config: ExportConfig {
+                format: "vtt".into(),
+                burn_in: true,
+                caption_size_px: 28,
+                caption_color: "yellow".into(),
+                caption_background: "black".into(),
+                max_chars_per_line: 52,
+            },
+            project_meta: ProjectMeta {
+                title: "Grace: A Sermon".into(),
+                description: "Sunday morning sermon on grace.".into(),
+                proper_nouns: "Lars, kerygma, soteriology".into(),
+                language: "no".into(),
+            },
             captions: vec![
                 Caption {
                     id: "c1".into(),
@@ -382,6 +421,66 @@ mod tests {
         let loaded = load(&path).await.unwrap();
         assert_eq!(loaded.clips, p.clips);
         assert_eq!(loaded.talk_summary, p.talk_summary);
+    }
+
+    #[tokio::test]
+    async fn export_config_and_project_meta_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("meta.sundayedit");
+        let p = sample_project();
+        save(&p, &path).await.unwrap();
+        let loaded = load(&path).await.unwrap();
+        assert_eq!(loaded.export_config, p.export_config);
+        assert_eq!(loaded.project_meta, p.project_meta);
+        assert_eq!(loaded.export_config.format, "vtt");
+        assert_eq!(loaded.export_config.caption_color, "yellow");
+        assert_eq!(loaded.export_config.max_chars_per_line, 52);
+        assert_eq!(loaded.project_meta.title, "Grace: A Sermon");
+        assert_eq!(loaded.project_meta.proper_nouns, "Lars, kerygma, soteriology");
+    }
+
+    #[tokio::test]
+    async fn loads_v2_file_defaults_export_config_and_project_meta() {
+        // Build a v2-shaped project table (clips but no config/meta columns).
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("v2.sundayedit");
+        let url = format!("sqlite:{}", path.to_string_lossy());
+        let opts = SqliteConnectOptions::from_str(&url)
+            .unwrap()
+            .create_if_missing(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await
+            .unwrap();
+        sqlx::query(
+            r#"CREATE TABLE project (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, video_path TEXT NOT NULL,
+                video_content_hash TEXT NOT NULL, video_duration_ms INTEGER NOT NULL,
+                video_width INTEGER NOT NULL, video_height INTEGER NOT NULL, video_fps REAL NOT NULL,
+                audio_wav_path TEXT, language TEXT NOT NULL, default_style_json TEXT NOT NULL,
+                context_description TEXT, speakers_json TEXT NOT NULL, glossary_json TEXT NOT NULL,
+                clips_json TEXT NOT NULL DEFAULT '[]', talk_summary TEXT,
+                created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO project VALUES ('p','n','/v','h',1000,1920,1080,30.0,NULL,'no',?1,NULL,'[]','[]','[]',NULL,0,0)",
+        )
+        .bind(serde_json::to_string(&Style::broadcast_news()).unwrap())
+        .execute(&pool)
+        .await
+        .unwrap();
+        pool.close().await;
+
+        let loaded = load(&path).await.unwrap();
+        // Should default gracefully
+        assert_eq!(loaded.export_config.format, "srt");
+        assert!(!loaded.export_config.burn_in);
+        assert_eq!(loaded.project_meta.title, "");
+        assert_eq!(loaded.project_meta.language, "auto");
     }
 
     #[tokio::test]

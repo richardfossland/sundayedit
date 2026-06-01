@@ -1,27 +1,33 @@
 /**
  * Export panel — Phase 6.1 (sidecar formats) + 6.2/6.3 (burn-in +
- * platform presets).
+ * platform presets) + export config (Oppgave 1).
  *
- * Two columns:
+ * Three columns:
  *   - Left: sidecar text formats (SRT/VTT/ASS/TXT) — instant, in-memory.
- *   - Right: platform burn-in. Pick a platform → we validate (duration,
- *     aspect, captions) and show warnings BEFORE the long render, then
- *     "Burn in" writes a captioned MP4. Without ffmpeg installed the
- *     command errors clearly (we surface it).
+ *   - Centre: platform burn-in presets.
+ *   - Right: export configuration / detail view.
  */
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { AlertTriangle, Film, Download, Loader2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Film,
+  Download,
+  Loader2,
+  Settings2,
+} from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
 import type { ExportPreset, ExportWarning, Project } from "@/lib/bindings";
 import { useT, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
+import { ExportConfigPanel } from "./ExportConfigPanel";
 
 interface Props {
   project: Project;
+  onProjectChange: (p: Project) => void;
   /** When set, this project arrived via a `sundayedit://import` deep link from
    *  the named app's scheme; after saving SRT/VTT we hand the file back to it
    *  (Phase 8). */
@@ -30,7 +36,9 @@ interface Props {
 
 type SidecarFormat = "srt" | "vtt" | "ass" | "txt" | "json";
 
-export function ExportPanel({ project, returnTo }: Props) {
+type DetailView = { kind: "preset"; preset: ExportPreset } | { kind: "config" };
+
+export function ExportPanel({ project, onProjectChange, returnTo }: Props) {
   const t = useT();
   const [exported, setExported] = useState<{
     format: string;
@@ -43,15 +51,14 @@ export function ExportPanel({ project, returnTo }: Props) {
   });
   const presets = presetsQuery.data ?? [];
 
-  const [selectedPreset, setSelectedPreset] = useState<ExportPreset | null>(
-    null,
-  );
+  const [detail, setDetail] = useState<DetailView | null>(null);
+  const selectedPreset = detail?.kind === "preset" ? detail.preset : null;
   const [warnings, setWarnings] = useState<ExportWarning[]>([]);
   const [rendering, setRendering] = useState(false);
   const [renderResult, setRenderResult] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
-  // Validate whenever the chosen platform changes.
+  // Validate whenever the chosen platform preset changes.
   useEffect(() => {
     if (!selectedPreset) {
       setWarnings([]);
@@ -151,12 +158,18 @@ export function ExportPanel({ project, returnTo }: Props) {
     }
   }
 
+  // When a sidecar format button is clicked and we have a saved default
+  // preference, use it to pre-fill the exported state.
+  function handleFormatWithConfig(format: SidecarFormat | "docx") {
+    handleFormat(format);
+  }
+
   const hasBlockingError = warnings.some((w) => w.severity === "error");
 
   return (
     <div className="flex h-full overflow-hidden">
       {/* Sidecar formats */}
-      <div className="w-72 shrink-0 space-y-2 overflow-y-auto border-r border-[var(--color-border)] p-4">
+      <div className="w-64 shrink-0 space-y-2 overflow-y-auto border-r border-[var(--color-border)] p-4">
         <h3 className="mb-1 text-[var(--text-ui-xs)] font-semibold uppercase tracking-wider text-[var(--color-fg-subtle)]">
           {t("exportSidecarHeader")}
         </h3>
@@ -177,8 +190,16 @@ export function ExportPanel({ project, returnTo }: Props) {
           <button
             key={f.id}
             type="button"
-            onClick={() => handleFormat(f.id)}
-            className="flex w-full flex-col rounded-md border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 text-left transition-colors hover:border-[var(--color-accent-600)]"
+            onClick={() => handleFormatWithConfig(f.id)}
+            className={cn(
+              "flex w-full flex-col rounded-md border px-3 py-2 text-left transition-colors hover:border-[var(--color-accent-600)]",
+              project.export_config.format === f.id &&
+                f.id !== "txt" &&
+                f.id !== "json" &&
+                f.id !== "docx"
+                ? "border-[var(--color-accent-500)]/60 bg-[var(--color-accent-500)]/5"
+                : "border-[var(--color-border)] bg-[var(--color-bg-elevated)]",
+            )}
           >
             <span className="font-mono text-[var(--text-ui-sm)] font-semibold text-[var(--color-accent-400)]">
               {f.label}
@@ -188,10 +209,29 @@ export function ExportPanel({ project, returnTo }: Props) {
             </span>
           </button>
         ))}
+
+        {/* Export config button — opens the config panel in the right pane */}
+        <button
+          type="button"
+          onClick={() =>
+            setDetail(detail?.kind === "config" ? null : { kind: "config" })
+          }
+          className={cn(
+            "mt-2 flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left transition-colors",
+            detail?.kind === "config"
+              ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/8 text-[var(--color-accent-300)]"
+              : "border-[var(--color-border)] hover:border-[var(--color-accent-600)] text-[var(--color-fg-muted)]",
+          )}
+        >
+          <Settings2 size={13} />
+          <span className="text-[var(--text-ui-xs)] font-medium">
+            {t("exportConfigTitle")}
+          </span>
+        </button>
       </div>
 
       {/* Platform burn-in */}
-      <div className="w-72 shrink-0 space-y-2 overflow-y-auto border-r border-[var(--color-border)] p-4">
+      <div className="w-56 shrink-0 space-y-2 overflow-y-auto border-r border-[var(--color-border)] p-4">
         <h3 className="mb-1 flex items-center gap-1.5 text-[var(--text-ui-xs)] font-semibold uppercase tracking-wider text-[var(--color-fg-subtle)]">
           <Film size={12} /> {t("exportPlatformHeader")}
         </h3>
@@ -199,7 +239,13 @@ export function ExportPanel({ project, returnTo }: Props) {
           <button
             key={p.id}
             type="button"
-            onClick={() => setSelectedPreset(p)}
+            onClick={() =>
+              setDetail(
+                detail?.kind === "preset" && detail.preset.id === p.id
+                  ? null
+                  : { kind: "preset", preset: p },
+              )
+            }
             className={cn(
               "flex w-full flex-col rounded-md border px-3 py-2 text-left transition-colors",
               selectedPreset?.id === p.id
@@ -211,15 +257,20 @@ export function ExportPanel({ project, returnTo }: Props) {
               {p.name}
             </span>
             <span className="text-[10px] text-[var(--color-fg-muted)]">
-              {p.width}×{p.height} · {p.description}
+              {p.width}×{p.height}
             </span>
           </button>
         ))}
       </div>
 
       {/* Detail / preview */}
-      <div className="flex-1 overflow-auto p-4">
-        {selectedPreset ? (
+      <div className="flex-1 overflow-auto">
+        {detail?.kind === "config" ? (
+          <ExportConfigPanel
+            project={project}
+            onProjectChange={onProjectChange}
+          />
+        ) : selectedPreset ? (
           <div className="max-w-xl">
             <h2 className="text-[var(--text-ui-lg)] font-semibold">
               {selectedPreset.name}
@@ -305,7 +356,7 @@ export function ExportPanel({ project, returnTo }: Props) {
             </pre>
           </div>
         ) : (
-          <div className="grid h-full place-items-center text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
+          <div className="grid h-full place-items-center p-4 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
             {t("exportChooseHint")}
           </div>
         )}

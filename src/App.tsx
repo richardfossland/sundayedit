@@ -17,6 +17,7 @@ import {
   Scissors,
   PanelRightClose,
   Play,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -32,6 +33,7 @@ import { LocalPanel } from "@/features/transcribe/LocalPanel";
 import { CloudPanel } from "@/features/transcribe/CloudPanel";
 import { StyleEditor } from "@/features/style/StyleEditor";
 import { ExportPanel } from "@/features/export/ExportPanel";
+import { ProjectMetaPanel } from "@/features/project/ProjectMetaPanel";
 import { CleanupPanel } from "@/features/cleanup/CleanupPanel";
 import { PolishPanel } from "@/features/polish/PolishPanel";
 import { SuggestPanel } from "@/features/suggest/SuggestPanel";
@@ -60,7 +62,8 @@ type DockTool =
   | "polish"
   | "suggest"
   | "translate"
-  | "cleanup";
+  | "cleanup"
+  | "projectmeta";
 
 // Pipeline / output / config operations that open as a modal over the
 // workspace rather than docking beside it.
@@ -69,6 +72,7 @@ type ModalKind = "transcribe" | "clips" | "export" | "settings";
 // The dock tools, in rail order. One source of truth for icon + label.
 const DOCK_TOOLS: Array<{ id: DockTool; icon: LucideIcon; labelKey: TKey }> = [
   { id: "context", icon: BookText, labelKey: "navContext" },
+  { id: "projectmeta", icon: FileText, labelKey: "navProjectMeta" },
   { id: "style", icon: Palette, labelKey: "navStyle" },
   { id: "speakers", icon: Users, labelKey: "navSpeakers" },
   { id: "polish", icon: Sparkles, labelKey: "navPolish" },
@@ -313,6 +317,11 @@ function App() {
           <div className="min-h-0 flex-1 overflow-y-auto">
             {dockTool === "context" ? (
               <ContextPanel project={project} onProjectChange={setProject} />
+            ) : dockTool === "projectmeta" ? (
+              <ProjectMetaPanel
+                project={project}
+                onProjectChange={setProject}
+              />
             ) : dockTool === "style" ? (
               <StyleEditor
                 style={project.default_style}
@@ -379,7 +388,11 @@ function App() {
       )}
       {modal === "export" && (
         <Modal title={t("navExport")} onClose={() => setModal(null)}>
-          <ExportPanel project={project} returnTo={returnTo} />
+          <ExportPanel
+            project={project}
+            onProjectChange={setProject}
+            returnTo={returnTo}
+          />
         </Modal>
       )}
       {modal === "settings" && (

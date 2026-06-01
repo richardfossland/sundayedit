@@ -279,6 +279,8 @@ mod tests {
             glossary: vec![],
             clips: vec![],
             talk_summary: None,
+            export_config: crate::model::ExportConfig::default(),
+            project_meta: crate::model::ProjectMeta::default(),
             created_at: 0,
             updated_at: 0,
         }

@@ -333,6 +333,44 @@ const en = {
     "Space: play/pause · J/K/L: shuttle (reverse/stop/forward) · ←/→: previous/next caption (⇧ = 5) · drag to move, drag the edges to retime · S: snap · ⌘+scroll: zoom",
   timelineSnap: "Snap",
 
+  // ── Export config (Oppgave 1) ──────────────────────────────────────────────
+  exportConfigTitle: "Export settings",
+  exportConfigFormatLabel: "Default format",
+  exportConfigBurnInLabel: "Burn captions into video",
+  exportConfigBurnInHint: "Applies when rendering a platform preset.",
+  exportConfigSizeLabel: "Caption size",
+  exportConfigColorLabel: "Caption colour",
+  exportConfigColorWhite: "White",
+  exportConfigColorYellow: "Yellow",
+  exportConfigColorGreen: "Green",
+  exportConfigBgLabel: "Caption background",
+  exportConfigBgBlack: "Black",
+  exportConfigBgSemi: "Semi-transparent",
+  exportConfigBgNone: "None",
+  exportConfigCharsLabel: "Max chars per line",
+  exportConfigCharsHint:
+    "Affects SRT/VTT/ASS line wrapping and burn-in readability.",
+
+  // ── Project metadata (Oppgave 2) ───────────────────────────────────────────
+  navProjectMeta: "Project info",
+  projectMetaIntro:
+    "Set the project title, a description of the content (used as AI context), proper nouns for Whisper priming, and the recording language.",
+  projectMetaTitleLabel: "Project title",
+  projectMetaTitleHint: "Shown in the title bar; does not rename the file.",
+  projectMetaDescLabel: "Video description",
+  projectMetaDescPlaceholder:
+    "E.g. «A sermon on Christology and soteriology. Speaker is Norwegian.»",
+  projectMetaDescHint:
+    "Fed to AI as extra context — improves punctuation polish and smart suggestions.",
+  projectMetaNounsLabel: "Proper nouns / glossary hints",
+  projectMetaNounsPlaceholder: "kerygma, Lars Eriksen, soteriology, …",
+  projectMetaNounsHint:
+    "Comma-separated. Added to the Whisper prompt before transcription to reduce misrecognitions.",
+  projectMetaLanguageLabel: "Recording language",
+  projectMetaLanguageAuto: "Auto-detect",
+  projectMetaLanguageHint:
+    "Override auto-detection when Whisper picks the wrong language.",
+
   // ── Export ──────────────────────────────────────────────────────────────
   exportSidecarHeader: "Text formats (sidecar)",
   exportSrtDesc: "Universal — YouTube, most players",
@@ -691,6 +729,43 @@ const no: Catalog = {
     "MP4, MOV, MKV, WebM, AVI — eller lyd: MP3, WAV, M4A, FLAC, OGG.",
   importNeverLeaves: "Filen forlater aldri maskinen din.",
   importPickFile: "Velg fil…",
+  // ── Export config (Oppgave 1) ────────────────────────────────────────────
+  exportConfigTitle: "Eksportinnstillinger",
+  exportConfigFormatLabel: "Standardformat",
+  exportConfigBurnInLabel: "Bren undertekster inn i video",
+  exportConfigBurnInHint:
+    "Brukes ved rendering av en plattform-forhåndsinnstilling.",
+  exportConfigSizeLabel: "Undertekststørrelse",
+  exportConfigColorLabel: "Undertekstfarge",
+  exportConfigColorWhite: "Hvit",
+  exportConfigColorYellow: "Gul",
+  exportConfigColorGreen: "Grønn",
+  exportConfigBgLabel: "Undertekstbakgrunn",
+  exportConfigBgBlack: "Svart",
+  exportConfigBgSemi: "Halvtransparent",
+  exportConfigBgNone: "Ingen",
+  exportConfigCharsLabel: "Maks tegn per linje",
+  exportConfigCharsHint:
+    "Påvirker SRT/VTT/ASS-linjebryting og lesbarhet ved innbrenning.",
+  // ── Project metadata (Oppgave 2) ─────────────────────────────────────────
+  navProjectMeta: "Prosjektinfo",
+  projectMetaIntro:
+    "Sett prosjekttittel, en beskrivelse av innholdet (brukes som AI-kontekst), egennavn for Whisper-priming og opptaksspråk.",
+  projectMetaTitleLabel: "Prosjekttittel",
+  projectMetaTitleHint: "Vises i tittellinje; omdøper ikke filen.",
+  projectMetaDescLabel: "Videobeskrivelse",
+  projectMetaDescPlaceholder:
+    "F.eks. «En preken om kristologi og soteriologi. Taleren er norsk.»",
+  projectMetaDescHint:
+    "Mates til AI som ekstra kontekst — forbedrer tegnsetting og smarte forslag.",
+  projectMetaNounsLabel: "Egennavn / ordlistehints",
+  projectMetaNounsPlaceholder: "kerygma, Lars Eriksen, soteriologi, …",
+  projectMetaNounsHint:
+    "Komma-separert. Legges til i Whisper-prompten før transkripsjon for å redusere feilgjenkjenninger.",
+  projectMetaLanguageLabel: "Opptaksspråk",
+  projectMetaLanguageAuto: "Auto-detect",
+  projectMetaLanguageHint:
+    "Overstyr auto-detection når Whisper velger feil språk.",
 };
 
 // sv/da/de/fr/pl: full catalogs (machine-translated, pl reviewed); any
@@ -989,6 +1064,41 @@ const sv: Catalog = {
     "MP4, MOV, MKV, WebM, AVI — eller ljud: MP3, WAV, M4A, FLAC, OGG.",
   importNeverLeaves: "Filen lämnar aldrig din dator.",
   importPickFile: "Välj fil…",
+  exportConfigTitle: "Exportinställningar",
+  exportConfigFormatLabel: "Standardformat",
+  exportConfigBurnInLabel: "Bränn undertexter in i videon",
+  exportConfigBurnInHint:
+    "Gäller vid rendering av en plattformsförinställning.",
+  exportConfigSizeLabel: "Undertextstorlek",
+  exportConfigColorLabel: "Undertextfärg",
+  exportConfigColorWhite: "Vit",
+  exportConfigColorYellow: "Gul",
+  exportConfigColorGreen: "Grön",
+  exportConfigBgLabel: "Undertextbakgrund",
+  exportConfigBgBlack: "Svart",
+  exportConfigBgSemi: "Halvgenomskinlig",
+  exportConfigBgNone: "Ingen",
+  exportConfigCharsLabel: "Max tecken per rad",
+  exportConfigCharsHint:
+    "Påverkar radbrytning i SRT/VTT/ASS och läsbarhet vid inbränning.",
+  navProjectMeta: "Projektinfo",
+  projectMetaIntro:
+    "Ange projekttitel, en beskrivning av innehållet (används som AI-kontext), egennamn för Whisper-priming och inspelningsspråk.",
+  projectMetaTitleLabel: "Projekttitel",
+  projectMetaTitleHint: "Visas i namnlisten; byter inte namn på filen.",
+  projectMetaDescLabel: "Videobeskrivning",
+  projectMetaDescPlaceholder:
+    "T.ex. «En predikan om kristologi och soteriologi. Talaren är norsk.»",
+  projectMetaDescHint:
+    "Matas till AI som extra kontext — förbättrar interpunktion och smarta förslag.",
+  projectMetaNounsLabel: "Egennamn / ordlisteledtrådar",
+  projectMetaNounsPlaceholder: "kerygma, Lars Eriksen, soteriologi, …",
+  projectMetaNounsHint:
+    "Kommaseparerat. Läggs till i Whisper-prompten före transkribering för att minska feligenkänningar.",
+  projectMetaLanguageLabel: "Inspelningsspråk",
+  projectMetaLanguageAuto: "Auto-detect",
+  projectMetaLanguageHint:
+    "Åsidosätt auto-detection när Whisper väljer fel språk.",
 };
 const da: Catalog = {
   navTranscribe: "Transskriber",
@@ -1282,6 +1392,41 @@ const da: Catalog = {
     "MP4, MOV, MKV, WebM, AVI — eller lyd: MP3, WAV, M4A, FLAC, OGG.",
   importNeverLeaves: "Filen forlader aldrig din maskine.",
   importPickFile: "Vælg fil…",
+  exportConfigTitle: "Eksportindstillinger",
+  exportConfigFormatLabel: "Standardformat",
+  exportConfigBurnInLabel: "Brænd undertekster ind i video",
+  exportConfigBurnInHint:
+    "Gælder ved rendering af en platformsforudindstilling.",
+  exportConfigSizeLabel: "Undertekststørrelse",
+  exportConfigColorLabel: "Undertekstfarve",
+  exportConfigColorWhite: "Hvid",
+  exportConfigColorYellow: "Gul",
+  exportConfigColorGreen: "Grøn",
+  exportConfigBgLabel: "Undertekstbaggrund",
+  exportConfigBgBlack: "Sort",
+  exportConfigBgSemi: "Halvgennemsigtig",
+  exportConfigBgNone: "Ingen",
+  exportConfigCharsLabel: "Maks tegn pr. linje",
+  exportConfigCharsHint:
+    "Påvirker linjeskift i SRT/VTT/ASS og læsbarhed ved indbrænding.",
+  navProjectMeta: "Projektinfo",
+  projectMetaIntro:
+    "Angiv projekttitel, en beskrivelse af indholdet (bruges som AI-kontekst), egennavne til Whisper-priming og optagelsessprog.",
+  projectMetaTitleLabel: "Projekttitel",
+  projectMetaTitleHint: "Vises i titellinje; omdøber ikke filen.",
+  projectMetaDescLabel: "Videobeskrivelse",
+  projectMetaDescPlaceholder:
+    "F.eks. «En prædiken om kristologi og soteriologi. Taleren er norsk.»",
+  projectMetaDescHint:
+    "Mates til AI som ekstra kontekst — forbedrer tegnsætning og smarte forslag.",
+  projectMetaNounsLabel: "Egennavne / ordlistehints",
+  projectMetaNounsPlaceholder: "kerygma, Lars Eriksen, soteriologi, …",
+  projectMetaNounsHint:
+    "Kommasepareret. Tilføjes Whisper-prompten inden transskription for at reducere forkerte genkendelser.",
+  projectMetaLanguageLabel: "Optagelsessprog",
+  projectMetaLanguageAuto: "Auto-detect",
+  projectMetaLanguageHint:
+    "Tilsidesæt auto-detection, når Whisper vælger det forkerte sprog.",
 };
 const de: Catalog = {
   navTranscribe: "Transkribieren",
@@ -1580,6 +1725,41 @@ const de: Catalog = {
     "MP4, MOV, MKV, WebM, AVI — oder Audio: MP3, WAV, M4A, FLAC, OGG.",
   importNeverLeaves: "Die Datei verlässt Ihren Rechner nie.",
   importPickFile: "Datei wählen…",
+  exportConfigTitle: "Exporteinstellungen",
+  exportConfigFormatLabel: "Standardformat",
+  exportConfigBurnInLabel: "Untertitel in Video einbrennen",
+  exportConfigBurnInHint: "Gilt beim Rendern einer Plattformvoreinstellung.",
+  exportConfigSizeLabel: "Untertitelgröße",
+  exportConfigColorLabel: "Untertitelfarbe",
+  exportConfigColorWhite: "Weiß",
+  exportConfigColorYellow: "Gelb",
+  exportConfigColorGreen: "Grün",
+  exportConfigBgLabel: "Untertitelhintergrund",
+  exportConfigBgBlack: "Schwarz",
+  exportConfigBgSemi: "Halbtransparent",
+  exportConfigBgNone: "Keiner",
+  exportConfigCharsLabel: "Max. Zeichen pro Zeile",
+  exportConfigCharsHint:
+    "Beeinflusst Zeilenumbrüche in SRT/VTT/ASS und Lesbarkeit beim Einbrennen.",
+  navProjectMeta: "Projektinfo",
+  projectMetaIntro:
+    "Legen Sie Projekttitel, eine Inhaltsbeschreibung (als KI-Kontext), Eigennamen für Whisper-Priming und Aufnahmesprache fest.",
+  projectMetaTitleLabel: "Projekttitel",
+  projectMetaTitleHint:
+    "In der Titelleiste angezeigt; benennt die Datei nicht um.",
+  projectMetaDescLabel: "Videobeschreibung",
+  projectMetaDescPlaceholder:
+    "Z. B. «Eine Predigt über Christologie und Soteriologie. Der Sprecher ist Norweger.»",
+  projectMetaDescHint:
+    "An die KI als zusätzlicher Kontext weitergegeben — verbessert Zeichensetzung und intelligente Vorschläge.",
+  projectMetaNounsLabel: "Eigennamen / Glossarhinweise",
+  projectMetaNounsPlaceholder: "kerygma, Lars Eriksen, Soteriologie, …",
+  projectMetaNounsHint:
+    "Kommagetrennt. Wird dem Whisper-Prompt vor der Transkription hinzugefügt, um Fehlerkennungen zu reduzieren.",
+  projectMetaLanguageLabel: "Aufnahmesprache",
+  projectMetaLanguageAuto: "Auto-Erkennung",
+  projectMetaLanguageHint:
+    "Überschreiben Sie die automatische Erkennung, wenn Whisper die falsche Sprache wählt.",
 };
 const fr: Catalog = {
   navTranscribe: "Transcrire",
@@ -1877,6 +2057,42 @@ const fr: Catalog = {
     "MP4, MOV, MKV, WebM, AVI — ou audio : MP3, WAV, M4A, FLAC, OGG.",
   importNeverLeaves: "Le fichier ne quitte jamais votre machine.",
   importPickFile: "Choisir un fichier…",
+  exportConfigTitle: "Paramètres d'export",
+  exportConfigFormatLabel: "Format par défaut",
+  exportConfigBurnInLabel: "Incruster les sous-titres dans la vidéo",
+  exportConfigBurnInHint:
+    "S'applique lors du rendu d'un préréglage de plateforme.",
+  exportConfigSizeLabel: "Taille des sous-titres",
+  exportConfigColorLabel: "Couleur des sous-titres",
+  exportConfigColorWhite: "Blanc",
+  exportConfigColorYellow: "Jaune",
+  exportConfigColorGreen: "Vert",
+  exportConfigBgLabel: "Arrière-plan des sous-titres",
+  exportConfigBgBlack: "Noir",
+  exportConfigBgSemi: "Semi-transparent",
+  exportConfigBgNone: "Aucun",
+  exportConfigCharsLabel: "Max caractères par ligne",
+  exportConfigCharsHint:
+    "Affecte le retour à la ligne SRT/VTT/ASS et la lisibilité lors de l'incrustation.",
+  navProjectMeta: "Infos projet",
+  projectMetaIntro:
+    "Définissez le titre du projet, une description du contenu (utilisée comme contexte IA), des noms propres pour le priming Whisper et la langue de l'enregistrement.",
+  projectMetaTitleLabel: "Titre du projet",
+  projectMetaTitleHint:
+    "Affiché dans la barre de titre ; ne renomme pas le fichier.",
+  projectMetaDescLabel: "Description de la vidéo",
+  projectMetaDescPlaceholder:
+    "Ex. «Un sermon sur la christologie et la sotériologie. Le locuteur est norvégien.»",
+  projectMetaDescHint:
+    "Transmis à l'IA comme contexte supplémentaire — améliore la ponctuation et les suggestions intelligentes.",
+  projectMetaNounsLabel: "Noms propres / indices de glossaire",
+  projectMetaNounsPlaceholder: "kerygma, Lars Eriksen, sotériologie, …",
+  projectMetaNounsHint:
+    "Séparés par des virgules. Ajoutés à l'invite Whisper avant la transcription pour réduire les méconnaissances.",
+  projectMetaLanguageLabel: "Langue de l'enregistrement",
+  projectMetaLanguageAuto: "Détection automatique",
+  projectMetaLanguageHint:
+    "Remplacez la détection automatique quand Whisper choisit la mauvaise langue.",
 };
 const pl: Catalog = {
   navTranscribe: "Transkrybuj",
@@ -2171,6 +2387,40 @@ const pl: Catalog = {
     "MP4, MOV, MKV, WebM, AVI — lub audio: MP3, WAV, M4A, FLAC, OGG.",
   importNeverLeaves: "Plik nigdy nie opuszcza Twojego urządzenia.",
   importPickFile: "Wybierz plik…",
+  exportConfigTitle: "Ustawienia eksportu",
+  exportConfigFormatLabel: "Domyślny format",
+  exportConfigBurnInLabel: "Wypal napisy w wideo",
+  exportConfigBurnInHint: "Dotyczy renderowania ustawień wstępnych platformy.",
+  exportConfigSizeLabel: "Rozmiar napisów",
+  exportConfigColorLabel: "Kolor napisów",
+  exportConfigColorWhite: "Biały",
+  exportConfigColorYellow: "Żółty",
+  exportConfigColorGreen: "Zielony",
+  exportConfigBgLabel: "Tło napisów",
+  exportConfigBgBlack: "Czarne",
+  exportConfigBgSemi: "Półprzezroczyste",
+  exportConfigBgNone: "Brak",
+  exportConfigCharsLabel: "Maks. znaków w wierszu",
+  exportConfigCharsHint:
+    "Wpływa na zawijanie wierszy SRT/VTT/ASS i czytelność przy wypalaniu.",
+  navProjectMeta: "Info o projekcie",
+  projectMetaIntro:
+    "Ustaw tytuł projektu, opis treści (używany jako kontekst AI), imiona własne do primingu Whisper i język nagrania.",
+  projectMetaTitleLabel: "Tytuł projektu",
+  projectMetaTitleHint: "Wyświetlany na pasku tytułu; nie zmienia nazwy pliku.",
+  projectMetaDescLabel: "Opis wideo",
+  projectMetaDescPlaceholder:
+    "Np. «Kazanie o chrystologii i soteriologii. Mówca jest Norwegiem.»",
+  projectMetaDescHint:
+    "Przekazywany do AI jako dodatkowy kontekst — poprawia interpunkcję i inteligentne sugestie.",
+  projectMetaNounsLabel: "Nazwy własne / wskazówki do słownika",
+  projectMetaNounsPlaceholder: "kerygma, Lars Eriksen, soteriologia, …",
+  projectMetaNounsHint:
+    "Oddzielone przecinkami. Dodawane do monitu Whisper przed transkrypcją, aby zmniejszyć liczbę błędnych rozpoznań.",
+  projectMetaLanguageLabel: "Język nagrania",
+  projectMetaLanguageAuto: "Automatyczne wykrywanie",
+  projectMetaLanguageHint:
+    "Zastąp automatyczne wykrywanie, gdy Whisper wybiera zły język.",
 };
 const CATALOG: Record<Lang, Catalog> = { en, no, sv, da, de, fr, pl };
 

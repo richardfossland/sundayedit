@@ -269,6 +269,68 @@ impl Style {
     }
 }
 
+// ── ExportConfig ─────────────────────────────────────────────────────────────
+
+/// Persisted export preferences for sidecar text format + burn-in style.
+/// Stored per-project; sane defaults so it's always valid on first use.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/ExportConfig.ts")]
+pub struct ExportConfig {
+    /// Default sidecar format: "srt" | "vtt" | "ass"
+    pub format: String,
+    /// Whether to add captions as burn-in when using a platform preset.
+    pub burn_in: bool,
+    /// Caption font size in px (16 / 20 / 24 / 28).
+    pub caption_size_px: i32,
+    /// Caption text colour: "white" | "yellow" | "green"
+    pub caption_color: String,
+    /// Caption background: "black" | "semitransparent" | "none"
+    pub caption_background: String,
+    /// Maximum characters per caption line: 32 | 42 | 52
+    pub max_chars_per_line: i32,
+}
+
+impl Default for ExportConfig {
+    fn default() -> Self {
+        Self {
+            format: "srt".into(),
+            burn_in: false,
+            caption_size_px: 24,
+            caption_color: "white".into(),
+            caption_background: "semitransparent".into(),
+            max_chars_per_line: 42,
+        }
+    }
+}
+
+// ── ProjectMeta ──────────────────────────────────────────────────────────────
+
+/// User-editable project metadata: title, video description (used as AI
+/// context), glossary names for Whisper priming, and preferred language.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/ProjectMeta.ts")]
+pub struct ProjectMeta {
+    /// Human-readable title (overrides the bare filename in the UI).
+    pub title: String,
+    /// Prose description of the video — fed to AI as context.
+    pub description: String,
+    /// Comma-separated list of proper nouns / glossary hints for Whisper.
+    pub proper_nouns: String,
+    /// Transcription/translation language: "auto" | ISO 639-1 code
+    pub language: String,
+}
+
+impl Default for ProjectMeta {
+    fn default() -> Self {
+        Self {
+            title: String::new(),
+            description: String::new(),
+            proper_nouns: String::new(),
+            language: "auto".into(),
+        }
+    }
+}
+
 // ── Project ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -296,6 +358,12 @@ pub struct Project {
     /// Short AI summary of the whole talk (SundayEdit).
     #[serde(default)]
     pub talk_summary: Option<String>,
+    /// Configurable export pipeline settings (format, burn-in, style).
+    #[serde(default)]
+    pub export_config: ExportConfig,
+    /// Editable project metadata (title, description, proper-noun hints).
+    #[serde(default)]
+    pub project_meta: ProjectMeta,
     #[ts(type = "number")]
     pub created_at: i64,
     #[ts(type = "number")]

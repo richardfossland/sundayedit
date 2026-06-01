@@ -9,6 +9,8 @@ export type { AsrOptions }       from "./AsrOptions";
 export type { Aspect }           from "./Aspect";
 export type { BurnInOptions }    from "./BurnInOptions";
 export type { Caption }          from "./Caption";
+export type { ExportConfig }     from "./ExportConfig";
+export type { ProjectMeta }      from "./ProjectMeta";
 export type { Clip }             from "./Clip";
 export type { ClipPlan }         from "./ClipPlan";
 export type { DownloadProgress } from "./DownloadProgress";
