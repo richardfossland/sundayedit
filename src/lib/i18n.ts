@@ -390,6 +390,10 @@ const en = {
   exportSaveFormat: "Save {format}…",
   exportChooseHint: "Choose a text format or a platform on the left.",
   exportSentBack: "Captions handed back to the source app.",
+  exportShowPreview: "Show burn-in preview",
+  exportHidePreview: "Hide preview",
+  exportPreviewHint:
+    "Approximate preview of the burned-in styling, framed to this platform's aspect ratio.",
 
   // ── Import screen ───────────────────────────────────────────────────────
   importFilterName: "Video & audio",
@@ -724,6 +728,10 @@ const no: Catalog = {
   exportSaveFormat: "Lagre {format}…",
   exportChooseHint: "Velg et tekstformat eller en plattform til venstre.",
   exportSentBack: "Teksting sendt tilbake til kildeappen.",
+  exportShowPreview: "Vis innbrenning",
+  exportHidePreview: "Skjul forhåndsvisning",
+  exportPreviewHint:
+    "Omtrentlig forhåndsvisning av den innbrente stilen, beskåret til plattformens bildeformat.",
 
   // ── Import screen ───────────────────────────────────────────────────────
   importFilterName: "Video & lyd",
@@ -1064,6 +1072,10 @@ const sv: Catalog = {
   exportSaveFormat: "Spara {format}…",
   exportChooseHint: "Välj ett textformat eller en plattform till vänster.",
   exportSentBack: "Undertexter skickade tillbaka till källappen.",
+  exportShowPreview: "Visa inbränning",
+  exportHidePreview: "Dölj förhandsvisning",
+  exportPreviewHint:
+    "Ungefärlig förhandsvisning av den inbrända stilen, beskuren till plattformens bildformat.",
   importFilterName: "Video & ljud",
   importFileMissing: "Filen finns inte längre.",
   importReadError: "Kunde inte läsa filen: {error}",
@@ -1395,6 +1407,10 @@ const da: Catalog = {
   exportSaveFormat: "Gem {format}…",
   exportChooseHint: "Vælg et tekstformat eller en platform til venstre.",
   exportSentBack: "Undertekster sendt tilbage til kildeappen.",
+  exportShowPreview: "Vis indbrænding",
+  exportHidePreview: "Skjul forhåndsvisning",
+  exportPreviewHint:
+    "Omtrentlig forhåndsvisning af den indbrændte stil, beskåret til platformens billedformat.",
   importFilterName: "Video & lyd",
   importFileMissing: "Filen findes ikke længere.",
   importReadError: "Kunne ikke læse filen: {error}",
@@ -1732,6 +1748,10 @@ const de: Catalog = {
   exportSaveFormat: "{format} speichern…",
   exportChooseHint: "Wählen Sie links ein Textformat oder eine Plattform.",
   exportSentBack: "Untertitel an die Quell-App zurückgegeben.",
+  exportShowPreview: "Einbrenn-Vorschau anzeigen",
+  exportHidePreview: "Vorschau ausblenden",
+  exportPreviewHint:
+    "Ungefähre Vorschau des eingebrannten Stils, auf das Seitenverhältnis dieser Plattform zugeschnitten.",
   importFilterName: "Video & Audio",
   importFileMissing: "Die Datei existiert nicht mehr.",
   importReadError: "Datei konnte nicht gelesen werden: {error}",
@@ -2068,6 +2088,10 @@ const fr: Catalog = {
   exportSaveFormat: "Enregistrer {format}…",
   exportChooseHint: "Choisissez un format texte ou une plateforme à gauche.",
   exportSentBack: "Sous-titres renvoyés à l'application source.",
+  exportShowPreview: "Afficher l'aperçu de l'incrustation",
+  exportHidePreview: "Masquer l'aperçu",
+  exportPreviewHint:
+    "Aperçu approximatif du style incrusté, cadré au format de cette plateforme.",
   importFilterName: "Vidéo et audio",
   importFileMissing: "Le fichier n'existe plus.",
   importReadError: "Impossible de lire le fichier : {error}",
@@ -2401,6 +2425,10 @@ const pl: Catalog = {
   exportSaveFormat: "Zapisz {format}…",
   exportChooseHint: "Wybierz format tekstowy lub platformę po lewej stronie.",
   exportSentBack: "Napisy odesłane do aplikacji źródłowej.",
+  exportShowPreview: "Pokaż podgląd wypalenia",
+  exportHidePreview: "Ukryj podgląd",
+  exportPreviewHint:
+    "Przybliżony podgląd wypalonego stylu, dopasowany do proporcji tej platformy.",
   importFilterName: "Wideo i audio",
   importFileMissing: "Plik już nie istnieje.",
   importReadError: "Nie można odczytać pliku: {error}",

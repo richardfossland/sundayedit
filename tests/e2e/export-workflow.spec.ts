@@ -103,3 +103,34 @@ test("VTT format complies: WEBVTT header, dot-ms timecodes, LF only", async ({
   // No carriage returns — VTT here is LF-only (unlike SRT).
   expect(vtt).not.toContain("\r");
 });
+
+test("burn-in preview renders the styled caption and reframes per preset", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Eksport" }).click();
+
+  // Pick the landscape platform preset, then reveal the burn-in preview.
+  await page.getByRole("button", { name: /^YouTube/ }).click();
+  await page.getByRole("button", { name: /Vis innbrenning/ }).click();
+
+  const frame = page.getByTestId("burnin-preview-frame");
+  await expect(frame).toBeVisible();
+  // The frame is cropped to the platform's aspect ratio.
+  await expect(frame).toHaveCSS("aspect-ratio", "1920 / 1080");
+
+  // The caption uses the project's burn-in style (white text), validating
+  // the styling before a real render.
+  const caption = page.getByTestId("burnin-preview-caption");
+  await expect(caption).toHaveText(
+    "Velkommen til gudstjenesten denne søndagen morgen",
+  );
+  await expect(caption).toHaveCSS("color", "rgb(255, 255, 255)");
+
+  // Switching presets keeps the preview open and reframes it to the new
+  // aspect ratio — letting the user compare styling across platforms.
+  await page.getByRole("button", { name: /^Reels/ }).click();
+  await expect(page.getByTestId("burnin-preview-frame")).toHaveCSS(
+    "aspect-ratio",
+    "1080 / 1920",
+  );
+});

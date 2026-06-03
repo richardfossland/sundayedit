@@ -13,6 +13,8 @@ import { useQuery } from "@tanstack/react-query";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import {
   AlertTriangle,
+  Eye,
+  EyeOff,
   Film,
   Download,
   Loader2,
@@ -24,6 +26,7 @@ import type { ExportPreset, ExportWarning, Project } from "@/lib/bindings";
 import { useT, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { ExportConfigPanel } from "./ExportConfigPanel";
+import { BurnInPreview } from "./BurnInPreview";
 
 interface Props {
   project: Project;
@@ -57,6 +60,7 @@ export function ExportPanel({ project, onProjectChange, returnTo }: Props) {
   const [rendering, setRendering] = useState(false);
   const [renderResult, setRenderResult] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Validate whenever the chosen platform preset changes.
   useEffect(() => {
@@ -312,19 +316,34 @@ export function ExportPanel({ project, onProjectChange, returnTo }: Props) {
               </ul>
             )}
 
-            <button
-              type="button"
-              onClick={doBurnIn}
-              disabled={rendering || hasBlockingError}
-              className="mt-5 flex items-center gap-2 rounded-lg bg-[var(--color-accent-600)] px-5 py-2.5 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
-            >
-              {rendering ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <Download size={15} />
-              )}
-              {rendering ? t("exportBurningIn") : t("exportBurnIn")}
-            </button>
+            <div className="mt-5 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={doBurnIn}
+                disabled={rendering || hasBlockingError}
+                className="flex items-center gap-2 rounded-lg bg-[var(--color-accent-600)] px-5 py-2.5 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)] disabled:opacity-50"
+              >
+                {rendering ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <Download size={15} />
+                )}
+                {rendering ? t("exportBurningIn") : t("exportBurnIn")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPreview((v) => !v)}
+                aria-pressed={showPreview}
+                className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-[var(--text-ui-sm)] font-medium text-[var(--color-fg-muted)] transition-colors hover:border-[var(--color-accent-600)] hover:text-[var(--color-fg)]"
+              >
+                {showPreview ? <EyeOff size={15} /> : <Eye size={15} />}
+                {showPreview ? t("exportHidePreview") : t("exportShowPreview")}
+              </button>
+            </div>
+
+            {showPreview && (
+              <BurnInPreview project={project} preset={selectedPreset} />
+            )}
 
             {renderResult && (
               <p className="mt-3 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">

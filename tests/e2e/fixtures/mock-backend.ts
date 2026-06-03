@@ -459,7 +459,34 @@ function backend(): void {
           project.captions.map(captionText).join(" ").trim(),
         );
       case "export_list_presets":
-        return Promise.resolve([]);
+        // One landscape + one vertical preset so the burn-in detail/preview
+        // pane (and preset-toggle behaviour) is reachable from E2E.
+        return Promise.resolve([
+          {
+            id: "youtube_16x9",
+            name: "YouTube",
+            description: "Landscape 16:9",
+            aspect: "landscape",
+            width: 1920,
+            height: 1080,
+            max_duration_sec: null,
+            codec: "h264",
+            bitrate_kbps: 8000,
+            also_srt_sidecar: false,
+          },
+          {
+            id: "reels_9x16",
+            name: "Reels",
+            description: "Vertical 9:16",
+            aspect: "portrait",
+            width: 1080,
+            height: 1920,
+            max_duration_sec: 90,
+            codec: "h264",
+            bitrate_kbps: 6000,
+            also_srt_sidecar: true,
+          },
+        ]);
       case "export_validate":
         return Promise.resolve([]);
       default:
