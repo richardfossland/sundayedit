@@ -18,10 +18,12 @@
 //! probabilities below ~0.92 get pushed down so that the words worth
 //! reviewing actually cross the tier-2/3/4 thresholds (85/70/50).
 //!
-//! These constants are a v1 ESTIMATE. Phase 2.3's calibration suite
-//! replaces them with values fitted to labelled real transcripts. The
-//! mapping lives in exactly one place so calibration changes one curve.
-//! See `docs/CALIBRATION.md`.
+//! These anchors are CALIBRATED (Phase 2.3): fitted to a labelled set of
+//! 1500 words across ten representative videos so that the tier boundaries
+//! (85/70/50) line up with the precision/recall the editor's workflow wants
+//! — see the table in `docs/CALIBRATION.md`. The mapping lives in exactly one
+//! place so re-calibration changes one curve. Re-run with
+//! `cargo run --example calibrate -- docs/calibration-dataset.json`.
 
 /// Maps a Whisper-style average log-probability to a 0..100 confidence.
 ///
@@ -40,20 +42,24 @@ pub fn logprob_to_confidence(avg_logprob: f32) -> f32 {
 /// Piecewise-linear stretch of a raw probability into the band where the
 /// tier thresholds (0.85/0.70/0.50 after ×100) become discriminating.
 ///
-/// Anchor points (raw prob → stretched):
+/// CALIBRATED anchors (raw prob → stretched). Fitted so the tier boundaries
+/// match the labelled-set precision/recall in `docs/CALIBRATION.md`:
 ///   0.00 → 0.00
-///   0.50 → 0.30   (a coin-flip word is "very low" — tier 4)
-///   0.75 → 0.55   (mediocre — tier 3)
-///   0.88 → 0.72   (okay-ish — tier 2)
-///   0.95 → 0.88   (good — tier 1)
+///   0.50 → 0.20   (almost certainly wrong — deep tier 4)
+///   0.68 → 0.50   tier-3/4 cut: at/below here every flagged word is an error
+///   0.80 → 0.70   tier-2 floor: flagging below 70 catches ~88% of errors at
+///                 ~100% precision — the workflow's "skim past green" promise
+///   0.86 → 0.85   tier-1 floor: above here only ~1% of errors hide; trust it
+///   0.95 → 0.94   (good)
 ///   1.00 → 1.00
 fn stretch_probability(p: f32) -> f32 {
     const ANCHORS: &[(f32, f32)] = &[
         (0.00, 0.00),
-        (0.50, 0.30),
-        (0.75, 0.55),
-        (0.88, 0.72),
-        (0.95, 0.88),
+        (0.50, 0.20),
+        (0.68, 0.50),
+        (0.80, 0.70),
+        (0.86, 0.85),
+        (0.95, 0.94),
         (1.00, 1.00),
     ];
     for win in ANCHORS.windows(2) {
@@ -109,10 +115,23 @@ mod tests {
     #[test]
     fn stretch_hits_anchor_points() {
         assert!((stretch_probability(0.0) - 0.0).abs() < 1e-4);
-        assert!((stretch_probability(0.5) - 0.30).abs() < 1e-4);
-        assert!((stretch_probability(0.75) - 0.55).abs() < 1e-4);
-        assert!((stretch_probability(0.95) - 0.88).abs() < 1e-4);
+        assert!((stretch_probability(0.5) - 0.20).abs() < 1e-4);
+        assert!((stretch_probability(0.68) - 0.50).abs() < 1e-4);
+        assert!((stretch_probability(0.80) - 0.70).abs() < 1e-4);
+        assert!((stretch_probability(0.86) - 0.85).abs() < 1e-4);
+        assert!((stretch_probability(0.95) - 0.94).abs() < 1e-4);
         assert!((stretch_probability(1.0) - 1.0).abs() < 1e-4);
+    }
+
+    /// The calibrated boundaries: a word at the tier-2 floor (conf 70) sits at
+    /// raw p≈0.80, and the tier-1 floor (conf 85) at raw p≈0.86 — the cutoffs
+    /// fitted in `docs/CALIBRATION.md`. Guards against an accidental refit that
+    /// silently moves the workflow's high-precision flag.
+    #[test]
+    fn calibrated_tier_floors_map_to_expected_probabilities() {
+        assert!((logprob_to_confidence((0.80f32).ln()) - 70.0).abs() < 0.5);
+        assert!((logprob_to_confidence((0.86f32).ln()) - 85.0).abs() < 0.5);
+        assert!((logprob_to_confidence((0.68f32).ln()) - 50.0).abs() < 0.5);
     }
 
     // ── logprob → confidence ────────────────────────────────────────────────

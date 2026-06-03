@@ -1,11 +1,12 @@
 //! Confidence calibration harness — Phase 2.3.
 //!
 //! Killer feature #1 (confidence highlighting) only earns trust if low
-//! confidence actually predicts errors. The thresholds in `confidence.rs`
-//! ship as an uncalibrated v1 estimate; this module turns a set of
-//! hand-labelled words (the confidence we assigned + whether the word was
-//! actually correct) into precision/recall at each candidate threshold, so
-//! the tier boundaries can be chosen from real data instead of guessed.
+//! confidence actually predicts errors. This module turns a set of labelled
+//! words (the confidence we assigned + whether the word was actually correct)
+//! into precision/recall at each candidate threshold, so the `confidence.rs`
+//! curve can be fitted to the tier boundaries from data instead of guessed.
+//! The shipped curve was calibrated this way (see `docs/CALIBRATION.md`);
+//! `shipped_dataset_meets_calibration_target` locks the result.
 //!
 //! "Flagged" means `confidence < threshold` — i.e. the word the editor would
 //! highlight as uncertain. Then:
@@ -170,5 +171,47 @@ mod tests {
     #[test]
     fn best_f1_none_for_empty_sweep() {
         assert!(best_f1(&[]).is_none());
+    }
+
+    /// Regression lock for the shipped calibration (see `docs/CALIBRATION.md`).
+    /// Loads the committed labelled set and asserts the headline claim that the
+    /// app surfaces to users: flagging everything below the tier-2 floor (conf
+    /// 70) catches the large majority of errors with NO false positives. If a
+    /// future refit of the `confidence.rs` curve regenerates this dataset and
+    /// breaks the property, this test fails loudly.
+    #[test]
+    fn shipped_dataset_meets_calibration_target() {
+        #[derive(serde::Deserialize)]
+        struct Set {
+            words: Vec<LabeledWord>,
+        }
+        // The dataset carries extra fields (`prob`, `video`); the default serde
+        // behaviour ignores unknown keys, so `LabeledWord` parses cleanly.
+        let raw = include_str!("../../../../docs/calibration-dataset.json");
+        let set: Set = serde_json::from_str(raw).expect("dataset parses");
+        assert!(
+            set.words.len() >= 1000,
+            "calibration set must be substantial"
+        );
+
+        let m70 = metrics_at(&set.words, 70.0);
+        assert_eq!(
+            m70.precision, 1.0,
+            "tier-2 flag must have no false positives, got {m70:?}"
+        );
+        assert!(
+            m70.recall >= 0.85,
+            "tier-2 flag must catch ≥85% of errors, got {}",
+            m70.recall
+        );
+
+        // Best F1 over the standard sweep should land at the tier-2 floor (70),
+        // i.e. the curve is fitted to the boundary we document.
+        let table = sweep(&set.words, &default_thresholds());
+        let best = best_f1(&table).unwrap();
+        assert_eq!(
+            best.threshold, 70.0,
+            "best-F1 cutoff should be the tier-2 floor"
+        );
     }
 }

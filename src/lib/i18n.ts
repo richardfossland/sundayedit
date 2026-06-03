@@ -86,6 +86,15 @@ const en = {
     "Used by AI punctuation, smart suggestions and translation.",
   providerCloudNote: "Cloud transcription.",
 
+  // ── About confidence highlighting (calibration) ─────────────────────────
+  settingsConfidenceTitle: "About confidence highlighting",
+  settingsConfidenceIntro:
+    "Every word gets a confidence score and a colour. The colours only help if they actually predict errors, so we calibrate them against labelled transcripts.",
+  settingsConfidenceHeadline:
+    "Flagging every word below {floor}% (the amber tier) catches {recall}% of all errors with {precision}% false positives — everything highlighted is genuinely worth a look. Only {miss}% of errors hide in the green “don’t touch” zone.",
+  settingsConfidenceCaveat:
+    "Calibrated on a 1500-word modelled set across ten representative videos (English, Norwegian, accented, noisy). Not yet measured on real hand-labelled recordings — see docs/CALIBRATION.md.",
+
   // ── Model picker ────────────────────────────────────────────────────────
   modelTitle: "Choose transcription model",
   modelIntro:
@@ -460,6 +469,14 @@ const no: Catalog = {
     "Brukes av AI-tegnsetting, smarte forslag og oversettelse.",
   providerCloudNote: "Sky-transkripsjon.",
 
+  settingsConfidenceTitle: "Om sikkerhetsmarkering",
+  settingsConfidenceIntro:
+    "Hvert ord får en sikkerhetsscore og en farge. Fargene hjelper bare hvis de faktisk forutsier feil, så vi kalibrerer dem mot merkede transkripsjoner.",
+  settingsConfidenceHeadline:
+    "Å markere alle ord under {floor}% (det gule nivået) fanger {recall}% av alle feil med {precision}% falske treff — alt som markeres er virkelig verdt et blikk. Bare {miss}% av feilene gjemmer seg i det grønne «ikke rør»-feltet.",
+  settingsConfidenceCaveat:
+    "Kalibrert på et modellert sett med 1500 ord fra ti representative videoer (engelsk, norsk, dialekt, støy). Ennå ikke målt på ekte håndmerkede opptak — se docs/CALIBRATION.md.",
+
   // ── Model picker ────────────────────────────────────────────────────────
   modelTitle: "Velg transkripsjonsmodell",
   modelIntro:
@@ -832,6 +849,13 @@ const sv: Catalog = {
   providerAnthropicNote:
     "Används av AI-interpunktion, smarta förslag och översättning.",
   providerCloudNote: "Molntranskribering.",
+  settingsConfidenceTitle: "Om säkerhetsmarkering",
+  settingsConfidenceIntro:
+    "Varje ord får en säkerhetspoäng och en färg. Färgerna hjälper bara om de faktiskt förutsäger fel, så vi kalibrerar dem mot märkta transkriptioner.",
+  settingsConfidenceHeadline:
+    "Att markera varje ord under {floor}% (den gula nivån) fångar {recall}% av alla fel med {precision}% falska träffar — allt som markeras är verkligen värt en titt. Bara {miss}% av felen göms i den gröna ”rör ej”-zonen.",
+  settingsConfidenceCaveat:
+    "Kalibrerad på en modellerad uppsättning med 1500 ord från tio representativa videor (engelska, norska, brytning, brus). Ännu inte mätt på riktiga handmärkta inspelningar — se docs/CALIBRATION.md.",
   modelTitle: "Välj transkriberingsmodell",
   modelIntro:
     "Körs helt på din dator — ingenting laddas upp. Större modeller är mer exakta men långsammare.",
@@ -1167,6 +1191,13 @@ const da: Catalog = {
   providerAnthropicNote:
     "Bruges af AI-tegnsætning, smarte forslag og oversættelse.",
   providerCloudNote: "Sky-transskription.",
+  settingsConfidenceTitle: "Om sikkerhedsmarkering",
+  settingsConfidenceIntro:
+    "Hvert ord får en sikkerhedsscore og en farve. Farverne hjælper kun, hvis de faktisk forudsiger fejl, så vi kalibrerer dem mod mærkede transskriptioner.",
+  settingsConfidenceHeadline:
+    "At markere hvert ord under {floor}% (det gule niveau) fanger {recall}% af alle fejl med {precision}% falske træffere — alt det markerede er virkelig værd at se på. Kun {miss}% af fejlene gemmer sig i den grønne “rør ikke”-zone.",
+  settingsConfidenceCaveat:
+    "Kalibreret på et modelleret sæt med 1500 ord fra ti repræsentative videoer (engelsk, norsk, accent, støj). Endnu ikke målt på rigtige håndmærkede optagelser — se docs/CALIBRATION.md.",
   modelTitle: "Vælg transskriptionsmodel",
   modelIntro:
     "Kører fuldstændig på din maskine — intet uploades. Større modeller er mere præcise, men langsommere.",
@@ -1504,6 +1535,13 @@ const de: Catalog = {
   providerAnthropicNote:
     "Verwendet von KI-Zeichensetzung, intelligenten Vorschlägen und Übersetzung.",
   providerCloudNote: "Cloud-Transkription.",
+  settingsConfidenceTitle: "Über die Konfidenz-Hervorhebung",
+  settingsConfidenceIntro:
+    "Jedes Wort erhält einen Konfidenzwert und eine Farbe. Die Farben helfen nur, wenn sie Fehler tatsächlich vorhersagen, daher kalibrieren wir sie an beschrifteten Transkripten.",
+  settingsConfidenceHeadline:
+    "Markiert man jedes Wort unter {floor}% (die gelbe Stufe), werden {recall}% aller Fehler mit {precision}% Fehlalarmen erfasst — alles Hervorgehobene ist wirklich einen Blick wert. Nur {miss}% der Fehler verstecken sich in der grünen „nicht anfassen“-Zone.",
+  settingsConfidenceCaveat:
+    "Kalibriert an einem modellierten Satz mit 1500 Wörtern aus zehn repräsentativen Videos (Englisch, Norwegisch, Akzent, Störgeräusche). Noch nicht an echten handbeschrifteten Aufnahmen gemessen — siehe docs/CALIBRATION.md.",
   modelTitle: "Transkriptionsmodell wählen",
   modelIntro:
     "Läuft vollständig auf Ihrem Rechner — es wird nichts hochgeladen. Größere Modelle sind genauer, aber langsamer.",
@@ -1843,6 +1881,13 @@ const fr: Catalog = {
   providerAnthropicNote:
     "Utilisée par la ponctuation IA, les suggestions intelligentes et la traduction.",
   providerCloudNote: "Transcription dans le cloud.",
+  settingsConfidenceTitle: "À propos du surlignage de confiance",
+  settingsConfidenceIntro:
+    "Chaque mot reçoit un score de confiance et une couleur. Les couleurs ne sont utiles que si elles prédisent réellement les erreurs, c'est pourquoi nous les calibrons sur des transcriptions annotées.",
+  settingsConfidenceHeadline:
+    "Signaler chaque mot sous {floor}% (le niveau ambre) détecte {recall}% de toutes les erreurs avec {precision}% de faux positifs — tout ce qui est surligné mérite vraiment un coup d'œil. Seules {miss}% des erreurs se cachent dans la zone verte « ne pas toucher ».",
+  settingsConfidenceCaveat:
+    "Calibré sur un jeu modélisé de 1500 mots issus de dix vidéos représentatives (anglais, norvégien, accent, bruit). Pas encore mesuré sur de vrais enregistrements annotés à la main — voir docs/CALIBRATION.md.",
   modelTitle: "Choisir le modèle de transcription",
   modelIntro:
     "S'exécute entièrement sur votre machine — rien n'est envoyé. Les modèles plus volumineux sont plus précis mais plus lents.",
@@ -2185,6 +2230,13 @@ const pl: Catalog = {
   providerAnthropicNote:
     "Używany przez interpunkcję AI, inteligentne sugestie i tłumaczenie.",
   providerCloudNote: "Transkrypcja w chmurze.",
+  settingsConfidenceTitle: "O podświetlaniu pewności",
+  settingsConfidenceIntro:
+    "Każde słowo otrzymuje wynik pewności i kolor. Kolory pomagają tylko wtedy, gdy faktycznie przewidują błędy, dlatego kalibrujemy je na oznaczonych transkrypcjach.",
+  settingsConfidenceHeadline:
+    "Oznaczenie każdego słowa poniżej {floor}% (poziom bursztynowy) wychwytuje {recall}% wszystkich błędów przy {precision}% fałszywych trafień — wszystko, co podświetlone, naprawdę warto sprawdzić. Tylko {miss}% błędów ukrywa się w zielonej strefie „nie ruszaj”.",
+  settingsConfidenceCaveat:
+    "Skalibrowane na modelowym zbiorze 1500 słów z dziesięciu reprezentatywnych nagrań (angielski, norweski, akcent, szum). Jeszcze nie zmierzone na prawdziwych nagraniach oznaczonych ręcznie — zob. docs/CALIBRATION.md.",
   modelTitle: "Wybierz model transkrypcji",
   modelIntro:
     "Działa w całości na Twoim urządzeniu — nic nie jest wysyłane. Większe modele są dokładniejsze, ale wolniejsze.",
