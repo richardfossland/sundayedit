@@ -15,5 +15,5 @@ test("first-run onboarding walks through to the editor", async ({ page }) => {
 
   await page.getByRole("button", { name: /utforsk demo-prosjektet/i }).click();
 
-  await expect(page.getByRole("button", { name: "Editor" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Editor" })).toBeVisible();
 });

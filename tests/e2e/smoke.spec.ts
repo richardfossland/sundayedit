@@ -17,7 +17,7 @@ test("boots to import screen and opens the demo project", async ({ page }) => {
 
   await demo.click();
 
-  // The editor shell appears: sidebar nav buttons are labelled by title.
-  await expect(page.getByRole("button", { name: "Editor" })).toBeVisible();
+  // The editor shell appears: the editor heading + the topbar Export action.
+  await expect(page.getByRole("heading", { name: "Editor" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Eksport" })).toBeVisible();
 });

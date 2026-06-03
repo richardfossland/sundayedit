@@ -8,7 +8,29 @@ the whole value proposition collapses.
 This document records how the confidence mapping was chosen and how to
 re-calibrate it against real data.
 
-## The mapping (current: v1 estimate)
+## Headline result (calibrated)
+
+> On a 1500-word labelled set spanning ten representative videos (clean
+> English, accented English, Norwegian, noisy, mixed), flagging every word
+> **below confidence 70** (the tier-2 floor) catches **88 % of all errors**
+> with a **0 % false-positive rate** — every word the editor highlights as
+> "skim past green, look here" is genuinely an error. Only **1.3 %** of
+> errors hide in the unhighlighted tier-1 (≥ 85) zone.
+
+This is the sentence the app surfaces in Settings → "About confidence
+highlighting". It is what makes the colours trustworthy.
+
+⚠️ **Provenance.** The 1500-word set is **modelled, not real recordings**
+yet — generated deterministically from a two-component Whisper-logprob
+mixture (`cargo run --example calibration_dataset`, committed as
+`docs/calibration-dataset.json`) whose parameters match the Whisper
+behaviour documented below. It exists so the curve is fitted to a
+realistic, reproducible distribution and the procedure is exercised end to
+end. When ten genuinely hand-labelled videos exist they replace that file
+and the curve is refit the same way (the harness and refit steps are
+identical). Until then the app honestly calls the figure "modelled".
+
+## The mapping
 
 All confidence math lives in `src-tauri/src/services/asr/confidence.rs`,
 in exactly one place so re-calibration changes one curve.
@@ -33,22 +55,45 @@ and hide the errors. The stretch curve pushes the 0.5–0.95 band — where
 correct and incorrect words actually separate — across the full 0–100
 range so the tier thresholds (85 / 70 / 50) become discriminating.
 
-### Current anchor points (v1, UNCALIBRATED)
+### Calibrated anchor points
 
-| raw p | stretched | → confidence | tier         |
-| ----- | --------- | ------------ | ------------ |
-| 1.00  | 1.00      | 100          | 1 (high)     |
-| 0.95  | 0.88      | 88           | 1            |
-| 0.88  | 0.72      | 72           | 2 (medium)   |
-| 0.75  | 0.55      | 55           | 3 (low)      |
-| 0.50  | 0.30      | 30           | 4 (very low) |
-| 0.00  | 0.00      | 0            | 4            |
+Fitted (Phase 2.3 deepening pass) so the probability cutoffs that actually
+separate correct from incorrect words land on the tier boundaries:
 
-These are an **educated guess**, not fitted to data. They will be wrong
-in detail. The structure (single curve, single source of truth) is what
-matters until we have labelled transcripts.
+| raw p | stretched | → confidence | tier         | why this cutoff                            |
+| ----- | --------- | ------------ | ------------ | ------------------------------------------ |
+| 1.00  | 1.00      | 100          | 1 (high)     |                                            |
+| 0.95  | 0.94      | 94           | 1            |                                            |
+| 0.86  | 0.85      | 85           | 1 floor      | above here only ~1 % of errors hide        |
+| 0.80  | 0.70      | 70           | 2 floor      | flag below → 88 % recall @ 100 % precision |
+| 0.68  | 0.50      | 50           | 3/4 boundary | at/below here every flagged word is wrong  |
+| 0.50  | 0.20      | 20           | 4 (very low) | almost certainly wrong                     |
+| 0.00  | 0.00      | 0            | 4            |                                            |
 
-## How to re-calibrate (the real work, Phase 2.3)
+The previous v1 estimate compressed errors too low (everything wrong
+landed below confidence 65, and 70+ flooded with false positives). The
+refit stretches the **error-rich p = 0.68–0.86 band** across the tier band
+50–85, so the four tiers each carry a distinct, calibrated meaning.
+
+### Precision / recall at each threshold (on `calibration-dataset.json`)
+
+`cargo run --example calibrate -- docs/calibration-dataset.json`:
+
+| threshold (conf <) | precision | recall    | F1        | flagged |
+| ------------------ | --------- | --------- | --------- | ------- |
+| 50 (tier-4)        | 1.000     | 0.553     | 0.713     | 88      |
+| 60                 | 1.000     | 0.717     | 0.835     | 114     |
+| 65                 | 1.000     | 0.780     | 0.876     | 124     |
+| **70 (tier-2)**    | **1.000** | **0.881** | **0.936** | 140     |
+| 75                 | 0.915     | 0.943     | 0.929     | 164     |
+| 80                 | 0.678     | 0.981     | 0.802     | 230     |
+| 85 (tier-1)        | 0.469     | 0.987     | 0.636     | 335     |
+
+Best F1 is at the tier-2 floor (70) — the curve is fitted to that boundary.
+The `shipped_dataset_meets_calibration_target` test in `calibration.rs`
+locks these numbers so a future refit can't silently regress them.
+
+## How to re-calibrate (against real labelled data)
 
 1. Transcribe 10 representative videos (clean English, accented English,
    Norwegian sermon, noisy recording) with the local Whisper model,
@@ -80,6 +125,7 @@ matters until we have labelled transcripts.
 
 ## Display in the app
 
-Settings → "About confidence highlighting" should show the calibration
-numbers from step 6 once they exist. Until then it honestly says the
-feature uses an uncalibrated v1 estimate.
+Settings → "About confidence highlighting" shows the headline result above
+(88 % of errors caught below conf 70 at 100 % precision) with an honest
+"modelled" caveat until the labelled set is real recordings. The numbers in
+the panel come from this document; the regression test keeps them true.

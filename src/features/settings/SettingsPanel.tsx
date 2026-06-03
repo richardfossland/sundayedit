@@ -7,7 +7,14 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { KeyRound, Check, Trash2, Save, Languages } from "lucide-react";
+import {
+  KeyRound,
+  Check,
+  Trash2,
+  Save,
+  Languages,
+  Highlighter,
+} from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
 import type { SecretProvider } from "@/lib/bindings";
@@ -152,7 +159,52 @@ export function SettingsPanel() {
           {msg}
         </p>
       )}
+
+      <AboutConfidence />
     </div>
+  );
+}
+
+/**
+ * The empirical backing for killer feature #1. The numbers come from
+ * docs/CALIBRATION.md — flagging below the tier-2 floor (confidence 70)
+ * catches 88% of errors at 100% precision on the calibration set. Surfacing
+ * them is what lets users trust the colours instead of second-guessing them.
+ */
+const CONF_CALIBRATION = {
+  floor: 70,
+  recall: 88,
+  precision: 0,
+  miss: 1.3,
+} as const;
+
+function AboutConfidence() {
+  const t = useT();
+  return (
+    <section className="mt-10">
+      <div className="mb-1 flex items-center gap-2">
+        <Highlighter size={18} className="text-[var(--color-accent-400)]" />
+        <h2 className="text-[var(--text-ui-lg)] font-semibold">
+          {t("settingsConfidenceTitle")}
+        </h2>
+      </div>
+      <p className="mb-3 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
+        {t("settingsConfidenceIntro")}
+      </p>
+      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-3">
+        <p className="text-[var(--text-ui-sm)]">
+          {t("settingsConfidenceHeadline", {
+            floor: CONF_CALIBRATION.floor,
+            recall: CONF_CALIBRATION.recall,
+            precision: CONF_CALIBRATION.precision,
+            miss: CONF_CALIBRATION.miss,
+          })}
+        </p>
+        <p className="mt-2 text-[10px] text-[var(--color-fg-subtle)]">
+          {t("settingsConfidenceCaveat")}
+        </p>
+      </div>
+    </section>
   );
 }
 
