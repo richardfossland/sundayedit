@@ -29,12 +29,18 @@ import type { Page } from "@playwright/test";
  * self-contained function with no outer references.
  */
 function backend(): void {
+  type Alternate = { text: string; confidence: number };
   type Word = { text: string; start_ms: number; end_ms: number };
   type Caption = {
     id: string;
     start_ms: number;
     end_ms: number;
-    words: (Word & { edited?: boolean; confidence: number })[];
+    words: (Word & {
+      edited?: boolean;
+      locked?: boolean;
+      confidence: number;
+      alternates?: Alternate[];
+    })[];
     speaker_id: string | null;
   };
   type Project = {
@@ -214,6 +220,156 @@ function backend(): void {
     return { ...project, captions };
   }
 
+  function lockWord(
+    project: Project,
+    captionId: string,
+    wordIndex: number,
+    locked: boolean,
+  ): Project {
+    const ci = findCaption(project, captionId);
+    const captions = project.captions.map((c, i) => {
+      if (i !== ci) return c;
+      if (wordIndex >= c.words.length) {
+        throw err(`word index ${wordIndex} out of range`);
+      }
+      const words = c.words.map((w, wi) =>
+        wi === wordIndex ? { ...w, locked } : w,
+      );
+      return { ...c, words };
+    });
+    return { ...project, captions };
+  }
+  function acceptAlternate(
+    project: Project,
+    captionId: string,
+    wordIndex: number,
+    alternateIndex: number,
+  ): Project {
+    const ci = findCaption(project, captionId);
+    const captions = project.captions.map((c, i) => {
+      if (i !== ci) return c;
+      if (wordIndex >= c.words.length) {
+        throw err(`word index ${wordIndex} out of range`);
+      }
+      const alt = (c.words[wordIndex].alternates ?? [])[alternateIndex];
+      if (!alt) throw err(`alternate index ${alternateIndex} out of range`);
+      const words = c.words.map((w, wi) =>
+        wi === wordIndex
+          ? { ...w, text: alt.text, confidence: alt.confidence, edited: true }
+          : w,
+      );
+      return { ...c, words };
+    });
+    return { ...project, captions };
+  }
+  function retimeWord(
+    project: Project,
+    captionId: string,
+    wordIndex: number,
+    newStartMs: number,
+    newEndMs: number,
+  ): Project {
+    if (newStartMs >= newEndMs) throw err("start must be less than end");
+    const ci = findCaption(project, captionId);
+    const cap = project.captions[ci];
+    if (wordIndex >= cap.words.length) {
+      throw err(`word index ${wordIndex} out of range`);
+    }
+    // Bounds vs caption + neighbours (mirrors operations.rs::retime_word).
+    const lower =
+      wordIndex === 0 ? cap.start_ms : cap.words[wordIndex - 1].end_ms;
+    const upper =
+      wordIndex + 1 >= cap.words.length
+        ? cap.end_ms
+        : cap.words[wordIndex + 1].start_ms;
+    if (newStartMs < lower || newEndMs > upper) {
+      throw err(`retime (${newStartMs}, ${newEndMs}) outside bounds`);
+    }
+    const captions = project.captions.map((c, i) => {
+      if (i !== ci) return c;
+      const words = c.words.map((w, wi) =>
+        wi === wordIndex ? { ...w, start_ms: newStartMs, end_ms: newEndMs } : w,
+      );
+      return { ...c, words };
+    });
+    return { ...project, captions };
+  }
+  function moveCaption(
+    project: Project,
+    captionId: string,
+    deltaMs: number,
+  ): Project {
+    if (deltaMs === 0) return project;
+    const idx = findCaption(project, captionId);
+    const cap = project.captions[idx];
+    const prevEnd = idx > 0 ? project.captions[idx - 1].end_ms : 0;
+    const nextStart = project.captions[idx + 1]?.start_ms;
+    const dur = cap.end_ms - cap.start_ms;
+    const lo = Math.max(prevEnd, 0);
+    const hi = nextStart === undefined ? Infinity : nextStart - dur;
+    // Clamp the slide into the gap, NLE-style (mirrors operations.rs).
+    const clamped =
+      hi < lo
+        ? cap.start_ms
+        : Math.min(Math.max(cap.start_ms + deltaMs, lo), hi);
+    const applied = clamped - cap.start_ms;
+    if (applied === 0) return project;
+    const captions = project.captions.map((c, i) => {
+      if (i !== idx) return c;
+      return {
+        ...c,
+        start_ms: c.start_ms + applied,
+        end_ms: c.end_ms + applied,
+        words: c.words.map((w) => ({
+          ...w,
+          start_ms: w.start_ms + applied,
+          end_ms: w.end_ms + applied,
+        })),
+      };
+    });
+    return { ...project, captions };
+  }
+  function resizeCaption(
+    project: Project,
+    captionId: string,
+    newStartMs: number,
+    newEndMs: number,
+  ): Project {
+    if (newStartMs >= newEndMs) throw err("start must be less than end");
+    const idx = findCaption(project, captionId);
+    const cap = project.captions[idx];
+    const prevEnd = idx > 0 ? project.captions[idx - 1].end_ms : 0;
+    const nextStart = project.captions[idx + 1]?.start_ms;
+    const wordsLo = cap.words[0]?.start_ms;
+    const wordsHi = cap.words[cap.words.length - 1]?.end_ms;
+    // Start edge: clamped to prev caption end / 0, can't pass first word start.
+    let start = Math.max(newStartMs, prevEnd, 0);
+    if (wordsLo !== undefined) start = Math.min(start, wordsLo);
+    // End edge: clamped to next caption start, can't shrink past last word end.
+    let end = newEndMs;
+    if (nextStart !== undefined) end = Math.min(end, nextStart);
+    if (wordsHi !== undefined) end = Math.max(end, wordsHi);
+    if (start >= end) throw err("resize leaves the caption with no duration");
+    const captions = project.captions.map((c, i) =>
+      i === idx ? { ...c, start_ms: start, end_ms: end } : c,
+    );
+    return { ...project, captions };
+  }
+  function shiftAllCaptions(project: Project, offsetMs: number): Project {
+    if (offsetMs === 0) return project;
+    const captions = project.captions.map((c) => ({
+      ...c,
+      start_ms: Math.max(c.start_ms + offsetMs, 0),
+      end_ms: Math.max(c.end_ms + offsetMs, 0),
+      words: c.words.map((w) => ({
+        ...w,
+        start_ms: Math.max(w.start_ms + offsetMs, 0),
+        end_ms: Math.max(w.end_ms + offsetMs, 0),
+      })),
+    }));
+    return { ...project, captions };
+  }
+
   type Args = Record<string, unknown>;
   function invoke(cmd: string, args: Args): Promise<unknown> {
     const project = args.project as Project;
@@ -238,6 +394,55 @@ function backend(): void {
             args.wordIndex as number,
             args.newText as string,
           ),
+        );
+      case "op_lock_word":
+        return Promise.resolve(
+          lockWord(
+            project,
+            args.captionId as string,
+            args.wordIndex as number,
+            args.locked as boolean,
+          ),
+        );
+      case "op_accept_alternate":
+        return Promise.resolve(
+          acceptAlternate(
+            project,
+            args.captionId as string,
+            args.wordIndex as number,
+            args.alternateIndex as number,
+          ),
+        );
+      case "op_retime_word":
+        return Promise.resolve(
+          retimeWord(
+            project,
+            args.captionId as string,
+            args.wordIndex as number,
+            args.newStartMs as number,
+            args.newEndMs as number,
+          ),
+        );
+      case "op_move_caption":
+        return Promise.resolve(
+          moveCaption(
+            project,
+            args.captionId as string,
+            args.deltaMs as number,
+          ),
+        );
+      case "op_resize_caption":
+        return Promise.resolve(
+          resizeCaption(
+            project,
+            args.captionId as string,
+            args.newStartMs as number,
+            args.newEndMs as number,
+          ),
+        );
+      case "op_shift_all_captions":
+        return Promise.resolve(
+          shiftAllCaptions(project, args.offsetMs as number),
         );
       case "op_apply_glossary":
         return Promise.resolve({ project, corrections: [] });
