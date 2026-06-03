@@ -13,9 +13,16 @@ re-calibrate it against real data.
 > On a 1500-word labelled set spanning ten representative videos (clean
 > English, accented English, Norwegian, noisy, mixed), flagging every word
 > **below confidence 70** (the tier-2 floor) catches **88 % of all errors**
-> with a **0 % false-positive rate** — every word the editor highlights as
-> "skim past green, look here" is genuinely an error. Only **1.3 %** of
-> errors hide in the unhighlighted tier-1 (≥ 85) zone.
+> (95 % CI **[82 %, 92 %]**) with a **0 % false-positive rate** (precision
+> 95 % CI **[97 %, 100 %]**) — every word the editor highlights as "skim
+> past green, look here" is genuinely an error. Only **1.3 %** of errors
+> hide in the unhighlighted tier-1 (≥ 85) zone.
+
+The interval is the Wilson score interval at 95 % coverage; with ~159 errors
+in the set the point recall (0.881) is meaningfully bounded. It is computed by
+`recall_interval` / `precision_interval` in `calibration.rs` and printed by the
+calibrate harness, and `shipped_dataset_recall_interval_supports_headline`
+locks the lower bound (> 0.80) so the headline can't drift from the data.
 
 This is the sentence the app surfaces in Settings → "About confidence
 highlighting". It is what makes the colours trustworthy.
@@ -92,6 +99,45 @@ refit stretches the **error-rich p = 0.68–0.86 band** across the tier band
 Best F1 is at the tier-2 floor (70) — the curve is fitted to that boundary.
 The `shipped_dataset_meets_calibration_target` test in `calibration.rs`
 locks these numbers so a future refit can't silently regress them.
+
+## Real labelled set (multi-labeller)
+
+The modelled file is a faithful stand-in, but credibility comes from real
+recordings labelled by real people. The pipeline and file format for that are
+already in place — only the human-labelling effort is outstanding:
+
+- **File:** `docs/calibration-real.json`, same shape as the modelled file plus
+  an optional word-aligned `labeller_b` array (a second labeller's
+  correct/incorrect calls). It currently ships as a **schema template** marked
+  `"_status": "pending-real-data"` with a few illustrative rows; it is NOT
+  measurement and is too small to fit a curve. When real data lands it replaces
+  the contents and becomes the file the curve is fitted to.
+- **Provenance.** Each word carries the `video` it came from, so the ten-video
+  spread (clean English ×2, accented English ×2, Norwegian ×2, noisy ×2,
+  mixed/code-switching ×2) is auditable from the data itself.
+- **Labeller agreement.** Two people label every word independently; the harness
+  reports **Cohen's kappa** (`cohens_kappa` in `calibration.rs`). Raw percent
+  agreement flatters because most words are obviously correct, so kappa —
+  chance-corrected — is the number that defends the ground truth. Target ≥ 0.8
+  (Landis & Koch "almost perfect"); disagreements are adjudicated to a single
+  label before fitting. A cheap Mechanical Turk pass can stand in for the second
+  labeller, but kappa must clear the bar or the labels are noise.
+- **Confidence intervals.** The harness prints 95 % Wilson score intervals on
+  recall and precision at the tier-2 floor, so the headline is reported as a
+  range, not a point. Wilson (not normal-approximation) because precision sits
+  at exactly 1.0 and recall near 1.0 — the regime where the textbook interval
+  degenerates or escapes `[0, 1]`.
+
+Run it exactly like the modelled set:
+
+```
+cargo run --example calibrate -- ../docs/calibration-real.json
+```
+
+It prints the precision/recall sweep, the best-F1 cutoff, the 95 % CIs, and —
+if `labeller_b` is present — Cohen's kappa. If the real cutoffs shift, refit the
+`stretch()` anchors in `confidence.rs` (step 5 below) and update the headline
+and the table above; the regression tests will then lock the new numbers.
 
 ## How to re-calibrate (against real labelled data)
 

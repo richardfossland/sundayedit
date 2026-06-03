@@ -15,11 +15,20 @@
 use std::process::ExitCode;
 
 use serde::Deserialize;
-use sundayedit_lib::services::asr::calibration::{best_f1, default_thresholds, sweep, LabeledWord};
+use sundayedit_lib::services::asr::calibration::{
+    best_f1, cohens_kappa, default_thresholds, precision_interval, recall_interval, sweep,
+    LabeledWord,
+};
 
 #[derive(Deserialize)]
 struct Input {
     words: Vec<LabeledWord>,
+    /// Optional second labeller's correct/incorrect calls, word-aligned with
+    /// `words`, for inter-labeller agreement (Cohen's kappa). Present in the
+    /// real multi-labeller set (`docs/calibration-real.json`); absent in the
+    /// modelled set. See docs/CALIBRATION.md.
+    #[serde(default)]
+    labeller_b: Vec<bool>,
 }
 
 fn main() -> ExitCode {
@@ -71,6 +80,33 @@ fn main() -> ExitCode {
              (see docs/CALIBRATION.md).",
             best.threshold,
         );
+    }
+
+    // 95 % Wilson intervals at the shipped tier-2 floor (70) — the headline the
+    // app surfaces is a point estimate, but this is the honest range behind it.
+    let r = recall_interval(&input.words, 70.0);
+    let p = precision_interval(&input.words, 70.0);
+    println!(
+        "\nAt the tier-2 floor (conf < 70), 95% CI:\n  \
+         recall    {:.3}  [{:.3}, {:.3}]\n  precision {:.3}  [{:.3}, {:.3}]",
+        r.point, r.lower, r.upper, p.point, p.lower, p.upper,
+    );
+
+    // Inter-labeller agreement, when a second labeller's calls are present.
+    if !input.labeller_b.is_empty() {
+        let labeller_a: Vec<bool> = input.words.iter().map(|w| w.correct).collect();
+        match cohens_kappa(&labeller_a, &input.labeller_b) {
+            Some(k) => println!(
+                "\nInter-labeller agreement (Cohen's kappa): {k:.3}  \
+                 (>0.8 almost perfect, 0.6–0.8 substantial).",
+            ),
+            None => eprintln!(
+                "\nlabeller_b present but not word-aligned with words ({} vs {}); \
+                 skipping kappa.",
+                input.labeller_b.len(),
+                input.words.len(),
+            ),
+        }
     }
 
     ExitCode::SUCCESS

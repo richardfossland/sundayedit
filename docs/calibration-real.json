@@ -1,0 +1,33 @@
+{
+  "_comment": "SCHEMA TEMPLATE / PENDING — this is NOT a real labelled set yet. Producing genuine data requires transcribing ten real videos with local Whisper (word-level logprobs) and two humans hand-labelling every word against ground truth — neither possible in CI/headless. This file documents the exact multi-labeller format the harness consumes so that, when the labelling effort runs, the data drops straight in and `cargo run --example calibrate -- ../docs/calibration-real.json` reports precision/recall, 95% Wilson confidence intervals, AND inter-labeller agreement (Cohen's kappa) with no code change. Until it exists the app keeps the modelled file and honestly labels the figure 'modelled' in Settings. The handful of rows below are ILLUSTRATIVE format examples, hand-written to show the shape (NOT measurements) and are intentionally too few to fit a curve. See docs/CALIBRATION.md → 'Real labelled set (multi-labeller)'.",
+  "_status": "pending-real-data",
+  "_schema": {
+    "words[].confidence": "0..100 confidence SundayEdit assigned to the word (from confidence.rs).",
+    "words[].correct": "labeller A's call: did the transcribed word match ground truth?",
+    "words[].video": "which of the ten source videos this word came from (provenance).",
+    "labeller_b": "OPTIONAL parallel array, word-aligned with words[], holding labeller B's correct/incorrect call. Drives Cohen's kappa. Omit for a single-labeller pass."
+  },
+  "words": [
+    {
+      "confidence": 97.0,
+      "correct": true,
+      "video": "clean English — studio podcast"
+    },
+    {
+      "confidence": 62.0,
+      "correct": false,
+      "video": "clean English — studio podcast"
+    },
+    {
+      "confidence": 84.0,
+      "correct": true,
+      "video": "Norwegian — sermon (named terms)"
+    },
+    {
+      "confidence": 48.0,
+      "correct": false,
+      "video": "noisy — handheld outdoor"
+    }
+  ],
+  "labeller_b": [true, false, true, false]
+}
