@@ -114,6 +114,9 @@ pub fn run() {
             commands::cleanup::detect_fillers,
             commands::cleanup::detect_silences,
             commands::cleanup::apply_ripple_cuts,
+            // Caption readability re-flow (Phase 7)
+            commands::reflow::reflow_analyze,
+            commands::reflow::reflow_repair,
             // AI punctuation polish (Phase 4.1)
             commands::polish::polish_estimate,
             commands::polish::polish_captions,
