@@ -23,6 +23,11 @@ pub struct CaptionizeOptions {
     pub max_caption_ms: i64,
     /// Below this, merge with the neighbour (too short to read).
     pub min_caption_ms: i64,
+    /// Max readable characters-per-second. Adding a word that would push the
+    /// in-progress caption's projected CPS over this triggers a break, so a
+    /// fast speaker yields captions that are already readable instead of
+    /// immediately failing `reflow::analyze`. Matches `ReflowConfig` default.
+    pub max_cps: f32,
 }
 
 impl Default for CaptionizeOptions {
@@ -31,8 +36,22 @@ impl Default for CaptionizeOptions {
             max_chars: 84, // ~2 lines × 42 chars
             max_caption_ms: 6_000,
             min_caption_ms: 800,
+            max_cps: 17.0, // broadcast/Netflix adult default, matches ReflowConfig
         }
     }
+}
+
+/// Visible (rendered) character count of the in-progress caption — the same
+/// measure `Caption::text()` and `reflow::cps` use: word chars plus a single
+/// joining space between words. (The running `current_chars` accumulator
+/// over-counts by one space-per-word, which is fine for the soft char budget
+/// but wrong for CPS, so CPS uses this exact count instead.)
+fn current_chars_visible(words: &[Word]) -> usize {
+    if words.is_empty() {
+        return 0;
+    }
+    let word_chars: usize = words.iter().map(|w| w.text.chars().count()).sum();
+    word_chars + (words.len() - 1) // joining spaces
 }
 
 /// Characters that end a sentence — preferred break points.
@@ -102,7 +121,20 @@ pub fn captionize(
         let would_exceed_chars = current_chars + word_len > opts.max_chars;
         let would_exceed_dur = tw.end_ms - running_start > opts.max_caption_ms;
 
-        if !current.is_empty() && (would_exceed_chars || would_exceed_dur) {
+        // Projected reading speed if we appended this word: visible chars
+        // (current text + a space + the new word, no trailing space) over the
+        // span from the caption start to this word's end. Only break when the
+        // caption already has enough on-screen time to stand alone — otherwise
+        // the split would just flash and be merged straight back, so we'd rather
+        // keep one slightly-fast caption than two unreadable fragments.
+        let projected_dur_s = (tw.end_ms - running_start) as f32 / 1000.0;
+        let projected_chars = current_chars_visible(&current) + 1 + tw.text.chars().count();
+        let would_exceed_cps = !current.is_empty()
+            && projected_dur_s > 0.0
+            && projected_chars as f32 / projected_dur_s > opts.max_cps
+            && tw.start_ms - running_start >= opts.min_caption_ms;
+
+        if !current.is_empty() && (would_exceed_chars || would_exceed_dur || would_exceed_cps) {
             flush(&mut captions, &mut current, &mut caption_index, &mut id_for);
             current_chars = 0;
             running_start = tw.start_ms;
@@ -176,6 +208,33 @@ mod tests {
 
     fn counter_ids() -> impl FnMut(usize) -> String {
         move |i| format!("c{i}")
+    }
+
+    /// Wrap captions in a minimal valid Project so `reflow::analyze` can run.
+    fn project_with(captions: Vec<Caption>) -> crate::model::Project {
+        crate::model::Project {
+            id: "p".into(),
+            name: "t".into(),
+            video_path: "/x".into(),
+            video_content_hash: "h".into(),
+            video_duration_ms: 600_000,
+            video_width: 1920,
+            video_height: 1080,
+            video_fps: 30.0,
+            audio_wav_path: None,
+            language: "en".into(),
+            default_style: crate::model::Style::broadcast_news(),
+            context_description: None,
+            captions,
+            speakers: vec![],
+            glossary: vec![],
+            clips: vec![],
+            talk_summary: None,
+            export_config: crate::model::ExportConfig::default(),
+            project_meta: crate::model::ProjectMeta::default(),
+            created_at: 0,
+            updated_at: 0,
+        }
     }
 
     #[test]
@@ -275,6 +334,7 @@ mod tests {
             max_caption_ms: 4_000,
             min_caption_ms: 0,
             max_chars: 100,
+            ..Default::default()
         };
         let caps = captionize(&t, opts, 0, counter_ids());
         assert_eq!(caps.len(), 2);
@@ -292,6 +352,7 @@ mod tests {
             max_chars: 8,
             min_caption_ms: 800,
             max_caption_ms: 6000,
+            ..Default::default()
         };
         let caps = captionize(&t, opts, 0, counter_ids());
         // "Hi." alone is 200ms < 800ms min, so it merges forward.
@@ -311,9 +372,103 @@ mod tests {
             max_caption_ms: 1000,
             min_caption_ms: 0,
             max_chars: 100,
+            ..Default::default()
         };
         let caps = captionize(&t, opts, 0, counter_ids());
         assert_eq!(caps[0].id, "c0");
         assert_eq!(caps[1].id, "c1");
+    }
+
+    // ── CPS enforcement ──────────────────────────────────────────────────────────
+    #[test]
+    fn fast_speaker_is_split_so_reflow_sees_no_cps_issue() {
+        use crate::services::reflow::{self, ReflowConfig};
+        // A dense run: ten 5-char words back-to-back at 350ms each. As one
+        // caption that is 59 chars / 3.5s ≈ 16.9 CPS, and at max_cps 16 it would
+        // immediately fail reflow. With CPS-aware breaking it must split so the
+        // fresh transcript is already readable.
+        let words: Vec<TranscribedWord> = (0..10)
+            .map(|i| tw("abcde", i * 350, i * 350 + 350, 90.0))
+            .collect();
+        let t = transcript(words);
+        let opts = CaptionizeOptions {
+            max_cps: 16.0,
+            min_caption_ms: 0, // let CPS, not min-duration, drive the breaks
+            max_chars: 84,
+            max_caption_ms: 6_000,
+        };
+        let caps = captionize(&t, opts, 0, counter_ids());
+        assert!(
+            caps.len() > 1,
+            "a fast speaker must be split into multiple captions"
+        );
+
+        let cfg = ReflowConfig {
+            max_cps: 16.0,
+            min_duration_ms: 0,
+            ..ReflowConfig::default()
+        };
+        assert!(
+            reflow::analyze(&project_with(caps), &cfg)
+                .iter()
+                .all(|i| i.kind != "cps"),
+            "captionize output must not trip the CPS limit"
+        );
+    }
+
+    #[test]
+    fn cps_break_does_not_split_mid_word() {
+        // Whatever breaks happen, no caption text should contain a partial token:
+        // every caption must be made of whole input words in order.
+        let words: Vec<TranscribedWord> = (0..12)
+            .map(|i| tw("alpha", i * 300, i * 300 + 300, 90.0))
+            .collect();
+        let t = transcript(words);
+        let opts = CaptionizeOptions {
+            max_cps: 10.0, // aggressive — forces many breaks
+            min_caption_ms: 0,
+            ..Default::default()
+        };
+        let caps = captionize(&t, opts, 0, counter_ids());
+        let flat: Vec<&str> = caps
+            .iter()
+            .flat_map(|c| c.words.iter())
+            .map(|w| w.text.as_str())
+            .collect();
+        assert_eq!(flat.len(), 12);
+        assert!(flat.iter().all(|w| *w == "alpha"), "no word was split");
+    }
+
+    #[test]
+    fn cps_does_not_create_a_flash_below_min_duration() {
+        // A short, dense burst: the CPS guard must not chop it into sub-minimum
+        // fragments. With min_caption_ms set, the burst stays as one caption
+        // (CarpetCPS-break only fires once the caption already spans the min).
+        let words = vec![
+            tw("abcdefghij", 0, 200, 90.0),
+            tw("abcdefghij", 200, 400, 90.0),
+        ];
+        let t = transcript(words);
+        let opts = CaptionizeOptions {
+            max_cps: 5.0, // would love to break, but the burst is < min
+            min_caption_ms: 800,
+            max_chars: 84,
+            max_caption_ms: 6_000,
+        };
+        let caps = captionize(&t, opts, 0, counter_ids());
+        // The whole 400ms burst stays together rather than flashing.
+        assert_eq!(caps.len(), 1);
+        assert_eq!(caps[0].text(), "abcdefghij abcdefghij");
+    }
+
+    #[test]
+    fn slow_speech_is_unaffected_by_cps_breaking() {
+        // Comfortable pacing (5 chars/word over 1s each) must not be over-split.
+        let words: Vec<TranscribedWord> = (0..4)
+            .map(|i| tw("hello", i * 1000, i * 1000 + 1000, 90.0))
+            .collect();
+        let t = transcript(words);
+        let caps = captionize(&t, CaptionizeOptions::default(), 0, counter_ids());
+        assert_eq!(caps.len(), 1, "slow speech should stay as one caption");
     }
 }
