@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { appDataDir, join } from "@tauri-apps/api/path";
+import { convertFileSrc, isTauri } from "@tauri-apps/api/core";
 import {
   Download,
   Settings as SettingsIcon,
@@ -110,6 +111,19 @@ function App() {
       return false;
     }
   });
+
+  // Asset URL for the source video, fed to the timeline's <video>. Only built
+  // under Tauri (the asset protocol) and for a real on-disk path — the demo
+  // sentinel (/demo/…) and browser dev fall back to the timecode placeholder.
+  const videoSrc = useMemo(() => {
+    const path = project?.video_path;
+    if (!path || path.startsWith("/demo/") || !isTauri()) return undefined;
+    try {
+      return convertFileSrc(path);
+    } catch {
+      return undefined;
+    }
+  }, [project?.video_path]);
 
   // Check for a newer signed build once on launch (no-op outside Tauri /
   // before any release exists).
@@ -293,7 +307,11 @@ function App() {
           />
         </div>
         <div className="h-56 shrink-0 border-t border-[var(--color-border)]">
-          <Timeline project={project} onProjectChange={setProject} />
+          <Timeline
+            project={project}
+            onProjectChange={setProject}
+            videoSrc={videoSrc}
+          />
         </div>
       </main>
 

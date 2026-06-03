@@ -332,6 +332,9 @@ const en = {
   timelineHelp:
     "Space: play/pause · J/K/L: shuttle (reverse/stop/forward) · ←/→: previous/next caption (⇧ = 5) · drag to move, drag the edges to retime · S: snap · ⌘+scroll: zoom",
   timelineSnap: "Snap",
+  mediaPlayerMissing: "Video unavailable — editing on the timeline only.",
+  mediaPlayerScrubWarning:
+    "The timeline is driving playback — manual scrubbing was ignored.",
 
   // ── Export config (Oppgave 1) ──────────────────────────────────────────────
   exportConfigTitle: "Export settings",
@@ -701,6 +704,9 @@ const no: Catalog = {
   timelineHelp:
     "Mellomrom: spill av/pause · J/K/L: jog (revers/stopp/forover) · ←/→: forrige/neste caption (⇧ = 5) · dra for å flytte, dra kantene for å endre timing · S: snap · ⌘+rull: zoom",
   timelineSnap: "Snap",
+  mediaPlayerMissing: "Video utilgjengelig — redigerer kun på tidslinjen.",
+  mediaPlayerScrubWarning:
+    "Tidslinjen styrer avspillingen — manuell skrubbing ble ignorert.",
 
   // ── Export ──────────────────────────────────────────────────────────────
   exportSidecarHeader: "Tekstformater (sidecar)",
@@ -1040,6 +1046,9 @@ const sv: Catalog = {
   timelineHelp:
     "Space: spela/pausa · J/K/L: shuttle (bakåt/stopp/framåt) · ←/→: föregående/nästa undertext (⇧ = 5) · dra för att flytta, dra kanterna för att ändra timing · S: snäpp · ⌘+scroll: zooma",
   timelineSnap: "Snäpp",
+  mediaPlayerMissing: "Video otillgänglig — redigerar endast i tidslinjen.",
+  mediaPlayerScrubWarning:
+    "Tidslinjen styr uppspelningen — manuell skrubbning ignorerades.",
   exportSidecarHeader: "Textformat (sidecar)",
   exportSrtDesc: "Universell — YouTube, de flesta spelare",
   exportVttDesc: "Webbstandard, med talare",
@@ -1368,6 +1377,9 @@ const da: Catalog = {
   timelineHelp:
     "Space: afspil/pause · J/K/L: shuttle (tilbage/stop/frem) · ←/→: forrige/næste undertekst (⇧ = 5) · træk for at flytte, træk i kanterne for at justere timing · S: snap · ⌘+scroll: zoom",
   timelineSnap: "Snap",
+  mediaPlayerMissing: "Video utilgængelig — redigerer kun på tidslinjen.",
+  mediaPlayerScrubWarning:
+    "Tidslinjen styrer afspilningen — manuel scrubning blev ignoreret.",
   exportSidecarHeader: "Tekstformater (sidecar)",
   exportSrtDesc: "Universelt — YouTube, de fleste afspillere",
   exportVttDesc: "Webstandard, med talere",
@@ -1701,6 +1713,10 @@ const de: Catalog = {
   timelineHelp:
     "Space: Wiedergabe/Pause · J/K/L: Shuttle (rückwärts/Stopp/vorwärts) · ←/→: vorheriger/nächster Untertitel (⇧ = 5) · ziehen zum Verschieben, Kanten ziehen zum Timing-Ändern · S: Einrasten · ⌘+Scrollen: Zoom",
   timelineSnap: "Einrasten",
+  mediaPlayerMissing:
+    "Video nicht verfügbar — Bearbeitung nur in der Timeline.",
+  mediaPlayerScrubWarning:
+    "Die Timeline steuert die Wiedergabe — manuelles Scrubben wurde ignoriert.",
   exportSidecarHeader: "Textformate (Sidecar)",
   exportSrtDesc: "Universell — YouTube, die meisten Player",
   exportVttDesc: "Webstandard, mit Sprechern",
@@ -2033,6 +2049,10 @@ const fr: Catalog = {
   timelineHelp:
     "Space : lecture/pause · J/K/L : navette (arrière/arrêt/avant) · ←/→ : sous-titre précédent/suivant (⇧ = 5) · glisser pour déplacer, glisser les bords pour ajuster le minutage · S : magnétisme · ⌘+molette : zoom",
   timelineSnap: "Magnétisme",
+  mediaPlayerMissing:
+    "Vidéo indisponible — édition uniquement sur la timeline.",
+  mediaPlayerScrubWarning:
+    "La timeline pilote la lecture — le déplacement manuel a été ignoré.",
   exportSidecarHeader: "Formats texte (fichier annexe)",
   exportSrtDesc: "Universel — YouTube, la plupart des lecteurs",
   exportVttDesc: "Standard web, avec intervenants",
@@ -2363,6 +2383,9 @@ const pl: Catalog = {
   timelineHelp:
     "Space: odtwórz/wstrzymaj · J/K/L: przewijanie (wstecz/stop/naprzód) · ←/→: poprzedni/następny napis (⇧ = 5) · przeciągnij, aby przesunąć, przeciągnij krawędzie, aby zmienić czas · S: przyciąganie · ⌘+przewijanie: powiększenie",
   timelineSnap: "Przyciąganie",
+  mediaPlayerMissing: "Wideo niedostępne — edycja tylko na osi czasu.",
+  mediaPlayerScrubWarning:
+    "Oś czasu steruje odtwarzaniem — ręczne przewijanie zignorowano.",
   exportSidecarHeader: "Formaty tekstowe (sidecar)",
   exportSrtDesc: "Uniwersalny — YouTube, większość odtwarzaczy",
   exportVttDesc: "Standard internetowy, z mówcami",

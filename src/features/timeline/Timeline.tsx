@@ -32,10 +32,15 @@ import { ipc } from "@/lib/ipc";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import * as tl from "./geometry";
+import { MediaPlayer } from "./MediaPlayer";
 
 interface Props {
   project: Project;
   onProjectChange: (p: Project) => void;
+  /** Asset URL for the source video, or undefined when none is attachable
+   *  (browser/demo, no Tauri asset protocol). When set, a <video> is bound to
+   *  the playhead clock instead of the static timecode placeholder. */
+  videoSrc?: string;
 }
 
 const RULER_H = 22;
@@ -68,7 +73,7 @@ const TIER_BORDER: Record<number, string> = {
   4: "var(--color-danger)",
 };
 
-export function Timeline({ project, onProjectChange }: Props) {
+export function Timeline({ project, onProjectChange, videoSrc }: Props) {
   const t = useT();
   const durationMs = Math.max(1, project.video_duration_ms);
   const fps = project.video_fps > 0 ? project.video_fps : 30;
@@ -91,6 +96,9 @@ export function Timeline({ project, onProjectChange }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [waveform, setWaveform] = useState<WaveformData | null>(null);
+  // A transient warning when the user scrubs the native video control while the
+  // timeline is driving playback (the two clocks would fight).
+  const [scrubWarning, setScrubWarning] = useState(false);
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -163,6 +171,13 @@ export function Timeline({ project, onProjectChange }: Props) {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [rate, durationMs]);
+
+  // Auto-dismiss the scrub-conflict warning a few seconds after it appears.
+  useEffect(() => {
+    if (!scrubWarning) return;
+    const id = setTimeout(() => setScrubWarning(false), 4000);
+    return () => clearTimeout(id);
+  }, [scrubWarning]);
 
   // Draw the ruler-aligned waveform window into the canvas.
   useEffect(() => {
@@ -383,17 +398,37 @@ export function Timeline({ project, onProjectChange }: Props) {
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
-      {/* Preview area (video playback is a follow-up) */}
-      <div className="flex flex-[3] items-center justify-center border-b border-[var(--color-border)] bg-black/40">
-        <div className="text-center">
-          <div className="font-mono text-[var(--text-ui-2xl)] tabular-nums">
-            {tl.formatTimecode(playheadMs, fps)}
+      {/* Preview area — a real <video> bound to the playhead clock when one is
+          attachable (videoSrc), else the timecode placeholder. */}
+      <div className="relative flex flex-[3] items-center justify-center border-b border-[var(--color-border)] bg-black/40">
+        {videoSrc ? (
+          <MediaPlayer
+            src={videoSrc}
+            playheadMs={playheadMs}
+            rate={rate}
+            durationMs={durationMs}
+            fps={fps}
+            onConflict={() => setScrubWarning(true)}
+          />
+        ) : (
+          <div className="text-center">
+            <div className="font-mono text-[var(--text-ui-2xl)] tabular-nums">
+              {tl.formatTimecode(playheadMs, fps)}
+            </div>
+            <div className="mt-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
+              {project.name} · {tl.formatTimecode(durationMs, fps)}{" "}
+              {t("timelineTotalSuffix")}
+            </div>
           </div>
-          <div className="mt-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
-            {project.name} · {tl.formatTimecode(durationMs, fps)}{" "}
-            {t("timelineTotalSuffix")}
+        )}
+        {scrubWarning && (
+          <div
+            role="alert"
+            className="absolute inset-x-0 bottom-0 bg-[var(--color-warning)]/90 px-3 py-1 text-center text-[var(--text-ui-xs)] text-[var(--color-neutral-950)]"
+          >
+            {t("mediaPlayerScrubWarning")}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Toolbar */}
