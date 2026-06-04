@@ -81,11 +81,6 @@ impl Matcher {
                 case_sensitive,
                 whole_word,
             } => {
-                let hay = if *case_sensitive {
-                    text.to_string()
-                } else {
-                    text.to_lowercase()
-                };
                 let need = if *case_sensitive {
                     needle.clone()
                 } else {
@@ -95,14 +90,55 @@ impl Matcher {
                     return vec![];
                 }
                 let mut out = Vec::new();
-                let mut from = 0;
-                while let Some(pos) = hay[from..].find(&need) {
-                    let start = from + pos;
-                    let end = start + need.len();
-                    if !*whole_word || is_whole_word(text, start, end) {
-                        out.push((start, end, text[start..end].to_string()));
+                if *case_sensitive {
+                    // Offsets into `text` are valid directly.
+                    let mut from = 0;
+                    while let Some(pos) = text[from..].find(&need) {
+                        let start = from + pos;
+                        let end = start + need.len();
+                        if !*whole_word || is_whole_word(text, start, end) {
+                            out.push((start, end, text[start..end].to_string()));
+                        }
+                        from = end.max(start + 1);
                     }
-                    from = end.max(start + 1);
+                } else {
+                    // `str::to_lowercase` is NOT length-preserving (e.g. Turkish
+                    // 'İ'), so byte offsets into the lowercased haystack do not map
+                    // back to `text`. Instead, scan each char boundary of the
+                    // ORIGINAL `text` and compare a lowercased slice anchored there.
+                    let indices: Vec<usize> = text
+                        .char_indices()
+                        .map(|(i, _)| i)
+                        .chain(std::iter::once(text.len()))
+                        .collect();
+                    let mut i = 0;
+                    while i + 1 < indices.len() {
+                        let start = indices[i];
+                        // Find the char boundary `j > i` whose lowercased slice
+                        // `text[start..indices[j]]` equals `need`.
+                        let mut matched_j = None;
+                        for (offset, &end) in indices[i + 1..].iter().enumerate() {
+                            let slice_lower = text[start..end].to_lowercase();
+                            if slice_lower == need {
+                                matched_j = Some(i + 1 + offset);
+                                break;
+                            }
+                            if !need.starts_with(&slice_lower) {
+                                // Lowercased prefix can no longer extend to `need`.
+                                break;
+                            }
+                        }
+                        if let Some(j) = matched_j {
+                            let end = indices[j];
+                            if !*whole_word || is_whole_word(text, start, end) {
+                                out.push((start, end, text[start..end].to_string()));
+                            }
+                            // Non-overlapping: resume at the match end (≥ one char).
+                            i = j.max(i + 1);
+                        } else {
+                            i += 1;
+                        }
+                    }
                 }
                 out
             }
@@ -399,6 +435,22 @@ mod tests {
         let (out, _) = replace_all(&p, &o, "", 100).unwrap();
         assert_eq!(out.captions.len(), 1);
         assert_eq!(out.captions[0].id, "c2");
+    }
+
+    #[test]
+    fn case_insensitive_match_with_length_changing_lowercase() {
+        // Turkish dotted capital I (U+0130, 2 bytes) lowercases to "i" + combining
+        // dot (3 bytes). A case-insensitive search must not slice the ORIGINAL text
+        // using offsets computed against the lowercased haystack, or it panics on a
+        // char boundary / out-of-bounds index.
+        let p = proj(vec![("c1", vec!["\u{0130}um"])]); // "İum"
+        let m = find_all(&p, &opts("um")).unwrap();
+        assert_eq!(m.len(), 1);
+        assert_eq!(m[0].matched, "um");
+
+        let (out, count) = replace_all(&p, &opts("um"), "X", 100).unwrap();
+        assert_eq!(count, 1);
+        assert_eq!(out.captions[0].words[0].text, "\u{0130}X");
     }
 
     #[test]
