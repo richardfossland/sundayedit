@@ -51,8 +51,9 @@ beforeEach(() => {
   listen.mockResolvedValue(() => {});
 });
 
-/** Assert the last invoke was `cmd` with exactly `args` (keys + values). */
-function expectCall(cmd: string, args: Record<string, unknown>) {
+/** Assert the last invoke was `cmd` with exactly `args` (keys + values).
+ *  `undefined` pins the no-arg commands, where the wrapper omits the 2nd arg. */
+function expectCall(cmd: string, args: Record<string, unknown> | undefined) {
   expect(invoke).toHaveBeenLastCalledWith(cmd, args);
 }
 
