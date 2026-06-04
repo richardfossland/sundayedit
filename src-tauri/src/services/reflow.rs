@@ -936,4 +936,213 @@ mod tests {
             }
         }
     }
+
+    // ── Property: wrap_lines never splits a word and never exceeds max_chars ─────
+    //
+    // The two load-bearing promises of `wrap_lines` (per its doc): (1) a word is
+    // never split mid-token — every output token is one of the input whitespace
+    // tokens; and (2) no line is wider than `max_chars` UNLESS it is a single
+    // word that alone exceeds `max_chars` (an unbreakable token). We also assert
+    // the word multiset/order is conserved (concatenating output tokens == input
+    // tokens), which together pins "no words dropped/reordered/duplicated".
+    //
+    // Fixed-seed PRNG, capped at 500 iterations — cheap, finds edge cases.
+    struct PRng(u64);
+    impl PRng {
+        fn new(seed: u64) -> Self {
+            PRng(seed | 1)
+        }
+        fn next_u64(&mut self) -> u64 {
+            // xorshift64*
+            let mut x = self.0;
+            x ^= x >> 12;
+            x ^= x << 25;
+            x ^= x >> 27;
+            self.0 = x;
+            x.wrapping_mul(0x2545_F491_4F6C_DD1D)
+        }
+        fn below(&mut self, n: usize) -> usize {
+            (self.next_u64() % n as u64) as usize
+        }
+    }
+
+    #[test]
+    fn wrap_lines_property_no_split_no_overflow_conserves_words() {
+        let mut rng = PRng::new(0xA55E_1B1E_C0FF_EE01);
+        // A small alphabet incl. multibyte chars so char-count != byte-count.
+        let alphabet = ['a', 'b', 'z', 'é', 'ø', '中', '🙂'];
+        for iter in 0..500 {
+            let max_chars = 1 + rng.below(20); // 1..=20
+            let word_count = rng.below(10); // 0..=9 words
+            let mut words: Vec<String> = Vec::with_capacity(word_count);
+            for _ in 0..word_count {
+                let len = 1 + rng.below(12); // 1..=12 chars per word (can exceed max)
+                let s: String = (0..len)
+                    .map(|_| alphabet[rng.below(alphabet.len())])
+                    .collect();
+                words.push(s);
+            }
+            // Build the input text by joining with random whitespace runs (the
+            // function must collapse these). Empty whitespace-only inputs too.
+            let mut text = String::new();
+            for (wi, word) in words.iter().enumerate() {
+                if wi > 0 {
+                    // 1..=3 whitespace chars, mix of space/tab/newline.
+                    for _ in 0..(1 + rng.below(3)) {
+                        text.push([' ', '\t', '\n'][rng.below(3)]);
+                    }
+                }
+                text.push_str(word);
+            }
+
+            let lines = wrap_lines(&text, max_chars);
+
+            // (1) No line overflows unless it is a single unbreakable word.
+            for line in &lines {
+                let llen = line.chars().count();
+                if llen > max_chars {
+                    let tokens: Vec<&str> = line.split(' ').collect();
+                    assert_eq!(
+                        tokens.len(),
+                        1,
+                        "iter={iter} max={max_chars}: overflowing line {line:?} is not a single word"
+                    );
+                    assert!(
+                        tokens[0].chars().count() > max_chars,
+                        "iter={iter} max={max_chars}: line {line:?} overflows but its only word fits"
+                    );
+                }
+            }
+
+            // (2) Word conservation: flatten output tokens, compare to input
+            // whitespace tokens exactly (order + multiplicity). This proves no
+            // word was split (a split would produce a token not in the input),
+            // dropped, duplicated, or reordered.
+            let out_tokens: Vec<&str> = lines
+                .iter()
+                .flat_map(|l| l.split(' '))
+                .filter(|t| !t.is_empty())
+                .collect();
+            let in_tokens: Vec<&str> = text.split_whitespace().collect();
+            assert_eq!(
+                out_tokens, in_tokens,
+                "iter={iter} max={max_chars}: words not conserved in order for {text:?}"
+            );
+        }
+    }
+
+    // ── Property: repair is idempotent ──────────────────────────────────────────
+    //
+    // `repair` is the headline auto-fix. Its doc promises it "never makes a clean
+    // project worse" and re-validates the result. A subtler, highly valuable
+    // property the existing tests do NOT pin: running repair a SECOND time must be
+    // a no-op (repair(repair(p)) == repair(p)). If it weren't, the UI's "fix all"
+    // button would churn caption ids/boxes on repeated presses, and any residual
+    // (unbreakable) issue could ping-pong. Idempotence is the contract that makes
+    // repair safe to call freely.
+    //
+    // We feed adversarial captions across a grid of configs, fixed seed, ≤500
+    // total iterations.
+    #[test]
+    fn repair_is_idempotent_property() {
+        let mut rng = PRng::new(0xBADD_CAFE_1234_5678);
+        let cfg_grid = [
+            ReflowConfig::default(),
+            ReflowConfig {
+                max_cps: 4.0,
+                ..Default::default()
+            },
+            ReflowConfig {
+                max_chars_per_line: 5,
+                max_lines: 2,
+                ..Default::default()
+            },
+            ReflowConfig {
+                max_cps: 8.0,
+                max_chars_per_line: 10,
+                min_duration_ms: 1500,
+                ..Default::default()
+            },
+        ];
+        let mut iters = 0;
+        'outer: for trial in 0..200 {
+            // Build one caption with a random number of words, random per-word
+            // span and text length (so some words are unbreakably long).
+            let n = 1 + rng.below(10); // 1..=10 words
+            let step = 200 + (rng.below(8) as i64) * 200; // 200..=1600 ms
+            let mut words = Vec::with_capacity(n);
+            let mut t = 0i64;
+            for i in 0..n {
+                let dur = 30 + (rng.below(step as usize) as i64).max(1);
+                let len = 2 + rng.below(14); // 2..=15 chars
+                let txt: String = "x".repeat(len);
+                words.push(Word::new(format!("{txt}{i}"), t, t + dur, 60.0));
+                t += dur + (rng.below(50) as i64);
+            }
+            let end = words.last().unwrap().end_ms;
+            let c = caption("seed", 0, end, words);
+            let p = proj(vec![c]);
+
+            for cfg in &cfg_grid {
+                let once = repair(&p, cfg, 9, counter_ids());
+                let once = match once {
+                    Ok(o) => o,
+                    Err(_) => continue, // some adversarial inputs validly error; skip
+                };
+                let twice =
+                    repair(&once, cfg, 9, counter_ids()).expect("second repair must succeed");
+                assert_eq!(
+                    once.captions, twice.captions,
+                    "repair not idempotent (trial={trial}, cfg={cfg:?})"
+                );
+                // And the result is always valid.
+                once.validate().expect("repaired project must validate");
+
+                iters += 1;
+                if iters >= 500 {
+                    break 'outer;
+                }
+            }
+        }
+        assert!(iters > 0, "property exercised no cases");
+    }
+
+    // ── Property: fmt round-trip for an even word retiming ───────────────────────
+    //
+    // `retime_caption_even` must (a) preserve word count/text/order, (b) leave
+    // boundaries strictly monotonic so the project validates, and (c) land the
+    // last word's end exactly on the caption's end_ms (no drift from integer
+    // division). The existing tests check a couple of hand cases; this sweeps a
+    // grid to pin the "exact landing + monotonic" invariant generally.
+    #[test]
+    fn retime_even_lands_exactly_and_is_monotonic_property() {
+        for n in 1..=12i64 {
+            for span in [n, n + 1, 1000, 1001, 99_999] {
+                if span < n {
+                    continue;
+                }
+                let words: Vec<Word> = (0..n)
+                    .map(|i| Word::new(format!("w{i}"), i, i + 1, 50.0))
+                    .collect();
+                let c = caption("c", 0, span, words);
+                let out = retime_caption_even(&proj(vec![c]), "c", 9).unwrap();
+                let ws = &out.captions[0].words;
+                assert_eq!(ws.len() as i64, n);
+                assert_eq!(ws[0].start_ms, 0, "first word starts at caption start");
+                assert_eq!(
+                    ws.last().unwrap().end_ms,
+                    span,
+                    "last word must end exactly at caption end (n={n} span={span})"
+                );
+                // Strictly monotonic, each word ≥1ms, contiguous.
+                for win in ws.windows(2) {
+                    assert_eq!(win[0].end_ms, win[1].start_ms, "contiguous");
+                }
+                for word in ws {
+                    assert!(word.end_ms > word.start_ms, "each word ≥1ms");
+                }
+                out.validate().unwrap();
+            }
+        }
+    }
 }

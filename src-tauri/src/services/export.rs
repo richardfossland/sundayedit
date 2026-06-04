@@ -782,6 +782,66 @@ mod tests {
         assert_eq!(fmt_srt_time(3_600_000), "01:00:00,000");
     }
 
+    // ── Property: timecode formatters are exactly reversible ─────────────────
+    //
+    // SRT/VTT timestamps are the load-bearing output: a player reads them back
+    // by parsing HH:MM:SS,mmm / HH:MM:SS.mmm into milliseconds. The formatter is
+    // only correct if a faithful parser recovers the exact same non-negative ms
+    // (no rounding, truncation, or field-overflow drift). We parse the formatted
+    // string back with an independent reference parser and assert equality across
+    // a fixed adversarial table plus a fixed-seed PRNG sweep capped at 500.
+    fn parse_hms_millis(s: &str, sep: char) -> i64 {
+        // "HH:MM:SS<sep>mmm" — independent reference parser for the round-trip.
+        let (hms, millis) = s.split_once(sep).expect("missing millis separator");
+        let mut parts = hms.split(':');
+        let h: i64 = parts.next().unwrap().parse().unwrap();
+        let m: i64 = parts.next().unwrap().parse().unwrap();
+        let sec: i64 = parts.next().unwrap().parse().unwrap();
+        assert!(parts.next().is_none(), "too many ':' fields in {s:?}");
+        assert!(m < 60 && sec < 60, "fields not normalised in {s:?}");
+        assert_eq!(millis.len(), 3, "millis must be zero-padded to 3 in {s:?}");
+        let ms: i64 = millis.parse().unwrap();
+        ((h * 60 + m) * 60 + sec) * 1000 + ms
+    }
+
+    #[test]
+    fn timecode_formatters_round_trip_to_exact_ms() {
+        // Fixed adversarial table: boundaries that commonly break field math.
+        let table: [i64; 12] = [
+            0,
+            1,
+            999,
+            1_000,
+            59_999,
+            60_000,
+            3_599_999,
+            3_600_000,
+            3_661_001,
+            86_399_999, // 23:59:59,999
+            86_400_000, // 24:00:00,000 — hours overflow past two digits is fine
+            359_999_999,
+        ];
+        for &ms in &table {
+            assert_eq!(parse_hms_millis(&fmt_srt_time(ms), ','), ms, "srt ms={ms}");
+            assert_eq!(parse_hms_millis(&fmt_vtt_time(ms), '.'), ms, "vtt ms={ms}");
+        }
+
+        // Fixed-seed PRNG sweep, ≤500 iterations, over the realistic 0..100h range.
+        let mut state: u64 = 0xC0FF_EE12_3456_789B;
+        let mut next = || {
+            // xorshift64*
+            state ^= state >> 12;
+            state ^= state << 25;
+            state ^= state >> 27;
+            state.wrapping_mul(0x2545_F491_4F6C_DD1D)
+        };
+        for _ in 0..500 {
+            let ms = (next() % 360_000_000) as i64; // 0..100h
+            assert_eq!(parse_hms_millis(&fmt_srt_time(ms), ','), ms, "srt ms={ms}");
+            assert_eq!(parse_hms_millis(&fmt_vtt_time(ms), '.'), ms, "vtt ms={ms}");
+        }
+    }
+
     // ── VTT ────────────────────────────────────────────────────────────────
     #[test]
     fn vtt_header_present() {
