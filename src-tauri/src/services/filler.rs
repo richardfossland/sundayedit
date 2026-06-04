@@ -15,6 +15,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::error::{AppError, AppResult};
 use crate::model::Project;
 
 // ── Filler detection ──────────────────────────────────────────────────────────
@@ -126,10 +127,14 @@ pub fn detect_silences(project: &Project, min_gap_ms: i64) -> Vec<SilenceGap> {
 /// Words straddling a cut boundary are kept (we don't split a word's audio);
 /// they shift by the cut duration that precedes their start. This keeps the
 /// math simple and predictable — the user picks clean cut ranges.
-pub fn apply_ripple_cuts(project: &Project, cuts: &[(i64, i64)], now_ms: i64) -> Project {
+pub fn apply_ripple_cuts(
+    project: &Project,
+    cuts: &[(i64, i64)],
+    now_ms: i64,
+) -> AppResult<Project> {
     let merged = merge_ranges(cuts);
     if merged.is_empty() {
-        return project.clone();
+        return Ok(project.clone());
     }
 
     let mut next = project.clone();
@@ -158,7 +163,12 @@ pub fn apply_ripple_cuts(project: &Project, cuts: &[(i64, i64)], now_ms: i64) ->
     }
     next.captions.retain(|c| !c.words.is_empty());
     next.updated_at = now_ms;
-    next
+    // A cut straddling a caption boundary can shift the following caption
+    // earlier while the preceding one stays put, producing overlapping
+    // captions. Enforce the same invariants every caption operation does so
+    // corrupted timing never escapes into save/export.
+    next.validate().map_err(AppError::Invariant)?;
+    Ok(next)
 }
 
 /// Total duration of all cuts that end at or before `point` (i.e. precede it).
@@ -313,7 +323,7 @@ mod tests {
     fn ripple_removes_word_inside_cut() {
         let p = from_words(vec![("So", 0, 300), ("um", 300, 600), ("yes", 600, 900)]);
         // Cut the "um" range exactly.
-        let out = apply_ripple_cuts(&p, &[(300, 600)], 100);
+        let out = apply_ripple_cuts(&p, &[(300, 600)], 100).unwrap();
         let words = &out.captions[0].words;
         assert_eq!(words.len(), 2);
         assert_eq!(words[0].text, "So");
@@ -326,7 +336,7 @@ mod tests {
     #[test]
     fn ripple_shifts_caption_bounds() {
         let p = from_words(vec![("a", 0, 500), ("b", 500, 1000), ("c", 1000, 1500)]);
-        let out = apply_ripple_cuts(&p, &[(500, 1000)], 100); // cut "b"
+        let out = apply_ripple_cuts(&p, &[(500, 1000)], 100).unwrap(); // cut "b"
         assert_eq!(out.captions[0].words.len(), 2);
         // "c" 1000..1500 shifts -500 → 500..1000
         assert_eq!(out.captions[0].words[1].start_ms, 500);
@@ -342,7 +352,7 @@ mod tests {
             ("uh", 600, 800),
             ("c", 800, 1000),
         ]);
-        let out = apply_ripple_cuts(&p, &[(200, 400), (600, 800)], 100);
+        let out = apply_ripple_cuts(&p, &[(200, 400), (600, 800)], 100).unwrap();
         let w = &out.captions[0].words;
         assert_eq!(w.len(), 3);
         assert_eq!(w[0].text, "a"); // 0..200 unchanged
@@ -359,14 +369,60 @@ mod tests {
     fn ripple_drops_empty_captions() {
         // A caption made entirely of filler should vanish.
         let p = from_words(vec![("um", 0, 300)]);
-        let out = apply_ripple_cuts(&p, &[(0, 300)], 100);
+        let out = apply_ripple_cuts(&p, &[(0, 300)], 100).unwrap();
         assert!(out.captions.is_empty());
+    }
+
+    fn two_captions(c1: Vec<(&str, i64, i64)>, c2: Vec<(&str, i64, i64)>) -> Project {
+        let mk = |id: &str, ws: Vec<(&str, i64, i64)>| {
+            let words: Vec<Word> = ws
+                .iter()
+                .map(|&(t, s, e)| Word::new(t, s, e, 90.0))
+                .collect();
+            Caption {
+                id: id.into(),
+                start_ms: words.first().unwrap().start_ms,
+                end_ms: words.last().unwrap().end_ms,
+                words,
+                speaker_id: None,
+                style_id: None,
+                notes: None,
+                ai_generated: true,
+                last_edited_at: 0,
+            }
+        };
+        let mut p = from_words(vec![("placeholder", 0, 1)]);
+        p.captions = vec![mk("c1", c1), mk("c2", c2)];
+        p
+    }
+
+    #[test]
+    fn ripple_never_produces_overlapping_captions() {
+        // A cut straddling the boundary between two captions shifts caption 2's
+        // first word earlier (full cut duration) while caption 1's last word —
+        // which starts before the cut — does not move, producing an overlap that
+        // Project::validate rejects. apply_ripple_cuts must surface that as an
+        // error rather than silently committing the corrupted timing.
+        let p = two_captions(
+            vec![("end", 800, 1000)],   // caption 1: starts before the cut
+            vec![("next", 1100, 1300)], // caption 2: starts after the cut
+        );
+        // Cut 900..1100 straddles the c1/c2 boundary. Either the operation
+        // rejects it (Invariant error) or it must return a valid project —
+        // it must never silently commit overlapping captions.
+        match apply_ripple_cuts(&p, &[(900, 1100)], 100) {
+            Ok(out) => out
+                .validate()
+                .expect("ripple output must satisfy project invariants"),
+            Err(AppError::Invariant(_)) => {}
+            Err(e) => panic!("unexpected error: {e:?}"),
+        }
     }
 
     #[test]
     fn no_cuts_is_noop() {
         let p = from_words(vec![("a", 0, 500)]);
-        let out = apply_ripple_cuts(&p, &[], 100);
+        let out = apply_ripple_cuts(&p, &[], 100).unwrap();
         assert_eq!(out.captions, p.captions);
     }
 
@@ -389,7 +445,7 @@ mod tests {
         ]);
         let hits = detect_fillers(&p, "en");
         let cuts = fillers_to_cuts(&hits);
-        let out = apply_ripple_cuts(&p, &cuts, 100);
+        let out = apply_ripple_cuts(&p, &cuts, 100).unwrap();
         assert_eq!(out.captions[0].text(), "So we go");
         // total cut = 600ms; "go" 1200..1500 → 600..900
         let go = out.captions[0].words.last().unwrap();

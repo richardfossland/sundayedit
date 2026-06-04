@@ -74,5 +74,5 @@ pub fn detect_silences(project: Project, min_gap_ms: i64) -> AppResult<Vec<Silen
 /// Apply ripple cuts from approved (start_ms, end_ms) ranges.
 #[tauri::command]
 pub fn apply_ripple_cuts(project: Project, cuts: Vec<(i64, i64)>) -> AppResult<Project> {
-    Ok(filler::apply_ripple_cuts(&project, &cuts, now_ms()))
+    filler::apply_ripple_cuts(&project, &cuts, now_ms())
 }
