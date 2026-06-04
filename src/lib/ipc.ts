@@ -32,6 +32,8 @@ import type {
   PolishEstimate,
   PolishResult,
   Project,
+  ReflowConfig,
+  ReflowIssue,
   ReplaceResult,
   SecretProvider,
   SecretStatus,
@@ -324,6 +326,27 @@ export const cleanup = {
     call<Project>("apply_ripple_cuts", { project, cuts }),
 };
 
+// ── Caption readability / re-flow (Phase 7) ──────────────────────────────────
+/** Conservative broadcast defaults — mirrors `ReflowConfig::default()` in
+ *  `services::reflow` (CPS 17, 37 chars/line, 2 lines, 833 ms min). Kept here
+ *  so the panel can offer a one-click reset without a round-trip. */
+export const DEFAULT_REFLOW_CONFIG: ReflowConfig = {
+  max_cps: 17,
+  max_chars_per_line: 37,
+  max_lines: 2,
+  min_duration_ms: 833,
+};
+
+export const reflow = {
+  /** Flag every caption that breaks a readability limit. Empty array = clean. */
+  analyze: (project: Project, cfg: ReflowConfig) =>
+    call<ReflowIssue[]>("reflow_analyze", { project, cfg }),
+  /** Auto-split offenders into the fewest broadcast-compliant captions. Clean
+   *  captions pass through unchanged. Returns the repaired project. */
+  repair: (project: Project, cfg: ReflowConfig) =>
+    call<Project>("reflow_repair", { project, cfg }),
+};
+
 // ── AI punctuation polish (Phase 4.1) ────────────────────────────────────────
 export const polish = {
   /** Pure cost/scope preview — no network, safe to call freely. */
@@ -474,6 +497,7 @@ export const ipc = {
   secrets,
   render,
   cleanup,
+  reflow,
   clips,
   glossary,
   polish,

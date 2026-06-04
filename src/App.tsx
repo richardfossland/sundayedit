@@ -14,6 +14,7 @@ import {
   Lightbulb,
   Languages,
   Users,
+  Gauge,
   RefreshCw,
   Scissors,
   PanelRightClose,
@@ -36,6 +37,7 @@ import { StyleEditor } from "@/features/style/StyleEditor";
 import { ExportPanel } from "@/features/export/ExportPanel";
 import { ProjectMetaPanel } from "@/features/project/ProjectMetaPanel";
 import { CleanupPanel } from "@/features/cleanup/CleanupPanel";
+import { ReflowPanel } from "@/features/reflow/ReflowPanel";
 import { PolishPanel } from "@/features/polish/PolishPanel";
 import { SuggestPanel } from "@/features/suggest/SuggestPanel";
 import { ClipsPanel } from "@/features/clips/ClipsPanel";
@@ -64,6 +66,7 @@ type DockTool =
   | "suggest"
   | "translate"
   | "cleanup"
+  | "reflow"
   | "projectmeta";
 
 // Pipeline / output / config operations that open as a modal over the
@@ -80,6 +83,7 @@ const DOCK_TOOLS: Array<{ id: DockTool; icon: LucideIcon; labelKey: TKey }> = [
   { id: "suggest", icon: Lightbulb, labelKey: "navSuggest" },
   { id: "translate", icon: Languages, labelKey: "navTranslate" },
   { id: "cleanup", icon: Wand2, labelKey: "navCleanup" },
+  { id: "reflow", icon: Gauge, labelKey: "navReflow" },
 ];
 
 function dockLabelKey(tool: DockTool): TKey {
@@ -355,6 +359,8 @@ function App() {
               <SuggestPanel project={project} onProjectChange={setProject} />
             ) : dockTool === "translate" ? (
               <TranslatePanel project={project} onProjectChange={setProject} />
+            ) : dockTool === "reflow" ? (
+              <ReflowPanel project={project} onProjectChange={setProject} />
             ) : (
               <CleanupPanel project={project} onProjectChange={setProject} />
             )}
