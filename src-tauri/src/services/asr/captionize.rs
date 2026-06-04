@@ -165,7 +165,18 @@ fn merge_too_short(captions: Vec<Caption>, min_caption_ms: i64) -> Vec<Caption> 
         return captions;
     }
     let mut out: Vec<Caption> = Vec::with_capacity(captions.len());
+    // A too-short caption with no predecessor (e.g. a short leading caption)
+    // cannot merge backward; carry it forward so it folds into the NEXT caption.
+    let mut pending: Option<Caption> = None;
     for cap in captions {
+        let mut cap = cap;
+        if let Some(prev) = pending.take() {
+            // Prepend the carried short caption into this one.
+            cap.start_ms = prev.start_ms;
+            let mut words = prev.words;
+            words.extend(std::mem::take(&mut cap.words));
+            cap.words = words;
+        }
         let dur = cap.end_ms - cap.start_ms;
         if dur < min_caption_ms {
             if let Some(prev) = out.last_mut() {
@@ -174,7 +185,15 @@ fn merge_too_short(captions: Vec<Caption>, min_caption_ms: i64) -> Vec<Caption> 
                 prev.words.extend(cap.words);
                 continue;
             }
+            // No predecessor — carry forward to merge into the following caption.
+            pending = Some(cap);
+            continue;
         }
+        out.push(cap);
+    }
+    // A leading short caption that never found a follower (whole transcript is
+    // shorter than the minimum) still has to be emitted.
+    if let Some(cap) = pending {
         out.push(cap);
     }
     out
@@ -362,6 +381,40 @@ mod tests {
             assert!(c.end_ms - c.start_ms >= 200);
         }
         // The text "Hi." must still be present somewhere.
+        assert!(caps.iter().any(|c| c.text().contains("Hi.")));
+    }
+
+    #[test]
+    fn leading_short_caption_is_merged_forward() {
+        // The first caption has no predecessor; a sub-minimum leading caption must
+        // merge into the FOLLOWING caption rather than survive as a flash.
+        // The following caption is itself >= min, so it will NOT be merged
+        // backward to absorb the leading flash. The leading short caption must
+        // therefore be merged forward into it.
+        let t = transcript(vec![
+            tw("Hi.", 0, 500, 95.0),
+            tw("this", 10_000, 10_300, 95.0),
+            tw("is", 10_300, 10_600, 95.0),
+            tw("the", 10_600, 10_800, 95.0),
+            tw("end.", 10_800, 11_200, 95.0),
+        ]);
+        let opts = CaptionizeOptions {
+            max_caption_ms: 4_000,
+            min_caption_ms: 800,
+            max_chars: 100,
+            ..Default::default()
+        };
+        let caps = captionize(&t, opts, 0, counter_ids());
+        // No caption may be below the minimum duration.
+        for c in &caps {
+            assert!(
+                c.end_ms - c.start_ms >= 800,
+                "caption {:?} is a {}ms flash below min",
+                c.text(),
+                c.end_ms - c.start_ms
+            );
+        }
+        // "Hi." must still be present.
         assert!(caps.iter().any(|c| c.text().contains("Hi.")));
     }
 
