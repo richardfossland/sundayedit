@@ -26,6 +26,11 @@ import {
   Check,
   ChevronRight,
   WandSparkles,
+  Merge,
+  Trash2,
+  User,
+  MoveHorizontal,
+  X,
 } from "lucide-react";
 
 import {
@@ -39,6 +44,18 @@ import { ipc } from "@/lib/ipc";
 import { useEditorHistory } from "@/lib/useEditorHistory";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
+import {
+  EMPTY_SELECTION,
+  clear as clearSelection,
+  count as selectionCount,
+  isContiguous,
+  isSelected,
+  orderedSelection,
+  selectAll,
+  selectRange,
+  toggle as toggleSelection,
+  type Selection,
+} from "./selection";
 
 interface Props {
   project: Project;
@@ -66,6 +83,39 @@ export function CaptionEditor({
   const [cursor, setCursor] = useState<WordRef | null>(null);
   const [editing, setEditing] = useState<WordRef | null>(null);
   const [glossaryToast, setGlossaryToast] = useState<string | null>(null);
+
+  // ── Multi-select (bulk operations) ──────────────────────────────────────────
+  const [selection, setSelection] = useState<Selection>(EMPTY_SELECTION);
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+
+  const orderedIds = useMemo(
+    () => project.captions.map((c) => c.id),
+    [project.captions],
+  );
+
+  // Drop ids that no longer exist after merge/delete so the bar can't act on
+  // stale captions.
+  useEffect(() => {
+    const live = new Set(orderedIds);
+    setSelection((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (live.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [orderedIds]);
+
+  function onSelectCaption(id: string, range: boolean) {
+    if (range) {
+      setSelection((prev) => selectRange(prev, orderedIds, anchorId, id));
+    } else {
+      setSelection((prev) => toggleSelection(prev, id));
+      setAnchorId(id);
+    }
+  }
 
   useEffect(() => {
     onProjectChange?.(project);
@@ -145,6 +195,39 @@ export function CaptionEditor({
       );
       return result.project;
     });
+  }
+
+  // ── Bulk actions (each flows through history → undo + export see it) ─────────
+  const selectedIds = useMemo(
+    () => orderedSelection(selection, orderedIds),
+    [selection, orderedIds],
+  );
+  const contiguous = useMemo(
+    () => isContiguous(selection, orderedIds),
+    [selection, orderedIds],
+  );
+
+  async function bulkMerge() {
+    if (!contiguous) return;
+    await editor.run((p) => ipc.ops.mergeCaptions(p, selectedIds));
+  }
+  async function bulkDelete() {
+    if (selectedIds.length === 0) return;
+    await editor.run((p) => ipc.cleanup.bulkDelete(p, selectedIds));
+    setSelection(clearSelection());
+  }
+  async function bulkSetSpeaker(speakerId: string | null) {
+    if (selectedIds.length === 0) return;
+    await editor.run((p) =>
+      ipc.cleanup.bulkSetSpeaker(p, selectedIds, speakerId),
+    );
+  }
+  async function shiftWholeProject() {
+    const raw = window.prompt(t("editorShiftAllPrompt"), "0");
+    if (raw === null) return;
+    const offset = Number(raw);
+    if (!Number.isFinite(offset) || offset === 0) return;
+    await editor.run((p) => ipc.ops.shiftAll(p, offset));
   }
 
   useEffect(() => {
@@ -261,9 +344,11 @@ export function CaptionEditor({
               }
               threshold={threshold}
               dimmed={focusMode && allConfident(caption, threshold)}
+              selected={isSelected(selection, caption.id)}
               cursor={cursor}
               editing={editing}
               busy={editor.busy}
+              onSelect={onSelectCaption}
               onCursor={setCursor}
               onStartEdit={setEditing}
               onCommitEdit={editWord}
@@ -273,6 +358,24 @@ export function CaptionEditor({
           ))}
         </ul>
       </div>
+
+      {selectionCount(selection) > 0 && (
+        <BulkActionBar
+          count={selectionCount(selection)}
+          contiguous={contiguous}
+          speakers={project.speakers}
+          busy={editor.busy}
+          onSelectAll={() => setSelection(selectAll(orderedIds))}
+          onClear={() => {
+            setSelection(clearSelection());
+            setAnchorId(null);
+          }}
+          onMerge={bulkMerge}
+          onDelete={bulkDelete}
+          onSetSpeaker={bulkSetSpeaker}
+          onShiftAll={shiftWholeProject}
+        />
+      )}
 
       {glossaryToast && (
         <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-lg bg-[var(--color-bg-surface)] px-4 py-2 text-[var(--text-ui-sm)] shadow-[var(--shadow-popover)]">
@@ -288,9 +391,11 @@ function CaptionRow({
   speaker,
   threshold,
   dimmed,
+  selected,
   cursor,
   editing,
   busy,
+  onSelect,
   onCursor,
   onStartEdit,
   onCommitEdit,
@@ -301,22 +406,43 @@ function CaptionRow({
   speaker: Speaker | null;
   threshold: number;
   dimmed: boolean;
+  selected: boolean;
   cursor: WordRef | null;
   editing: WordRef | null;
   busy: boolean;
+  onSelect: (id: string, range: boolean) => void;
   onCursor: (r: WordRef) => void;
   onStartEdit: (r: WordRef) => void;
   onCommitEdit: (r: WordRef, text: string) => void;
   onLock: (r: WordRef) => void;
   onAcceptAlternate: (r: WordRef, altIndex: number) => void;
 }) {
+  const t = useT();
   return (
     <li
       className={cn(
-        "flex gap-3 rounded-md border border-transparent px-3 py-2 transition-opacity hover:border-[var(--color-border)]",
+        "flex gap-3 rounded-md border px-3 py-2 transition-opacity",
+        selected
+          ? "border-[var(--color-accent-500)] bg-[var(--color-accent-500)]/5"
+          : "border-transparent hover:border-[var(--color-border)]",
         dimmed && "opacity-30 hover:opacity-100",
       )}
     >
+      <input
+        type="checkbox"
+        checked={selected}
+        title={t("editorSelectToggle")}
+        aria-label={t("editorSelectToggle")}
+        onClick={(e) => {
+          // Shift-click selects the range from the last anchor.
+          e.preventDefault();
+          onSelect(caption.id, e.shiftKey);
+        }}
+        onChange={() => {
+          /* handled in onClick to read the shift modifier */
+        }}
+        className="mt-1 shrink-0 accent-[var(--color-accent-500)]"
+      />
       <span className="w-20 shrink-0 pt-0.5 font-mono text-[var(--text-ui-xs)] tabular-nums text-[var(--color-fg-subtle)]">
         {fmtTime(caption.start_ms)}
       </span>
@@ -506,6 +632,141 @@ function WordSpan({
         </span>
       )}{" "}
     </span>
+  );
+}
+
+function BulkActionBar({
+  count,
+  contiguous,
+  speakers,
+  busy,
+  onSelectAll,
+  onClear,
+  onMerge,
+  onDelete,
+  onSetSpeaker,
+  onShiftAll,
+}: {
+  count: number;
+  contiguous: boolean;
+  speakers: Speaker[];
+  busy: boolean;
+  onSelectAll: () => void;
+  onClear: () => void;
+  onMerge: () => void;
+  onDelete: () => void;
+  onSetSpeaker: (speakerId: string | null) => void;
+  onShiftAll: () => void;
+}) {
+  const t = useT();
+  const [speakerMenu, setSpeakerMenu] = useState(false);
+
+  return (
+    <div className="absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 shadow-[var(--shadow-popover)]">
+      <span className="px-1 text-[var(--text-ui-sm)] font-semibold tabular-nums">
+        {t("editorSelectedCount", { n: count })}
+      </span>
+      <button
+        type="button"
+        onClick={onSelectAll}
+        disabled={busy}
+        className="rounded px-2 py-1 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] disabled:opacity-50"
+      >
+        {t("editorSelectAll")}
+      </button>
+
+      <span className="mx-1 h-5 w-px bg-[var(--color-border)]" />
+
+      <button
+        type="button"
+        onClick={onMerge}
+        disabled={busy || !contiguous}
+        title={contiguous ? t("editorBulkMerge") : t("editorBulkMergeHint")}
+        className="flex items-center gap-1.5 rounded px-2 py-1 text-[var(--text-ui-sm)] hover:bg-[var(--color-bg-surface)] disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Merge size={14} /> {t("editorBulkMerge")}
+      </button>
+
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setSpeakerMenu((o) => !o)}
+          disabled={busy}
+          title={t("editorBulkSetSpeakerTitle")}
+          className="flex items-center gap-1.5 rounded px-2 py-1 text-[var(--text-ui-sm)] hover:bg-[var(--color-bg-surface)] disabled:opacity-50"
+        >
+          <User size={14} /> {t("editorBulkSetSpeaker")}
+        </button>
+        {speakerMenu && (
+          <div className="absolute bottom-full left-0 mb-1 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-1.5 shadow-[var(--shadow-popover)]">
+            {speakers.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setSpeakerMenu(false);
+                  onSetSpeaker(s.id);
+                }}
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[var(--text-ui-sm)] hover:bg-[var(--color-bg-surface)]"
+              >
+                <span
+                  className="inline-block h-2 w-2 shrink-0 rounded-full"
+                  style={{
+                    backgroundColor: s.color_hex ?? "var(--color-accent-400)",
+                  }}
+                />
+                {s.display_name}
+              </button>
+            ))}
+            {speakers.length > 0 && (
+              <span className="my-1 block h-px bg-[var(--color-border)]" />
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setSpeakerMenu(false);
+                onSetSpeaker(null);
+              }}
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-surface)]"
+            >
+              {t("editorBulkNoSpeaker")}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={onDelete}
+        disabled={busy}
+        className="flex items-center gap-1.5 rounded px-2 py-1 text-[var(--text-ui-sm)] text-[var(--color-danger)] hover:bg-[var(--color-bg-surface)] disabled:opacity-50"
+      >
+        <Trash2 size={14} /> {t("editorBulkDelete")}
+      </button>
+
+      <span className="mx-1 h-5 w-px bg-[var(--color-border)]" />
+
+      <button
+        type="button"
+        onClick={onShiftAll}
+        disabled={busy}
+        title={t("editorShiftAll")}
+        className="flex items-center gap-1.5 rounded px-2 py-1 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] disabled:opacity-50"
+      >
+        <MoveHorizontal size={14} /> {t("editorShiftAll")}
+      </button>
+
+      <button
+        type="button"
+        onClick={onClear}
+        disabled={busy}
+        title={t("editorClearSelection")}
+        aria-label={t("editorClearSelection")}
+        className="ml-1 grid h-6 w-6 place-items-center rounded text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-fg)] disabled:opacity-50"
+      >
+        <X size={14} />
+      </button>
+    </div>
   );
 }
 
