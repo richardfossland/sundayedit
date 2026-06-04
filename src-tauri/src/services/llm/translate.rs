@@ -21,7 +21,7 @@ use ts_rs::TS;
 
 use crate::error::{AppError, AppResult};
 use crate::model::{Caption, GlossaryTerm, Project, Word};
-use crate::services::llm::rough_token_count;
+use crate::services::llm::{caption_text_inputs, rough_token_count};
 
 /// A language offered in the target picker. Claude handles many more; this
 /// is just a convenient curated list.
@@ -58,12 +58,6 @@ pub struct TranslatedCaption {
     #[serde(alias = "id")]
     pub caption_id: String,
     pub text: String,
-}
-
-#[derive(Serialize)]
-struct TranslateInput<'a> {
-    caption_id: &'a str,
-    text: String,
 }
 
 /// A caption whose translation is longer than this multiple of the source
@@ -112,18 +106,6 @@ pub fn language_name(code: &str) -> String {
 
 // ── Building the request ──────────────────────────────────────────────────────
 
-fn caption_inputs(project: &Project) -> Vec<TranslateInput<'_>> {
-    project
-        .captions
-        .iter()
-        .filter(|c| !c.words.is_empty())
-        .map(|c| TranslateInput {
-            caption_id: &c.id,
-            text: c.text(),
-        })
-        .collect()
-}
-
 pub fn build_translate_system_prompt(target_code: &str, glossary: &[GlossaryTerm]) -> String {
     let target = language_name(target_code);
     let mut s = format!(
@@ -152,7 +134,7 @@ pub fn build_translate_system_prompt(target_code: &str, glossary: &[GlossaryTerm
 }
 
 pub fn build_translate_user_prompt(project: &Project) -> String {
-    let inputs = caption_inputs(project);
+    let inputs = caption_text_inputs(project);
     let json = serde_json::to_string_pretty(&inputs).unwrap_or_else(|_| "[]".to_string());
     format!("Translate these captions:\n\n{json}")
 }

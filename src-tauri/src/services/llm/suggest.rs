@@ -26,7 +26,7 @@ use ts_rs::TS;
 
 use crate::error::{AppError, AppResult};
 use crate::model::{Project, Word};
-use crate::services::llm::rough_token_count;
+use crate::services::llm::{caption_text_inputs, rough_token_count};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "kebab-case")]
@@ -83,25 +83,7 @@ pub struct Suggestion {
     pub reasoning: String,
 }
 
-#[derive(Serialize)]
-struct SuggestInput<'a> {
-    caption_id: &'a str,
-    text: String,
-}
-
 // ── Building the request ──────────────────────────────────────────────────────
-
-fn caption_inputs(project: &Project) -> Vec<SuggestInput<'_>> {
-    project
-        .captions
-        .iter()
-        .filter(|c| !c.words.is_empty())
-        .map(|c| SuggestInput {
-            caption_id: &c.id,
-            text: c.text(),
-        })
-        .collect()
-}
 
 fn language_name(language: &str) -> &'static str {
     match language {
@@ -136,7 +118,7 @@ pub fn build_suggest_system_prompt(language: &str, strictness: Strictness) -> St
 }
 
 pub fn build_suggest_user_prompt(project: &Project) -> String {
-    let inputs = caption_inputs(project);
+    let inputs = caption_text_inputs(project);
     let json = serde_json::to_string_pretty(&inputs).unwrap_or_else(|_| "[]".to_string());
     format!("Review these captions and suggest improvements where warranted:\n\n{json}")
 }
