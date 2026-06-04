@@ -62,16 +62,26 @@ export function MediaPlayer({
       const video = videoRef.current;
       if (video) {
         const s = stateRef.current;
-        // Prefer the element's real duration once known; fall back to the
-        // project's metadata while it loads.
-        const durationSec = Number.isFinite(video.duration)
+        // The timeline's durationMs is the authority for when playback ends
+        // (same domain we export against). The element's own duration may
+        // disagree slightly (probe metadata vs container length); pass it only
+        // to clamp the seek target so we never seek past real footage. This
+        // keeps the preview and the timeline clock stopping at the same end.
+        const timelineDurSec = s.durationMs / 1000;
+        const elementDurSec = Number.isFinite(video.duration)
           ? video.duration
-          : s.durationMs / 1000;
-        const intent = intentFor(s.playheadMs, s.rate, durationSec, s.fps);
+          : timelineDurSec;
+        const intent = intentFor(
+          s.playheadMs,
+          s.rate,
+          timelineDurSec,
+          s.fps,
+          elementDurSec,
+        );
         const step = reconcile(intent, {
           currentTimeSec: video.currentTime,
           paused: video.paused,
-          durationSec,
+          durationSec: elementDurSec,
         });
         if (step.seekTo !== null || step.transport) {
           lastProgrammaticAtMs.current = performance.now();

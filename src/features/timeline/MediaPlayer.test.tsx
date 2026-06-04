@@ -90,6 +90,28 @@ describe("MediaPlayer", () => {
     expect(playSpy).toHaveBeenCalled();
   });
 
+  it("keeps playing to the timeline end when the element duration is shorter than the project metadata", () => {
+    // Probe metadata gives durationMs=60_000, but the real container is 59.5s.
+    // The timeline clock (authority) keeps advancing to 60s, so the element
+    // must keep playing rather than pausing early at its own 59.5s end — else
+    // the playhead desyncs from the frozen video near the clip end.
+    mockState.duration = 59.5;
+    mockState.currentTime = 59.4;
+    mockState.paused = true;
+    render(
+      <MediaPlayer
+        src="asset://x.mp4"
+        playheadMs={59_600}
+        rate={1}
+        durationMs={60_000}
+        fps={30}
+      />,
+    );
+    pumpFrame();
+    expect(playSpy).toHaveBeenCalled();
+    expect(pauseSpy).not.toHaveBeenCalled();
+  });
+
   it("pauses the element for reverse/shuttle (scrubs by seeking instead)", () => {
     mockState.paused = false;
     render(
