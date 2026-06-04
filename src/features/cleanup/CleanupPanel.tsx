@@ -14,10 +14,10 @@
  */
 
 import { useState } from "react";
-import { Search, Wand2, Scissors, Check } from "lucide-react";
+import { Search, Wand2, Scissors, Check, AudioLines } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
-import type { FillerHit, Project } from "@/lib/bindings";
+import type { FillerHit, Project, SilenceGap } from "@/lib/bindings";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 
@@ -32,6 +32,8 @@ export function CleanupPanel({ project, onProjectChange }: Props) {
       <FindReplace project={project} onProjectChange={onProjectChange} />
       <div className="h-px bg-[var(--color-border)]" />
       <FillerRemoval project={project} onProjectChange={onProjectChange} />
+      <div className="h-px bg-[var(--color-border)]" />
+      <SilenceRemoval project={project} onProjectChange={onProjectChange} />
     </div>
   );
 }
@@ -247,6 +249,149 @@ function FillerRemoval({ project, onProjectChange }: Props) {
             </button>
             <span className="ml-auto flex items-center gap-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
               <Check size={11} /> {t("cleanupFound", { n: hits.length })}
+            </span>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+const SILENCE_MIN_MS = 200;
+const SILENCE_MAX_MS = 3000;
+const SILENCE_STEP_MS = 50;
+const SILENCE_DEFAULT_MS = 1000;
+
+function SilenceRemoval({ project, onProjectChange }: Props) {
+  const t = useT();
+  const [minGapMs, setMinGapMs] = useState(SILENCE_DEFAULT_MS);
+  const [gaps, setGaps] = useState<SilenceGap[] | null>(null);
+  const [approved, setApproved] = useState<Set<number>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+
+  async function detect() {
+    setError(null);
+    try {
+      const found = await ipc.cleanup.detectSilences(project, minGapMs);
+      setGaps(found);
+      setApproved(new Set(found.map((_, i) => i))); // default: all approved
+    } catch (e) {
+      setError(e instanceof IPCError ? e.message : String(e));
+      setGaps(null);
+    }
+  }
+
+  async function removeApproved() {
+    if (!gaps) return;
+    const cuts: Array<[number, number]> = gaps
+      .filter((_, i) => approved.has(i))
+      .map((g) => [g.start_ms, g.end_ms]);
+    if (cuts.length === 0) return;
+    try {
+      const next = await ipc.cleanup.applyRippleCuts(project, cuts);
+      onProjectChange(next);
+      setGaps(null);
+      setApproved(new Set());
+    } catch (e) {
+      setError(e instanceof IPCError ? e.message : String(e));
+    }
+  }
+
+  return (
+    <section>
+      <h2 className="mb-3 flex items-center gap-2 text-[var(--text-ui-lg)] font-semibold">
+        <AudioLines size={16} className="text-[var(--color-accent-400)]" />{" "}
+        {t("cleanupSilenceTitle")}
+      </h2>
+      <p className="mb-3 text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
+        {t("cleanupSilenceIntro")}
+      </p>
+
+      <label className="mb-3 flex items-center gap-3 text-[var(--text-ui-sm)]">
+        <input
+          type="range"
+          min={SILENCE_MIN_MS}
+          max={SILENCE_MAX_MS}
+          step={SILENCE_STEP_MS}
+          value={minGapMs}
+          onChange={(e) => {
+            setMinGapMs(Number(e.target.value));
+            setGaps(null);
+            setApproved(new Set());
+          }}
+          className="flex-1 accent-[var(--color-accent-500)]"
+        />
+        <span className="w-40 shrink-0 text-right tabular-nums text-[var(--color-fg-muted)]">
+          {t("cleanupSilenceThreshold", { n: minGapMs })}
+        </span>
+      </label>
+
+      {error && (
+        <p className="mb-3 text-[var(--text-ui-xs)] text-[var(--color-danger)]">
+          {error}
+        </p>
+      )}
+
+      {gaps === null ? (
+        <button
+          type="button"
+          onClick={detect}
+          className="rounded-md bg-[var(--color-bg-surface)] px-4 py-2 text-[var(--text-ui-sm)] font-medium hover:text-[var(--color-accent-400)]"
+        >
+          {t("cleanupFindSilences")}
+        </button>
+      ) : gaps.length === 0 ? (
+        <p className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]">
+          {t("cleanupNoSilences")}
+        </p>
+      ) : (
+        <div className="space-y-3">
+          <ul className="max-h-64 space-y-1 overflow-y-auto rounded-md border border-[var(--color-border)] p-2">
+            {gaps.map((g, i) => (
+              <li key={i}>
+                <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[var(--text-ui-sm)] hover:bg-[var(--color-bg-surface)]">
+                  <input
+                    type="checkbox"
+                    checked={approved.has(i)}
+                    onChange={(e) => {
+                      const next = new Set(approved);
+                      if (e.target.checked) next.add(i);
+                      else next.delete(i);
+                      setApproved(next);
+                    }}
+                    className="accent-[var(--color-accent-500)]"
+                  />
+                  <span className="font-mono">
+                    {t("cleanupSilenceGap", { n: g.duration_ms })}
+                  </span>
+                  <span className="ml-auto text-[10px] text-[var(--color-fg-subtle)]">
+                    {(g.start_ms / 1000).toFixed(1)}s
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={removeApproved}
+              className="flex items-center gap-1.5 rounded-md bg-[var(--color-accent-600)] px-4 py-2 text-[var(--text-ui-sm)] font-medium text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
+            >
+              <Scissors size={14} />{" "}
+              {t("cleanupRemoveSelected", { n: approved.size })}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setGaps(null);
+                setApproved(new Set());
+              }}
+              className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+            >
+              {t("actionCancel")}
+            </button>
+            <span className="ml-auto flex items-center gap-1 text-[var(--text-ui-xs)] text-[var(--color-fg-subtle)]">
+              <Check size={11} /> {t("cleanupFound", { n: gaps.length })}
             </span>
           </div>
         </div>
