@@ -15,7 +15,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::model::{Caption, Project};
+use crate::model::Project;
 
 // ── Filler detection ──────────────────────────────────────────────────────────
 
@@ -196,9 +196,6 @@ fn merge_ranges(ranges: &[(i64, i64)]) -> Vec<(i64, i64)> {
 pub fn fillers_to_cuts(hits: &[FillerHit]) -> Vec<(i64, i64)> {
     hits.iter().map(|h| (h.start_ms, h.end_ms)).collect()
 }
-
-#[allow(dead_code)]
-fn _assert_caption(_c: &Caption) {}
 
 #[cfg(test)]
 mod tests {
