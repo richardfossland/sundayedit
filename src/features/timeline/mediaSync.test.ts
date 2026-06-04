@@ -45,6 +45,21 @@ describe("intentFor", () => {
     expect(intentFor(60_000, 1, 60, 30).shouldPlay).toBe(false);
   });
 
+  it("decides shouldPlay against the timeline duration, clamps seek to the element", () => {
+    // Probe metadata (timeline authority) says 60s but the real container is
+    // 59.5s. The timeline clock stops at 60s, so the preview must keep
+    // "playing" up to the timeline end rather than pausing early at the
+    // element's 59.5s. The seek target is still clamped to real footage.
+    const i = intentFor(59_600, 1, 60, 30, 59.5);
+    expect(i.shouldPlay).toBe(true);
+    expect(i.timeSec).toBeLessThanOrEqual(59.5);
+  });
+
+  it("stops at the timeline end, not the element end, when the element is longer", () => {
+    // Element reports 60.5s but the timeline (export domain) is 60s.
+    expect(intentFor(60_000, 1, 60, 30, 60.5).shouldPlay).toBe(false);
+  });
+
   it("always reports a positive native playbackRate (HTML can't reverse)", () => {
     expect(intentFor(1000, -1, 60, 30).playbackRate).toBeGreaterThan(0);
     expect(intentFor(1000, 1, 60, 30).playbackRate).toBeGreaterThan(0);

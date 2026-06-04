@@ -43,26 +43,40 @@ export function snapToFrameSec(sec: number, fps: number): number {
 }
 
 /**
- * Translate the timeline's (playheadMs, rate) into what the <video> should do,
- * given the video's true duration. The playhead is the source of truth for
- * position; `rate === 1` is the only state the element plays natively (any
- * shuttle/reverse speed scrubs by seeking the playhead instead, so the element
- * stays paused and just follows along).
+ * Translate the timeline's (playheadMs, rate) into what the <video> should do.
+ *
+ * The timeline clock is the authority for *when playback ends* — it's the same
+ * `durationMs` domain we export against, so `shouldPlay` is decided against
+ * `timelineDurationSec`. The element's own duration may disagree slightly
+ * (probe metadata vs container length); we only use `elementDurationSec` to
+ * clamp the *seek target* so we never seek past real footage. Keeping the two
+ * separate stops the preview pausing early (element shorter) or stopping late
+ * with footage left (element longer) relative to the timeline — they now stop
+ * at the same end the user/export sees.
+ *
+ * `rate === 1` is the only state the element plays natively (any shuttle/reverse
+ * speed scrubs by seeking the playhead instead, so the element stays paused and
+ * just follows along).
  */
 export function intentFor(
   playheadMs: number,
   rate: number,
-  durationSec: number,
+  timelineDurationSec: number,
   fps: number,
+  elementDurationSec: number = timelineDurationSec,
 ): VideoIntent {
-  const dur = Math.max(0, durationSec);
+  const timelineDur = Math.max(0, timelineDurationSec);
+  // Clamp the actual seek to whichever end comes first: never seek past the
+  // timeline end, and never past the element's real footage.
+  const seekDur = Math.min(timelineDur, Math.max(0, elementDurationSec));
   const timeSec = snapToFrameSec(
-    Math.max(0, Math.min(dur, playheadMs / 1000)),
+    Math.max(0, Math.min(seekDur, playheadMs / 1000)),
     fps,
   );
   // Only realtime forward playback lets the element drive itself; reverse and
   // fast/slow shuttle are realised as per-frame seeks (element stays paused).
-  const shouldPlay = rate === 1 && timeSec < dur;
+  // Decide against the timeline duration so preview and timeline stop together.
+  const shouldPlay = rate === 1 && playheadMs / 1000 < timelineDur;
   return { timeSec, shouldPlay, playbackRate: MAX_NATIVE_RATE };
 }
 
