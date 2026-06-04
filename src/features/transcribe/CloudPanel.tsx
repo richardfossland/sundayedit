@@ -25,6 +25,7 @@ import {
 import { ipc, IPCError } from "@/lib/ipc";
 import type {
   Caption,
+  CloudCostEstimate,
   CloudProvider,
   CloudProviderInfo,
   Project,
@@ -69,6 +70,36 @@ export function CloudPanel({ project, onTranscribed }: Props) {
   const providers = providersQuery.data ?? [];
   const minutes = project.video_duration_ms / 60_000;
 
+  // Pre-submit cost previews from the backend — pure token/duration maths, no
+  // upload. One call per provider, refreshed when the catalog or this project's
+  // duration changes. Falls back to the local price×minutes maths if the
+  // backend isn't reachable (browser dev).
+  const estimatesQuery = useQuery({
+    queryKey: [
+      "cloud-cost-estimates",
+      project.video_duration_ms,
+      providers.map((p) => p.provider).join(","),
+    ],
+    enabled: providers.length > 0,
+    queryFn: async () => {
+      const pairs = await Promise.all(
+        providers.map(
+          async (p) =>
+            [
+              p.provider,
+              await ipc.asr.cloudCostEstimate(
+                p.provider,
+                project.video_duration_ms,
+              ),
+            ] as const,
+        ),
+      );
+      return Object.fromEntries(pairs) as Partial<
+        Record<CloudProvider, CloudCostEstimate>
+      >;
+    },
+  });
+
   const [selected, setSelected] = useState<CloudProvider | null>(null);
   const selectedInfo = providers.find((p) => p.provider === selected) ?? null;
   const [consentFor, setConsentFor] = useState<CloudProviderInfo | null>(null);
@@ -109,7 +140,9 @@ export function CloudPanel({ project, onTranscribed }: Props) {
 
       <ul className="space-y-2">
         {providers.map((p) => {
-          const cost = minutes * p.price_per_min_usd;
+          const est = estimatesQuery.data?.[p.provider];
+          const cost = est?.estimated_usd ?? minutes * p.price_per_min_usd;
+          const estMinutes = est?.minutes ?? minutes;
           const hasKey = keySet(p.provider);
           const isSelected = selected === p.provider;
           return (
@@ -160,7 +193,7 @@ export function CloudPanel({ project, onTranscribed }: Props) {
                     <span>
                       {t("cloudEstimatedLabel")}{" "}
                       <strong>${cost.toFixed(2)}</strong>{" "}
-                      {t("cloudForMinutes", { minutes: minutes.toFixed(1) })}
+                      {t("cloudForMinutes", { minutes: estMinutes.toFixed(1) })}
                     </span>
                     <button
                       type="button"

@@ -23,6 +23,7 @@ import type {
 } from "@/lib/bindings";
 import { useT, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
+import { formatCost } from "@/lib/cost";
 
 interface Props {
   project: Project;
@@ -252,9 +253,4 @@ export function SuggestPanel({ project, onProjectChange }: Props) {
         ))}
     </div>
   );
-}
-
-function formatCost(usd: number): string {
-  if (usd < 0.01) return "<$0,01";
-  return `$${usd.toFixed(2)}`;
 }

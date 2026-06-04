@@ -208,6 +208,7 @@ const en = {
   contextGlossaryLabel: "Glossary ({n})",
   contextSuggestTerms: "Suggest terms (AI)",
   contextSuggestTitle: "Let AI suggest terms from the transcript",
+  contextSuggestEstimate: "Scans {n} captions · ~{cost}",
   contextAddTerm: "Add term",
   contextNoNewTerms: "Found no new terms to suggest.",
   contextSuggestError: "Error: {error} (add an Anthropic key in Settings?)",
@@ -621,6 +622,7 @@ const no: Catalog = {
   contextGlossaryLabel: "Ordliste ({n})",
   contextSuggestTerms: "Foreslå termer (AI)",
   contextSuggestTitle: "La AI foreslå termer fra transkripsjonen",
+  contextSuggestEstimate: "Skanner {n} undertekster · ~{cost}",
   contextAddTerm: "Legg til term",
   contextNoNewTerms: "Fant ingen nye termer å foreslå.",
   contextSuggestError:
@@ -1022,6 +1024,7 @@ const sv: Catalog = {
   contextGlossaryLabel: "Ordlista ({n})",
   contextSuggestTerms: "Föreslå termer (AI)",
   contextSuggestTitle: "Låt AI föreslå termer från transkriberingen",
+  contextSuggestEstimate: "Skannar {n} undertexter · ~{cost}",
   contextAddTerm: "Lägg till term",
   contextNoNewTerms: "Hittade inga nya termer att föreslå.",
   contextSuggestError:
@@ -1396,6 +1399,7 @@ const da: Catalog = {
   contextGlossaryLabel: "Ordliste ({n})",
   contextSuggestTerms: "Foreslå termer (AI)",
   contextSuggestTitle: "Lad AI foreslå termer fra transskriptionen",
+  contextSuggestEstimate: "Scanner {n} undertekster · ~{cost}",
   contextAddTerm: "Tilføj term",
   contextNoNewTerms: "Fandt ingen nye termer at foreslå.",
   contextSuggestError:
@@ -1772,6 +1776,7 @@ const de: Catalog = {
   contextGlossaryLabel: "Glossar ({n})",
   contextSuggestTerms: "Begriffe vorschlagen (KI)",
   contextSuggestTitle: "KI Begriffe aus dem Transkript vorschlagen lassen",
+  contextSuggestEstimate: "Scannt {n} Untertitel · ~{cost}",
   contextAddTerm: "Begriff hinzufügen",
   contextNoNewTerms: "Keine neuen Begriffe zum Vorschlagen gefunden.",
   contextSuggestError:
@@ -2151,6 +2156,7 @@ const fr: Catalog = {
   contextSuggestTerms: "Suggérer des termes (IA)",
   contextSuggestTitle:
     "Laisser l'IA suggérer des termes à partir de la transcription",
+  contextSuggestEstimate: "Analyse {n} sous-titres · ~{cost}",
   contextAddTerm: "Ajouter un terme",
   contextNoNewTerms: "Aucun nouveau terme à suggérer.",
   contextSuggestError:
@@ -2531,6 +2537,7 @@ const pl: Catalog = {
   contextGlossaryLabel: "Słownik ({n})",
   contextSuggestTerms: "Zaproponuj terminy (AI)",
   contextSuggestTitle: "Pozwól AI zaproponować terminy z transkrypcji",
+  contextSuggestEstimate: "Skanuje {n} napisów · ~{cost}",
   contextAddTerm: "Dodaj termin",
   contextNoNewTerms: "Nie znaleziono nowych terminów do zaproponowania.",
   contextSuggestError: "Błąd: {error} (dodać klucz Anthropic w Ustawieniach?)",
