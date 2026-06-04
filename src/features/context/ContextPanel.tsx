@@ -11,7 +11,7 @@
  * state updates via onProjectChange; the backend pass is invoked on demand.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BookText,
   FileText,
@@ -24,8 +24,14 @@ import {
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 import { ipc, IPCError } from "@/lib/ipc";
-import type { GlossaryTerm, Project, SuggestedTerm } from "@/lib/bindings";
+import type {
+  GlossaryTerm,
+  PolishEstimate,
+  Project,
+  SuggestedTerm,
+} from "@/lib/bindings";
 import { useT } from "@/lib/i18n";
+import { formatCost } from "@/lib/cost";
 
 interface Props {
   project: Project;
@@ -38,6 +44,21 @@ export function ContextPanel({ project, onProjectChange }: Props) {
   const [suggested, setSuggested] = useState<SuggestedTerm[] | null>(null);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestMsg, setSuggestMsg] = useState<string | null>(null);
+  const [estimate, setEstimate] = useState<PolishEstimate | null>(null);
+
+  // Pure, no-network preview of the AI "suggest terms" pass — so the cost is
+  // visible before spending. The suggest pass runs on Haiku (see runSuggest),
+  // and refreshes whenever the transcript changes.
+  useEffect(() => {
+    let cancelled = false;
+    ipc.glossary
+      .estimate(project, "haiku45")
+      .then((e) => !cancelled && setEstimate(e))
+      .catch(() => !cancelled && setEstimate(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [project]);
 
   function setContext(value: string) {
     onProjectChange({
@@ -240,6 +261,16 @@ export function ContextPanel({ project, onProjectChange }: Props) {
           </button>
         </div>
       </div>
+
+      {/* Pre-run cost preview for the AI "suggest terms" pass. */}
+      {estimate && estimate.caption_count > 0 && (
+        <p className="mb-3 text-[var(--text-ui-xs)] text-[var(--color-fg-muted)]">
+          {t("contextSuggestEstimate", {
+            n: estimate.caption_count,
+            cost: formatCost(estimate.estimated_cost_usd),
+          })}
+        </p>
+      )}
 
       {/* AI suggestion review queue — accept adds to the glossary above. */}
       {suggestMsg && (
