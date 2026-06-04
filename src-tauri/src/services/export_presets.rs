@@ -83,8 +83,11 @@ pub fn validate(project: &Project, preset: &ExportPreset) -> Vec<ExportWarning> 
 
     // Duration limit
     if let Some(max) = preset.max_duration_sec {
-        let dur_sec = project.video_duration_ms / 1000;
-        if dur_sec > max {
+        // Compare in milliseconds: floor-dividing to whole seconds would let a
+        // video up to ~999 ms over the cap slip through (e.g. 60_999 ms → 60 s).
+        if project.video_duration_ms > max * 1000 {
+            // Round up for the message so a 60.999 s clip reads as 61 s, not 60.
+            let dur_sec = (project.video_duration_ms + 999) / 1000;
             out.push(ExportWarning {
                 severity: "error".into(),
                 message: format!(
@@ -294,6 +297,18 @@ mod tests {
         assert!(w
             .iter()
             .any(|x| x.severity == "error" && x.message.contains("60")));
+    }
+
+    #[test]
+    fn shorts_rejects_just_over_60s() {
+        // 60_999 ms is 60.999 s — over the 60 s cap. Floor division to 60 s must
+        // not let this slip past validation.
+        let p = project(1080, 1920, 60_999, 3);
+        let w = validate(&p, &preset("export:youtube_shorts"));
+        assert!(
+            w.iter().any(|x| x.severity == "error"),
+            "a 60.999s video must be flagged as over the 60s Shorts limit"
+        );
     }
 
     #[test]
