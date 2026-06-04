@@ -191,6 +191,13 @@ const en = {
   cleanupNoFillers: "No fillers found 🎉",
   cleanupRemoveSelected: "Remove {n} selected",
   cleanupFound: "{n} found",
+  cleanupSilenceTitle: "Remove silences",
+  cleanupSilenceIntro:
+    "Find pauses longer than the threshold between words. Approved gaps are removed and the rest of the timeline shifts earlier (ripple).",
+  cleanupSilenceThreshold: "Minimum gap: {n} ms",
+  cleanupFindSilences: "Find silences",
+  cleanupNoSilences: "No silences found 🎉",
+  cleanupSilenceGap: "{n} ms gap",
 
   // ── Context & glossary ──────────────────────────────────────────────────
   contextIntro:
@@ -597,6 +604,13 @@ const no: Catalog = {
   cleanupNoFillers: "Ingen fyllord funnet 🎉",
   cleanupRemoveSelected: "Fjern {n} valgte",
   cleanupFound: "{n} funnet",
+  cleanupSilenceTitle: "Fjern stillhet",
+  cleanupSilenceIntro:
+    "Finn pauser mellom ord som er lengre enn terskelen. Godkjente mellomrom fjernes og resten av tidslinjen forskyves tidligere (ripple).",
+  cleanupSilenceThreshold: "Minste mellomrom: {n} ms",
+  cleanupFindSilences: "Finn stillhet",
+  cleanupNoSilences: "Ingen stillhet funnet 🎉",
+  cleanupSilenceGap: "{n} ms mellomrom",
 
   // ── Context & glossary ──────────────────────────────────────────────────
   contextIntro:
@@ -993,6 +1007,13 @@ const sv: Catalog = {
   cleanupNoFillers: "Inga utfyllnadsord hittades 🎉",
   cleanupRemoveSelected: "Ta bort {n} valda",
   cleanupFound: "{n} hittade",
+  cleanupSilenceTitle: "Ta bort tystnad",
+  cleanupSilenceIntro:
+    "Hitta pauser mellan ord som är längre än tröskeln. Godkända luckor tas bort och resten av tidslinjen flyttas tidigare (ripple).",
+  cleanupSilenceThreshold: "Minsta lucka: {n} ms",
+  cleanupFindSilences: "Hitta tystnad",
+  cleanupNoSilences: "Ingen tystnad hittades 🎉",
+  cleanupSilenceGap: "{n} ms lucka",
   contextIntro:
     "Berätta för SundayEdit vad inspelningen handlar om och vilka namn/termer som förekommer. Det gör igenkänningen mer exakt (priming) och korrigerar automatiskt kända felstavningar.",
   contextDescriptionLabel: "Beskrivning",
@@ -1360,6 +1381,13 @@ const da: Catalog = {
   cleanupNoFillers: "Ingen fyldord fundet 🎉",
   cleanupRemoveSelected: "Fjern {n} valgte",
   cleanupFound: "{n} fundet",
+  cleanupSilenceTitle: "Fjern stilhed",
+  cleanupSilenceIntro:
+    "Find pauser mellem ord, der er længere end tærsklen. Godkendte mellemrum fjernes, og resten af tidslinjen flyttes tidligere (ripple).",
+  cleanupSilenceThreshold: "Mindste mellemrum: {n} ms",
+  cleanupFindSilences: "Find stilhed",
+  cleanupNoSilences: "Ingen stilhed fundet 🎉",
+  cleanupSilenceGap: "{n} ms mellemrum",
   contextIntro:
     "Fortæl SundayEdit, hvad optagelsen handler om, og hvilke navne/termer der optræder. Det gør genkendelsen mere præcis (priming) og retter kendte stavefejl automatisk.",
   contextDescriptionLabel: "Beskrivelse",
@@ -1729,6 +1757,13 @@ const de: Catalog = {
   cleanupNoFillers: "Keine Füllwörter gefunden 🎉",
   cleanupRemoveSelected: "{n} ausgewählte entfernen",
   cleanupFound: "{n} gefunden",
+  cleanupSilenceTitle: "Stille entfernen",
+  cleanupSilenceIntro:
+    "Finde Pausen zwischen Wörtern, die länger als der Schwellenwert sind. Bestätigte Lücken werden entfernt und der Rest der Zeitleiste rückt nach vorn (Ripple).",
+  cleanupSilenceThreshold: "Mindestlücke: {n} ms",
+  cleanupFindSilences: "Stille finden",
+  cleanupNoSilences: "Keine Stille gefunden 🎉",
+  cleanupSilenceGap: "{n} ms Lücke",
   contextIntro:
     "Teilen Sie SundayEdit mit, worum es in der Aufnahme geht und welche Namen/Begriffe vorkommen. Das macht die Erkennung genauer (Priming) und korrigiert bekannte Falschschreibungen automatisch.",
   contextDescriptionLabel: "Beschreibung",
@@ -2100,6 +2135,13 @@ const fr: Catalog = {
   cleanupNoFillers: "Aucune hésitation trouvée 🎉",
   cleanupRemoveSelected: "Supprimer les {n} sélectionnés",
   cleanupFound: "{n} trouvés",
+  cleanupSilenceTitle: "Supprimer les silences",
+  cleanupSilenceIntro:
+    "Repérez les pauses entre les mots plus longues que le seuil. Les blancs validés sont supprimés et le reste de la timeline avance (ripple).",
+  cleanupSilenceThreshold: "Écart minimal : {n} ms",
+  cleanupFindSilences: "Repérer les silences",
+  cleanupNoSilences: "Aucun silence trouvé 🎉",
+  cleanupSilenceGap: "écart de {n} ms",
   contextIntro:
     "Indiquez à SundayEdit le sujet de l'enregistrement et les noms/termes qui y apparaissent. Cela améliore la précision de la reconnaissance (priming) et corrige automatiquement les fautes d'orthographe connues.",
   contextDescriptionLabel: "Description",
@@ -2474,6 +2516,13 @@ const pl: Catalog = {
   cleanupNoFillers: "Nie znaleziono przerywników 🎉",
   cleanupRemoveSelected: "Usuń {n} zaznaczonych",
   cleanupFound: "znaleziono {n}",
+  cleanupSilenceTitle: "Usuń ciszę",
+  cleanupSilenceIntro:
+    "Znajdź pauzy między słowami dłuższe niż próg. Zatwierdzone przerwy są usuwane, a reszta osi czasu przesuwa się wcześniej (ripple).",
+  cleanupSilenceThreshold: "Minimalna przerwa: {n} ms",
+  cleanupFindSilences: "Znajdź ciszę",
+  cleanupNoSilences: "Nie znaleziono ciszy 🎉",
+  cleanupSilenceGap: "przerwa {n} ms",
   contextIntro:
     "Powiedz SundayEdit, o czym jest nagranie oraz jakie nazwy/terminy w nim występują. To zwiększa dokładność rozpoznawania (priming) i automatycznie poprawia znane błędy pisowni.",
   contextDescriptionLabel: "Opis",
