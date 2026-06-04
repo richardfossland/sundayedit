@@ -345,12 +345,18 @@ pub fn move_caption(
     let cap = &next.captions[idx];
     let dur = cap.end_ms - cap.start_ms;
     let lo = prev_end.max(0);
-    let hi = next_start.map(|ns| ns - dur).unwrap_or(i64::MAX);
+    // With no right neighbour the caption is unbounded on the right, but the
+    // ceiling must still leave room for `end_ms = start_ms + dur` (and the
+    // later `+= applied`) so an extreme delta_ms from the IPC boundary can't
+    // overflow. saturating_sub keeps it well within i64 range.
+    let hi = next_start
+        .map(|ns| ns - dur)
+        .unwrap_or_else(|| i64::MAX.saturating_sub(dur));
 
     let applied = if hi < lo {
         0 // no gap to move into
     } else {
-        (cap.start_ms + delta_ms).clamp(lo, hi) - cap.start_ms
+        cap.start_ms.saturating_add(delta_ms).clamp(lo, hi) - cap.start_ms
     };
     if applied == 0 {
         return Ok(project.clone());
@@ -557,6 +563,23 @@ mod tests {
         let p = fixture();
         let next = move_caption(&p, "c1", -500, 1).unwrap();
         assert_eq!(next.captions[0].start_ms, 0); // already at 0, can't go left
+    }
+
+    #[test]
+    fn move_caption_handles_extreme_delta_on_last_caption() {
+        let p = fixture();
+        // c2 is the last caption (no neighbour to the right → hi = i64::MAX).
+        // A near-MAX delta from the IPC boundary must not overflow; the caption
+        // stays put (no room to slide a full i64::MAX) instead of panicking
+        // (debug) or wrapping to a large negative and sliding LEFT (release).
+        let next = move_caption(&p, "c2", i64::MAX, 1).unwrap();
+        let c2 = &next.captions[1];
+        assert!(
+            c2.start_ms >= 3000,
+            "extreme positive delta must never move the caption left, got start_ms={}",
+            c2.start_ms
+        );
+        next.validate().unwrap();
     }
 
     // ── resizeCaption ──────────────────────────────────────────────────────
