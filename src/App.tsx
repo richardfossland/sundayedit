@@ -20,8 +20,14 @@ import {
   PanelRightClose,
   Play,
   FileText,
+  Save,
+  FolderOpen,
   type LucideIcon,
 } from "lucide-react";
+import {
+  open as openFileDialog,
+  save as saveFileDialog,
+} from "@tauri-apps/plugin-dialog";
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
 import { Timeline } from "@/features/timeline/Timeline";
@@ -251,6 +257,41 @@ function App() {
     );
   }
 
+  // Save the current project to a `.sundayedit` file the user picks. No-op
+  // outside Tauri (no native dialog) or if the user cancels.
+  async function saveProjectAs() {
+    if (!project) return;
+    const suggested = project.name.replace(/\.[^.]+$/, "");
+    try {
+      const path = await saveFileDialog({
+        defaultPath: `${suggested}.sundayedit`,
+        filters: [{ name: "SundayEdit", extensions: ["sundayedit"] }],
+      });
+      if (typeof path !== "string") return; // cancelled
+      await ipc.project.save(project, path);
+    } catch (e) {
+      // Either no native dialog (browser dev) or the write failed.
+      console.error("project save failed", e);
+    }
+  }
+
+  // Open a `.sundayedit` file the user picks, replacing the current project.
+  async function openProject() {
+    try {
+      const path = await openFileDialog({
+        multiple: false,
+        filters: [{ name: "SundayEdit", extensions: ["sundayedit"] }],
+      });
+      if (typeof path !== "string") return; // cancelled
+      const opened = await ipc.project.open(path);
+      setProject(opened);
+      setReturnTo(null);
+    } catch (e) {
+      // Either no native dialog (browser dev) or load/relink failed.
+      console.error("project open failed", e);
+    }
+  }
+
   // Click a dock tool: focus it, opening the dock; click the active one again
   // to collapse the dock.
   function selectDockTool(tool: DockTool) {
@@ -297,6 +338,8 @@ function App() {
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar
           project={project}
+          onOpenProject={openProject}
+          onSaveProject={saveProjectAs}
           onTranscribe={() => setModal("transcribe")}
           onClips={() => setModal("clips")}
           onExport={() => setModal("export")}
@@ -430,12 +473,16 @@ function App() {
 
 function Topbar({
   project,
+  onOpenProject,
+  onSaveProject,
   onTranscribe,
   onClips,
   onExport,
   onSettings,
 }: {
   project: Project;
+  onOpenProject: () => void;
+  onSaveProject: () => void;
   onTranscribe: () => void;
   onClips: () => void;
   onExport: () => void;
@@ -460,6 +507,17 @@ function Topbar({
 
       <div className="flex-1" />
 
+      <TopbarButton
+        icon={FolderOpen}
+        label={t("projectOpen")}
+        onClick={onOpenProject}
+      />
+      <TopbarButton
+        icon={Save}
+        label={t("projectSave")}
+        onClick={onSaveProject}
+      />
+      <span className="h-5 w-px shrink-0 bg-[var(--color-border)]" />
       <TopbarButton
         icon={Cpu}
         label={t("navTranscribe")}
