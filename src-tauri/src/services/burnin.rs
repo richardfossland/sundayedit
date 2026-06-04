@@ -15,7 +15,7 @@
 //! video, so `render()` shells out and streams progress; without ffmpeg
 //! installed it returns a clear error (same pattern as the whisper stub).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde::{Deserialize, Serialize};
@@ -202,6 +202,34 @@ pub fn render_clip(
     run_burnin(&project.video_path, ass, output, opts)
 }
 
+/// Pick a sidecar `.ass` path next to `output` that does not collide with an
+/// existing file. Tries `<stem>.ass` first, then `<stem>.burnin.<n>.ass`. We
+/// keep it on the same directory as the output so libass path escaping (and
+/// the cross-volume behaviour) stays identical to before.
+fn unique_sidecar_path(output: &Path) -> PathBuf {
+    let candidate = output.with_extension("ass");
+    if !candidate.exists() {
+        return candidate;
+    }
+    let stem = output
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "burnin".to_string());
+    let dir = output.parent().unwrap_or_else(|| Path::new("."));
+    for n in 0..10_000 {
+        let p = dir.join(format!("{stem}.burnin.{n}.ass"));
+        if !p.exists() {
+            return p;
+        }
+    }
+    // Extremely unlikely fallback: timestamp-suffixed name.
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    dir.join(format!("{stem}.burnin.{ts}.ass"))
+}
+
 /// Shared tail: write the ASS sidecar, run ffmpeg burn-in, clean up. Errors
 /// clearly if ffmpeg is missing or the render fails.
 fn run_burnin(video_path: &str, ass: String, output: &Path, opts: &BurnInOptions) -> AppResult<()> {
@@ -209,8 +237,11 @@ fn run_burnin(video_path: &str, ass: String, output: &Path, opts: &BurnInOptions
         return Err(AppError::VideoMissing(video_path.to_string()));
     }
 
-    // Write the ASS file next to the output.
-    let ass_path = output.with_extension("ass");
+    // Write a *temporary* ASS sidecar next to the output. We never reuse the
+    // plain `output.with_extension("ass")` name directly — a user exporting
+    // `talk.mp4` may already have a hand-edited `talk.ass` there, and we
+    // overwrite-then-delete on success, which would silently destroy it.
+    let ass_path = unique_sidecar_path(output);
     std::fs::write(&ass_path, ass)?;
 
     let args = build_ffmpeg_args(
@@ -251,6 +282,38 @@ mod tests {
             encoder: Encoder::Cpu,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn sidecar_path_does_not_clobber_existing_ass() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("talk.mp4");
+        let user_ass = dir.path().join("talk.ass");
+        // The user has a hand-edited subtitle file sitting next to the output.
+        std::fs::write(&user_ass, "USER SUBTITLES").unwrap();
+
+        let sidecar = unique_sidecar_path(&output);
+        assert_ne!(
+            sidecar, user_ass,
+            "burn-in must not reuse the user's existing talk.ass as its temp sidecar"
+        );
+
+        // Writing then removing the chosen sidecar must leave talk.ass intact.
+        std::fs::write(&sidecar, "GENERATED").unwrap();
+        let _ = std::fs::remove_file(&sidecar);
+        assert_eq!(
+            std::fs::read_to_string(&user_ass).unwrap(),
+            "USER SUBTITLES",
+            "the user's talk.ass must survive a burn-in render"
+        );
+    }
+
+    #[test]
+    fn sidecar_path_uses_plain_name_when_free() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("clip.mp4");
+        // No pre-existing .ass → use the simple sibling name.
+        assert_eq!(unique_sidecar_path(&output), dir.path().join("clip.ass"));
     }
 
     #[test]
