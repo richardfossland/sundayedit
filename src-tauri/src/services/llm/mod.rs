@@ -27,6 +27,30 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::error::{AppError, AppResult};
+use crate::model::Project;
+
+/// One caption serialised for an LLM request: its id and its joined text.
+/// Shared by the passes that only need `{caption_id, text}` (translate,
+/// suggest). The clip-detection pass uses a wider struct of its own because
+/// it also feeds the model the real timings.
+#[derive(Serialize)]
+pub struct CaptionTextInput<'a> {
+    pub caption_id: &'a str,
+    pub text: String,
+}
+
+/// Build the `{caption_id, text}` request items, skipping empty captions.
+pub fn caption_text_inputs(project: &Project) -> Vec<CaptionTextInput<'_>> {
+    project
+        .captions
+        .iter()
+        .filter(|c| !c.words.is_empty())
+        .map(|c| CaptionTextInput {
+            caption_id: &c.id,
+            text: c.text(),
+        })
+        .collect()
+}
 
 pub const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
 pub const ANTHROPIC_VERSION: &str = "2023-06-01";
