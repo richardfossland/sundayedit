@@ -1145,4 +1145,28 @@ mod tests {
             }
         }
     }
+
+    // ── repair: empty-run safety (panic regression) ─────────────────────────────
+    #[test]
+    fn repair_pathological_long_words_never_panics() {
+        // Every word on its own is already over the per-line cap, so
+        // `partition_words` is forced to emit one run per word and
+        // `merge_short_runs` then merges aggressively. Exercises the run
+        // helpers' `.first()/.last()` on every produced run — must not panic
+        // and must conserve every word.
+        let cfg = ReflowConfig {
+            max_cps: 1.0,
+            max_chars_per_line: 3,
+            max_lines: 1,
+            min_duration_ms: 5000,
+        };
+        let words: Vec<Word> = (0..8i64)
+            .map(|i| w("supercalifragilistic", i * 10, i * 10 + 1))
+            .collect();
+        let c = caption("c", 0, 80, words);
+        let out = repair(&proj(vec![c]), &cfg, 100, |i| format!("n{i}")).unwrap();
+        let total: usize = out.captions.iter().map(|c| c.words.len()).sum();
+        assert_eq!(total, 8, "every word conserved");
+        out.validate().unwrap();
+    }
 }
