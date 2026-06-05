@@ -280,7 +280,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("bad.wav");
         // block_align 9 → bytes_per_sample 9, ×8 = 72 ≥ bits, passes hound.
-        write_raw_wav(&path, 72, 9, &vec![0u8; 9]);
+        write_raw_wav(&path, 72, 9, &[0u8; 9]);
         let result = read_wav_samples(&path);
         assert!(
             result.is_err(),
