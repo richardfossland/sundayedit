@@ -83,6 +83,17 @@ pub fn read_wav_samples(path: &Path) -> AppResult<(Vec<f32>, u32)> {
 
     let samples: Vec<f32> = match spec.sample_format {
         hound::SampleFormat::Int => {
+            // hound only enforces "multiple of 8"; a crafted/extensible header
+            // can still advertise an out-of-range depth. Integer samples are
+            // read as i32, so anything above 32 bits is unrepresentable — and a
+            // depth ≥ 33 would overflow the `1 << (bits - 1)` shift below
+            // (panic in debug, garbage divisor in release). Reject up front.
+            if spec.bits_per_sample == 0 || spec.bits_per_sample > 32 {
+                return Err(AppError::Internal(format!(
+                    "unsupported WAV bit depth: {} (expected 1..=32)",
+                    spec.bits_per_sample
+                )));
+            }
             let max = (1i64 << (spec.bits_per_sample - 1)) as f32;
             reader
                 .into_samples::<i32>()
@@ -229,6 +240,52 @@ mod tests {
         // base_buckets (100) already > 50 samples → clamped to 50, stop.
         assert_eq!(wf.levels.len(), 1);
         assert_eq!(wf.levels[0].len(), 50);
+    }
+
+    /// Write a minimal little-endian WAV header + body with a caller-chosen
+    /// `bits_per_sample`. Used to feed `read_wav_samples` a hostile header.
+    fn write_raw_wav(path: &Path, bits: u16, block_align: u16, body: &[u8]) {
+        let n_channels: u16 = 1;
+        let sample_rate: u32 = 16_000;
+        let byte_rate: u32 = block_align as u32 * sample_rate;
+        let mut fmt = Vec::new();
+        fmt.extend_from_slice(&1u16.to_le_bytes()); // PCM
+        fmt.extend_from_slice(&n_channels.to_le_bytes());
+        fmt.extend_from_slice(&sample_rate.to_le_bytes());
+        fmt.extend_from_slice(&byte_rate.to_le_bytes());
+        fmt.extend_from_slice(&block_align.to_le_bytes());
+        fmt.extend_from_slice(&bits.to_le_bytes());
+        let mut chunks = Vec::new();
+        chunks.extend_from_slice(b"fmt ");
+        chunks.extend_from_slice(&(fmt.len() as u32).to_le_bytes());
+        chunks.extend_from_slice(&fmt);
+        chunks.extend_from_slice(b"data");
+        chunks.extend_from_slice(&(body.len() as u32).to_le_bytes());
+        chunks.extend_from_slice(body);
+        let mut riff = Vec::new();
+        riff.extend_from_slice(b"RIFF");
+        riff.extend_from_slice(&((4 + chunks.len()) as u32).to_le_bytes());
+        riff.extend_from_slice(b"WAVE");
+        riff.extend_from_slice(&chunks);
+        std::fs::write(path, &riff).unwrap();
+    }
+
+    // A crafted WAV whose fmt chunk advertises an out-of-range bits_per_sample
+    // (72) — accepted by hound (it only requires a multiple of 8) — must not
+    // panic on the `1i64 << (bits - 1)` shift. A shift of 64+ overflows i64
+    // (debug panic / wrong divisor in release). The reader must reject such a
+    // file with a clean error instead.
+    #[test]
+    fn rejects_wav_with_out_of_range_bit_depth() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("bad.wav");
+        // block_align 9 → bytes_per_sample 9, ×8 = 72 ≥ bits, passes hound.
+        write_raw_wav(&path, 72, 9, &vec![0u8; 9]);
+        let result = read_wav_samples(&path);
+        assert!(
+            result.is_err(),
+            "an out-of-range bit depth must be a clean error, not a panic"
+        );
     }
 
     // Round-trips a synthetic WAV through hound to exercise read_wav_samples
