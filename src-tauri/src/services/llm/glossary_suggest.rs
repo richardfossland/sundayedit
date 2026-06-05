@@ -159,11 +159,21 @@ pub fn parse_glossary_suggestions(response: &str) -> AppResult<Vec<SuggestedTerm
             if t.term.is_empty() {
                 return None;
             }
+            // Dedupe aliases case-insensitively and drop any that merely echo
+            // the canonical term — an LLM routinely repeats case variants and
+            // the term itself, which would prime Whisper redundantly and bloat
+            // the stored glossary on every accept.
+            let term_lc = t.term.to_lowercase();
+            let mut alias_seen = std::collections::HashSet::new();
             t.aliases = t
                 .aliases
                 .into_iter()
                 .map(|a| a.trim().to_string())
                 .filter(|a| !a.is_empty())
+                .filter(|a| {
+                    let lc = a.to_lowercase();
+                    lc != term_lc && alias_seen.insert(lc)
+                })
                 .collect();
             seen.insert(t.term.to_lowercase()).then_some(t)
         })
@@ -288,6 +298,20 @@ mod tests {
     #[test]
     fn rejects_non_json() {
         assert!(parse_glossary_suggestions("nothing here").is_err());
+    }
+
+    #[test]
+    fn dedupes_aliases_within_a_term() {
+        // An LLM routinely repeats an alias (case variants) and even echoes
+        // the canonical spelling back as an "alias". Duplicates would prime
+        // Whisper redundantly and bloat the stored glossary on every accept.
+        let r = r#"[{"term":"kerygma","aliases":["kerigma","Kerigma","kerigma","kerygma"],"reason":"x"}]"#;
+        let out = parse_glossary_suggestions(r).unwrap();
+        assert_eq!(
+            out[0].aliases,
+            vec!["kerigma"],
+            "case-insensitive duplicate aliases and the canonical echo must collapse"
+        );
     }
 
     #[test]
