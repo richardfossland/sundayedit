@@ -34,11 +34,11 @@ pub fn write_srt(project: &Project, opts: SrtOptions) -> String {
         if opts.strip_empty && c.words.is_empty() {
             continue;
         }
-        let text = if opts.include_speakers {
+        let text = sanitize_cue_text(&if opts.include_speakers {
             format_with_speaker(c, &speakers_map)
         } else {
             c.text()
-        };
+        });
 
         // 1-based index, then "HH:MM:SS,mmm --> HH:MM:SS,mmm", then text
         out.push_str(&idx.to_string());
@@ -100,15 +100,15 @@ pub fn write_vtt(project: &Project, opts: VttOptions) -> String {
                 if let Some(name) = speakers_map.get(speaker_id) {
                     out.push_str(&format!(
                         "<v {}>{}</v>\n",
-                        vtt_escape(name),
-                        vtt_escape(&c.text())
+                        vtt_escape(&sanitize_cue_text(name)),
+                        vtt_escape(&sanitize_cue_text(&c.text()))
                     ));
                     out.push('\n');
                     continue;
                 }
             }
         }
-        out.push_str(&vtt_escape(&c.text()));
+        out.push_str(&vtt_escape(&sanitize_cue_text(&c.text())));
         out.push_str("\n\n");
     }
     out
@@ -127,6 +127,35 @@ fn fmt_vtt_time(ms: i64) -> String {
     let seconds = (ms / 1_000) % 60;
     let millis = ms % 1_000;
     format!("{:02}:{:02}:{:02}.{:03}", hours, minutes, seconds, millis)
+}
+
+/// Neutralise characters in caption/speaker text that would break SRT/VTT cue
+/// framing. Both formats delimit cues with a BLANK LINE, so an embedded blank
+/// line (from a multi-line word, e.g. a pasted find/replace value) truncates
+/// the cue and desynchronises every following entry. Carriage returns are also
+/// dropped so a stray '\r' can't forge an early line end. A single line break
+/// inside a cue is legal (multi-line caption) and is preserved as a lone '\n';
+/// runs of blank lines collapse to one break.
+fn sanitize_cue_text(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut last_was_newline = false;
+    for ch in s.chars() {
+        match ch {
+            '\r' => {} // drop CRs; never a meaningful in-cue character
+            '\n' => {
+                if !last_was_newline {
+                    out.push('\n');
+                    last_was_newline = true;
+                }
+                // collapse consecutive newlines (the blank line that breaks cues)
+            }
+            _ => {
+                out.push(ch);
+                last_was_newline = false;
+            }
+        }
+    }
+    out
 }
 
 fn vtt_escape(s: &str) -> String {
@@ -672,6 +701,66 @@ mod tests {
         let out = write_srt(&p(), SrtOptions::default());
         assert!(out.starts_with("1\r\n00:00:01,500 --> 00:00:03,750\r\nHello world\r\n\r\n"));
         assert!(out.contains("2\r\n00:00:04,000 --> 00:00:07,250\r\nThis is two\r\n\r\n"));
+    }
+
+    // A caption whose text contains a blank line (e.g. a multi-line value pasted
+    // via find/replace) must not break SRT/VTT cue framing. In SRT a blank line
+    // ('\n\n') terminates a cue, so an embedded one truncates the cue and
+    // desynchronises every following index — corrupting the whole file. The
+    // writer must neutralise embedded blank lines (and bare CRs) so cue
+    // boundaries stay intact.
+    #[test]
+    fn srt_caption_with_embedded_blank_line_does_not_break_cue_framing() {
+        let mut proj = p();
+        // One caption, single word, whose text holds a blank line.
+        proj.captions = vec![Caption {
+            id: "c".into(),
+            start_ms: 0,
+            end_ms: 1000,
+            words: vec![Word::new("a\n\nb", 0, 1000, 90.0)],
+            speaker_id: None,
+            style_id: None,
+            notes: None,
+            ai_generated: true,
+            last_edited_at: 0,
+        }];
+        let out = write_srt(&proj, SrtOptions::default());
+        // SRT parsers split cues on a blank line REGARDLESS of CR, so normalise
+        // CRLF→LF and count blank-line separators: the only one must be the cue
+        // terminator at the end. An embedded one splits this single cue in two
+        // and desynchronises all later indices.
+        let normalised = out.replace("\r\n", "\n");
+        let blank_separators = normalised.matches("\n\n").count();
+        assert_eq!(
+            blank_separators, 1,
+            "embedded blank line corrupted SRT cue framing: {out:?}"
+        );
+    }
+
+    #[test]
+    fn vtt_caption_with_embedded_blank_line_does_not_break_cue_framing() {
+        let mut proj = p();
+        proj.captions = vec![Caption {
+            id: "c".into(),
+            start_ms: 0,
+            end_ms: 1000,
+            words: vec![Word::new("a\n\nb", 0, 1000, 90.0)],
+            speaker_id: None,
+            style_id: None,
+            notes: None,
+            ai_generated: true,
+            last_edited_at: 0,
+        }];
+        let out = write_vtt(&proj, VttOptions::default());
+        // After the "WEBVTT\n\n" header there must be exactly one cue, so exactly
+        // one trailing blank-line separator. An embedded blank line would make
+        // the cue text look like a second (timestamp-less) cue.
+        let body = out.strip_prefix("WEBVTT\n\n").unwrap_or(&out);
+        let blank_separators = body.matches("\n\n").count();
+        assert_eq!(
+            blank_separators, 1,
+            "embedded blank line corrupted VTT cue framing: {out:?}"
+        );
     }
 
     #[test]
