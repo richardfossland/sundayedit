@@ -9,9 +9,8 @@
 //! the renderer drives the actual import using the existing project/context/
 //! glossary flows.
 //!
-//! Contract (mirrors `docs/integration/*` in the SundayRec repo; the
-//! pre-rebrand plan calls the scheme `verbatim://`, we own the post-rebrand
-//! `sundayedit://` name):
+//! Contract (mirrors `docs/integration/*` in the SundayRec repo; we own the
+//! `sundayedit://` scheme):
 //!
 //! ```text
 //! sundayedit://import
@@ -211,7 +210,7 @@ fn hex_digit(n: u8) -> char {
 }
 
 /// Percent-decode one query component. `%XX` → byte, `+` → space, everything
-/// else verbatim. Invalid `%` escapes are left as-is rather than rejected, so a
+/// else left as-is. Invalid `%` escapes are left unchanged rather than rejected, so a
 /// stray `%` in a path never sinks the whole import. Bytes are reassembled and
 /// read as UTF-8 (lossily) at the end.
 fn decode_component(s: &str) -> String {

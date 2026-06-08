@@ -59,8 +59,13 @@ import type {
 } from "@/lib/bindings";
 import { checkForUpdate, installAndRelaunch, type Update } from "@/lib/updater";
 import { Modal } from "@/components/Modal";
+import {
+  CommandPalette,
+  type PaletteCommand,
+} from "@/components/CommandPalette";
 import { useT, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
+import logoUrl from "@/assets/logo.svg";
 
 // The editing tools that live in the right-hand dock — each operates on the
 // captions visible in the centre workspace.
@@ -79,18 +84,30 @@ type DockTool =
 // workspace rather than docking beside it.
 type ModalKind = "transcribe" | "clips" | "export" | "settings";
 
-// The dock tools, in rail order. One source of truth for icon + label.
-const DOCK_TOOLS: Array<{ id: DockTool; icon: LucideIcon; labelKey: TKey }> = [
-  { id: "context", icon: BookText, labelKey: "navContext" },
-  { id: "projectmeta", icon: FileText, labelKey: "navProjectMeta" },
-  { id: "style", icon: Palette, labelKey: "navStyle" },
-  { id: "speakers", icon: Users, labelKey: "navSpeakers" },
-  { id: "polish", icon: Sparkles, labelKey: "navPolish" },
-  { id: "suggest", icon: Lightbulb, labelKey: "navSuggest" },
-  { id: "translate", icon: Languages, labelKey: "navTranslate" },
-  { id: "cleanup", icon: Wand2, labelKey: "navCleanup" },
-  { id: "reflow", icon: Gauge, labelKey: "navReflow" },
+type DockToolDef = { id: DockTool; icon: LucideIcon; labelKey: TKey };
+
+// The dock tools, grouped by intent so the 56px rail reads as three clusters
+// (Content · Format · AI) separated by hairlines, not nine icons competing.
+const DOCK_GROUPS: Array<DockToolDef[]> = [
+  [
+    { id: "context", icon: BookText, labelKey: "navContext" },
+    { id: "projectmeta", icon: FileText, labelKey: "navProjectMeta" },
+  ],
+  [
+    { id: "style", icon: Palette, labelKey: "navStyle" },
+    { id: "speakers", icon: Users, labelKey: "navSpeakers" },
+  ],
+  [
+    { id: "polish", icon: Sparkles, labelKey: "navPolish" },
+    { id: "suggest", icon: Lightbulb, labelKey: "navSuggest" },
+    { id: "translate", icon: Languages, labelKey: "navTranslate" },
+    { id: "cleanup", icon: Wand2, labelKey: "navCleanup" },
+    { id: "reflow", icon: Gauge, labelKey: "navReflow" },
+  ],
 ];
+
+// Flat view for label lookups.
+const DOCK_TOOLS: DockToolDef[] = DOCK_GROUPS.flat();
 
 function dockLabelKey(tool: DockTool): TKey {
   return DOCK_TOOLS.find((d) => d.id === tool)?.labelKey ?? "navContext";
@@ -303,13 +320,81 @@ function App() {
     }
   }
 
+  function openDockTool(tool: DockTool) {
+    setDockTool(tool);
+    setDockOpen(true);
+  }
+
+  const paletteCommands: PaletteCommand[] = [
+    ...DOCK_TOOLS.map(({ id, icon, labelKey }) => ({
+      id: `tool-${id}`,
+      label: t(labelKey),
+      group: t("paletteGroupTools"),
+      icon,
+      run: () => openDockTool(id),
+    })),
+    {
+      id: "m-transcribe",
+      label: t("navTranscribe"),
+      group: t("paletteGroupPipeline"),
+      icon: Cpu,
+      run: () => setModal("transcribe"),
+    },
+    {
+      id: "m-clips",
+      label: t("navClips"),
+      group: t("paletteGroupPipeline"),
+      icon: Scissors,
+      run: () => setModal("clips"),
+    },
+    {
+      id: "m-export",
+      label: t("navExport"),
+      group: t("paletteGroupPipeline"),
+      icon: Download,
+      run: () => setModal("export"),
+    },
+    {
+      id: "m-settings",
+      label: t("navSettings"),
+      group: t("paletteGroupPipeline"),
+      icon: SettingsIcon,
+      run: () => setModal("settings"),
+    },
+    {
+      id: "p-open",
+      label: t("projectOpen"),
+      group: t("paletteGroupProject"),
+      icon: FolderOpen,
+      run: () => void openProject(),
+    },
+    {
+      id: "p-save",
+      label: t("projectSave"),
+      group: t("paletteGroupProject"),
+      icon: Save,
+      run: () => void saveProjectAs(),
+    },
+    {
+      id: "p-import",
+      label: t("navBackToImport"),
+      group: t("paletteGroupProject"),
+      icon: FileVideo,
+      run: () => {
+        setProject(null);
+        setReturnTo(null);
+      },
+    },
+  ];
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg)] text-[var(--color-fg)]">
       {update && (
         <UpdateBanner update={update} onDismiss={() => setUpdate(null)} />
       )}
 
-      {/* Left rail — picks which tool the right dock shows. */}
+      {/* Left rail — picks which tool the right dock shows, grouped into
+          Content · Format · AI clusters separated by hairlines. */}
       <nav className="flex w-14 flex-col items-center gap-1 border-r border-[var(--color-border)] bg-[var(--color-bg-elevated)] py-3">
         <button
           type="button"
@@ -318,19 +403,34 @@ function App() {
             setReturnTo(null);
           }}
           title={t("navBackToImport")}
-          className="mb-3 grid h-9 w-9 place-items-center rounded-lg bg-[var(--color-accent-600)] font-bold text-[var(--color-neutral-950)]"
+          aria-label={t("navBackToImport")}
+          className="mb-3"
         >
-          S
+          <img
+            src={logoUrl}
+            width={36}
+            height={36}
+            alt=""
+            aria-hidden="true"
+            className="block rounded-[22%]"
+          />
         </button>
-        {DOCK_TOOLS.map(({ id, icon: Icon, labelKey }) => (
-          <NavIcon
-            key={id}
-            active={dockOpen && dockTool === id}
-            onClick={() => selectDockTool(id)}
-            title={t(labelKey)}
-          >
-            <Icon size={18} />
-          </NavIcon>
+        {DOCK_GROUPS.map((group, gi) => (
+          <div key={gi} className="flex flex-col items-center gap-1">
+            {gi > 0 && (
+              <div className="my-1 h-px w-6 bg-[var(--color-border)]" />
+            )}
+            {group.map(({ id, icon: Icon, labelKey }) => (
+              <NavIcon
+                key={id}
+                active={dockOpen && dockTool === id}
+                onClick={() => selectDockTool(id)}
+                title={t(labelKey)}
+              >
+                <Icon size={18} />
+              </NavIcon>
+            ))}
+          </div>
         ))}
       </nav>
 
@@ -467,6 +567,8 @@ function App() {
           <SettingsPanel />
         </Modal>
       )}
+
+      <CommandPalette commands={paletteCommands} />
     </div>
   );
 }

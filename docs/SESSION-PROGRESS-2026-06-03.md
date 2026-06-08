@@ -3,7 +3,7 @@
 Automated multi-agent work, delivered offline, gates green per change, merged to `main` and pushed
 without CI minutes (`[skip ci]` merges). `main` HEAD: `e017b3c`.
 
-## SundayEdit (verbatim) — this session
+## SundayEdit — this session
 
 (The most mature product at session start — least depth needed.)
 

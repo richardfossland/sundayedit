@@ -26,9 +26,8 @@ keys are ignored, so the contract can grow without breaking older builds. `path`
 is mandatory; everything else is optional. `language`/`return_to` also accept
 the aliases `lang`/`return_to`.
 
-> **Naming note:** the pre-rebrand SundayRec integration plan refers to the
-> scheme as `verbatim://`. After the rebrand SundayEdit owns `sundayedit://`;
-> the SundayRec side should emit `sundayedit://import?…`.
+> **Naming note:** SundayEdit owns the `sundayedit://` scheme; the SundayRec
+> side should emit `sundayedit://import?…`.
 
 ## What happens on receipt
 
