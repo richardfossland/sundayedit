@@ -1,0 +1,18 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7A3E86"></stop><stop offset="1" stop-color="#451F54"></stop></linearGradient>
+    <radialGradient id="glow" cx="0.26" cy="0.2" r="0.95"><stop offset="0" stop-color="#ffffff" stop-opacity="0.12"></stop><stop offset="0.55" stop-color="#ffffff" stop-opacity="0"></stop></radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F2D58A"></stop><stop offset="1" stop-color="#EBB84B"></stop></linearGradient>
+    <clipPath id="clip"><rect width="1024" height="1024" rx="228"></rect></clipPath>
+  </defs>
+  <g clip-path="url(#clip)">
+    <rect width="1024" height="1024" fill="url(#bg)"></rect>
+    <rect width="1024" height="1024" fill="url(#glow)"></rect>
+    <rect x="244" y="300" width="536" height="300" rx="46" fill="none" stroke="#EBB84B" stroke-width="20"></rect>
+    <path d="M 400 396 L 400 504 L 498 450 Z" fill="url(#gold)"></path>
+    <rect x="591.0" y="351.8" width="30.0" height="196.5" rx="4.0" fill="url(#gold)"></rect>
+    <rect x="543.6" y="406.1" width="124.8" height="30.0" rx="4.0" fill="url(#gold)"></rect>
+    <rect x="244" y="652" width="420" height="28" rx="14" fill="#EBB84B"></rect>
+    <rect x="244" y="702" width="262" height="28" rx="14" fill="#F2D58A"></rect>
+  </g>
+</svg>
