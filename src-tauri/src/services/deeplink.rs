@@ -166,7 +166,10 @@ fn split_glossary(value: &str) -> Vec<String> {
 pub fn captions_callback_url(return_to: &str, sidecar_path: &str) -> AppResult<String> {
     let scheme = return_to.trim();
     let valid_scheme = !scheme.is_empty()
-        && scheme.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
+        && scheme
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic())
         && scheme
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'));
@@ -223,18 +226,16 @@ fn decode_component(s: &str) -> String {
                 out.push(b' ');
                 i += 1;
             }
-            b'%' if i + 2 < bytes.len() => {
-                match (hex_val(bytes[i + 1]), hex_val(bytes[i + 2])) {
-                    (Some(hi), Some(lo)) => {
-                        out.push(hi << 4 | lo);
-                        i += 3;
-                    }
-                    _ => {
-                        out.push(b'%');
-                        i += 1;
-                    }
+            b'%' if i + 2 < bytes.len() => match (hex_val(bytes[i + 1]), hex_val(bytes[i + 2])) {
+                (Some(hi), Some(lo)) => {
+                    out.push(hi << 4 | lo);
+                    i += 3;
                 }
-            }
+                _ => {
+                    out.push(b'%');
+                    i += 1;
+                }
+            },
             b => {
                 out.push(b);
                 i += 1;
@@ -265,7 +266,10 @@ mod tests {
         let req = parse_import_url(url).unwrap();
         assert_eq!(req.path, "/Users/ola/clip.mp4");
         assert_eq!(req.language.as_deref(), Some("no"));
-        assert_eq!(req.context.as_deref(), Some("Sermon, speaker: Ola Nordmann"));
+        assert_eq!(
+            req.context.as_deref(),
+            Some("Sermon, speaker: Ola Nordmann")
+        );
         assert_eq!(req.glossary, vec!["Ola Nordmann", "kerygma", "soteriology"]);
         assert_eq!(req.return_to.as_deref(), Some("sundayrec"));
     }
@@ -308,18 +312,16 @@ mod tests {
 
     #[test]
     fn glossary_trims_drops_empties_and_dedupes() {
-        let req =
-            parse_import_url("sundayedit://import?path=/a.mp4&glossary=+Ada+,,ada,+,Babbage")
-                .unwrap();
+        let req = parse_import_url("sundayedit://import?path=/a.mp4&glossary=+Ada+,,ada,+,Babbage")
+            .unwrap();
         // "Ada" kept (first spelling), case-insensitive "ada" dropped, blanks gone.
         assert_eq!(req.glossary, vec!["Ada", "Babbage"]);
     }
 
     #[test]
     fn accepts_lang_and_return_to_aliases() {
-        let req =
-            parse_import_url("sundayedit://import?path=/a.mp4&lang=de&return_to=sundaystage")
-                .unwrap();
+        let req = parse_import_url("sundayedit://import?path=/a.mp4&lang=de&return_to=sundaystage")
+            .unwrap();
         assert_eq!(req.language.as_deref(), Some("de"));
         assert_eq!(req.return_to.as_deref(), Some("sundaystage"));
     }
@@ -345,7 +347,11 @@ mod tests {
             "kerygma + søndag/æøå",
             "",
         ] {
-            assert_eq!(decode_component(&encode_component(s)), s, "round-trip {s:?}");
+            assert_eq!(
+                decode_component(&encode_component(s)),
+                s,
+                "round-trip {s:?}"
+            );
         }
         // Spaces encode as %20 (not +), so they survive the +→space decode rule.
         assert_eq!(encode_component("a b"), "a%20b");
@@ -356,7 +362,10 @@ mod tests {
         let url = captions_callback_url("sundayrec", "/Users/ola/a b.srt").unwrap();
         assert_eq!(url, "sundayrec://captions?path=%2FUsers%2Fola%2Fa%20b.srt");
         // The caller can parse it straight back to the path.
-        assert_eq!(decode_component("%2FUsers%2Fola%2Fa%20b.srt"), "/Users/ola/a b.srt");
+        assert_eq!(
+            decode_component("%2FUsers%2Fola%2Fa%20b.srt"),
+            "/Users/ola/a b.srt"
+        );
     }
 
     #[test]

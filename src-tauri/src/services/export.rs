@@ -211,8 +211,8 @@ pub fn write_ass(project: &Project) -> String {
             fmt_ass_time(c.start_ms),
             fmt_ass_time(c.end_ms),
             style_name,
-            ass_escape(name_field),
-            ass_escape(&c.text()),
+            ass_field(name_field), // Name is comma-delimited — must not contain a raw comma
+            ass_escape(&c.text()), // Text is the trailing field — commas stay literal
         ));
     }
 
@@ -301,12 +301,21 @@ fn fmt_ass_time(ms: i64) -> String {
 }
 
 fn ass_escape(s: &str) -> String {
-    // ASS uses `{}` for inline override codes — escape literal braces.
-    // Commas in the Text field are literal but in other fields would be
-    // delimiter; for safety we don't allow commas in Style/Name fields.
+    // ASS uses `{}` for inline override codes — escape literal braces. Newlines
+    // become `\N`. Commas are left intact: this is used for the trailing Text
+    // field (and freeform Title), where a comma is a literal character. Use
+    // [`ass_field`] for any earlier comma-DELIMITED field (Name, Fontname).
     s.replace('{', "\\{")
         .replace('}', "\\}")
         .replace('\n', "\\N")
+}
+
+/// Escape a value destined for a comma-DELIMITED ASS field (`Name`, `Fontname`).
+/// Same as [`ass_escape`] but also neutralizes commas → a speaker name like
+/// "Smith, Jr." or a font with a comma would otherwise shift every following
+/// field and corrupt the `Dialogue:`/`Style:` line.
+fn ass_field(s: &str) -> String {
+    ass_escape(s).replace(',', " ")
 }
 
 fn format_ass_style(name: &str, s: &Style) -> String {
@@ -331,7 +340,7 @@ fn format_ass_style(name: &str, s: &Style) -> String {
     format!(
         "Style: {name},{font},{size},{primary},{secondary},{outline},{back},{bold},{italic},0,0,100,100,{spacing},0,1,{outline_w},{shadow},{alignment},10,10,{marginv},1\n",
         name = name,
-        font = s.font_family,
+        font = ass_field(&s.font_family), // Fontname is comma-delimited
         size = s.font_size_px,
         primary = primary,
         secondary = "&H000000FF",
@@ -350,9 +359,13 @@ fn format_ass_style(name: &str, s: &Style) -> String {
 /// Convert "#RRGGBB" to ASS-style "&H00BBGGRR" (BGR + alpha).
 fn hex_to_ass_bgr(hex: &str) -> String {
     let h = hex.trim_start_matches('#');
-    if h.len() < 6 {
+    // Need ≥6 ASCII hex digits. A non-conforming value (too short, or a multibyte
+    // char inside the first 6 bytes from a hand-edited/migrated project file) must
+    // fall back to white, NOT panic on a char-boundary byte-slice.
+    if h.len() < 6 || !h.as_bytes()[..6].iter().all(u8::is_ascii_hexdigit) {
         return "&H00FFFFFF".to_string();
     }
+    // First 6 bytes are ASCII hex (1 byte each) → these slices are on char boundaries.
     let r = &h[0..2];
     let g = &h[2..4];
     let b = &h[4..6];
@@ -1006,6 +1019,24 @@ mod tests {
         assert_eq!(hex_to_ass_bgr("#00FF00"), "&H0000FF00");
         assert_eq!(hex_to_ass_bgr("#0000FF"), "&H00FF0000");
         assert_eq!(hex_to_ass_bgr("#FFFFFF"), "&H00FFFFFF");
+    }
+
+    #[test]
+    fn hex_to_ass_bgr_falls_back_on_bad_input() {
+        assert_eq!(hex_to_ass_bgr("#fff"), "&H00FFFFFF"); // too short
+        assert_eq!(hex_to_ass_bgr("#zzzzzz"), "&H00FFFFFF"); // non-hex
+                                                             // Multibyte char inside the first 6 bytes must NOT panic on a slice.
+        assert_eq!(hex_to_ass_bgr("#café12"), "&H00FFFFFF");
+    }
+
+    #[test]
+    fn ass_field_neutralizes_commas() {
+        // A comma in a delimited field (speaker Name / Fontname) would shift every
+        // following field — it must be neutralized; the Text field keeps commas.
+        assert_eq!(ass_field("Smith, Jr."), "Smith  Jr.");
+        assert_eq!(ass_field("a,b"), "a b");
+        assert_eq!(ass_field("Arial"), "Arial");
+        assert!(!ass_field("{x},y").contains(','));
     }
 
     // ── TXT ────────────────────────────────────────────────────────────────

@@ -190,8 +190,13 @@ fn retime_words(texts: &[&str], start_ms: i64, end_ms: i64) -> Vec<Word> {
         } else {
             start_ms + span * acc / total
         };
+        // Clamp to end_ms so a translation with MORE words than the caption's
+        // millisecond budget can't push words past the caption box (the old
+        // `end.max(prev+1)` re-introduced the overflow after the .min clamp).
+        // When there's no room left, trailing words collapse to end_ms.
         let end = boundary.max(prev + 1).min(end_ms);
-        let mut w = Word::new(*t, prev, end.max(prev + 1), 100.0);
+        let start = prev.min(end);
+        let mut w = Word::new(*t, start, end, 100.0);
         w.edited = true;
         words.push(w);
         prev = end;
@@ -457,5 +462,22 @@ mod tests {
         );
         let res = translate_to_captions(&p, &[tc("c1", "   ")], "en", 1);
         assert_eq!(res.captions[0].words[0].text, "hei");
+    }
+
+    #[test]
+    fn retime_words_never_exceeds_caption_end() {
+        // More words than the caption's millisecond budget must NOT push any word
+        // past end_ms (would leave the caption box / fail validation later).
+        let texts: Vec<&str> = vec!["a"; 20];
+        let words = retime_words(&texts, 0, 5);
+        assert_eq!(words.len(), 20);
+        for w in &words {
+            assert!(w.start_ms >= 0 && w.start_ms <= w.end_ms, "{w:?}");
+            assert!(w.end_ms <= 5, "word ends at {} > 5", w.end_ms);
+        }
+        // Monotonic non-decreasing starts.
+        for pair in words.windows(2) {
+            assert!(pair[1].start_ms >= pair[0].start_ms);
+        }
     }
 }

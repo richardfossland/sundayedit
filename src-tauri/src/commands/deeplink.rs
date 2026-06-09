@@ -18,6 +18,9 @@ pub fn deeplink_parse_import(url: String) -> AppResult<ImportRequest> {
 /// launched us, pointing at a freshly written caption sidecar. The renderer
 /// opens it after a successful export so the source app can pick up the result.
 #[tauri::command]
-pub fn deeplink_captions_callback_url(return_to: String, sidecar_path: String) -> AppResult<String> {
+pub fn deeplink_captions_callback_url(
+    return_to: String,
+    sidecar_path: String,
+) -> AppResult<String> {
     captions_callback_url(&return_to, &sidecar_path)
 }
