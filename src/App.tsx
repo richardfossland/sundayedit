@@ -132,6 +132,17 @@ function App() {
     kind: "ok" | "err";
     text: string;
   } | null>(null);
+  // Show a brief toast; auto-dismiss after a few seconds (unless replaced).
+  // Defined here (above the early returns) so launch-time effects — deep-link
+  // import, model download — can surface failures instead of dying in the
+  // console. Stable identity keeps effect deps honest.
+  const notify = useCallback((kind: "ok" | "err", text: string) => {
+    setToast({ kind, text });
+    window.setTimeout(
+      () => setToast((cur) => (cur && cur.text === text ? null : cur)),
+      kind === "err" ? 6000 : 3500,
+    );
+  }, []);
   const [downloadedModels, setDownloadedModels] = useState<WhisperModel[]>([]);
   const [downloading, setDownloading] = useState<{
     model: WhisperModel;
@@ -196,6 +207,8 @@ function App() {
             setModal("transcribe");
           } catch (e) {
             console.error("deep-link import failed", e);
+            if (!cancelled)
+              notify("err", `Import failed: ${(e as Error).message}`);
           }
         });
       } catch {
@@ -206,7 +219,7 @@ function App() {
       cancelled = true;
       unlisten?.();
     };
-  }, []);
+  }, [notify]);
 
   // Fetch the chosen Whisper model on first use. Streams progress; refreshes
   // the downloaded set on completion.
@@ -227,6 +240,7 @@ function App() {
       await refreshDownloaded();
     } catch (e) {
       console.error("model download failed", e);
+      notify("err", `Model download failed: ${(e as Error).message}`);
     } finally {
       unlisten?.();
       setDownloading(null);
@@ -282,15 +296,6 @@ function App() {
 
   // Save the current project to a `.sundayedit` file the user picks. No-op
   // outside Tauri (no native dialog) or if the user cancels.
-  // Show a brief toast; auto-dismiss after a few seconds (unless replaced).
-  function notify(kind: "ok" | "err", text: string) {
-    setToast({ kind, text });
-    window.setTimeout(
-      () => setToast((cur) => (cur && cur.text === text ? null : cur)),
-      kind === "err" ? 6000 : 3500,
-    );
-  }
-
   async function saveProjectAs() {
     if (!project) return;
     const suggested = project.name.replace(/\.[^.]+$/, "");

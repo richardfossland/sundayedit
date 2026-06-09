@@ -74,6 +74,12 @@ impl Matcher {
         match self {
             Matcher::Regex(re) => re
                 .find_iter(text)
+                // Drop zero-width matches (`\b`, `a*`, lookarounds). At the
+                // word level they carry no text to find or replace: they'd
+                // surface as empty `matched` previews and, in `replace_all`,
+                // insert `replacement` at every boundary while inflating the
+                // count — neither is what "find & replace" means.
+                .filter(|m| m.end() > m.start())
                 .map(|m| (m.start(), m.end(), m.as_str().to_string()))
                 .collect(),
             Matcher::Plain {
@@ -208,6 +214,13 @@ pub fn replace_all(
             // Rebuild text applying replacements right-to-left so offsets stay valid.
             let mut new_text = word.text.clone();
             for (start, end, _) in hits.iter().rev() {
+                // A match already equal to `replacement` is a no-op; skip it so
+                // the reported count reflects real changes (replacing a term
+                // with itself must not claim "N replacements made"). Offsets are
+                // against the unmodified `word.text`, which we never mutate.
+                if word.text.get(*start..*end) == Some(replacement) {
+                    continue;
+                }
                 new_text.replace_range(*start..*end, replacement);
                 count += 1;
             }
@@ -451,6 +464,59 @@ mod tests {
         let (out, count) = replace_all(&p, &opts("um"), "X", 100).unwrap();
         assert_eq!(count, 1);
         assert_eq!(out.captions[0].words[0].text, "\u{0130}X");
+    }
+
+    #[test]
+    fn find_skips_zero_width_regex() {
+        // `\b` matches at every word boundary but consumes nothing. Such matches
+        // are meaningless for find/replace and must not appear.
+        let p = proj(vec![("c1", vec!["hello", "world"])]);
+        let o = FindOptions {
+            query: r"\b".into(),
+            case_sensitive: false,
+            whole_word: false,
+            regex: true,
+        };
+        let m = find_all(&p, &o).unwrap();
+        assert!(
+            m.is_empty(),
+            "zero-width matches must be dropped, got {m:?}"
+        );
+    }
+
+    #[test]
+    fn replace_zero_width_regex_is_noop() {
+        // A zero-width pattern must neither insert text nor inflate the count.
+        let p = proj(vec![("c1", vec!["hello"])]);
+        let o = FindOptions {
+            query: r"\b".into(),
+            case_sensitive: false,
+            whole_word: false,
+            regex: true,
+        };
+        let (out, count) = replace_all(&p, &o, "X", 100).unwrap();
+        assert_eq!(count, 0);
+        assert_eq!(out.captions[0].words[0].text, "hello");
+        assert!(!out.captions[0].words[0].edited);
+    }
+
+    #[test]
+    fn replace_with_self_is_not_counted() {
+        // Replacing a term with itself changes nothing — the count must be 0 and
+        // the word must not be marked edited (no false "unsaved changes").
+        let p = proj(vec![("c1", vec!["color", "colorful"])]);
+        let o = FindOptions {
+            query: "color".into(),
+            case_sensitive: true,
+            whole_word: false,
+            regex: false,
+        };
+        let (out, count) = replace_all(&p, &o, "color", 100).unwrap();
+        assert_eq!(count, 0);
+        assert_eq!(out.captions[0].words[0].text, "color");
+        assert_eq!(out.captions[0].words[1].text, "colorful");
+        assert!(out.captions[0].words.iter().all(|w| !w.edited));
+        assert_eq!(out.updated_at, 0); // untouched
     }
 
     #[test]
