@@ -3,6 +3,7 @@
 //! Entry point. Wires up logging, registers all Tauri command handlers,
 //! and runs the Tauri runtime. The actual work happens in `services::*`.
 
+pub mod account;
 pub mod commands;
 pub mod error;
 pub mod model;
@@ -52,6 +53,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Sunday Account (SSO) — shared cross-app session
+            commands::account::sunday_account_status,
+            commands::account::sunday_sign_out,
             // Caption operations (Phase 3.1)
             commands::operations::op_split_caption,
             commands::operations::op_merge_captions,
