@@ -740,8 +740,7 @@ mod tests {
 
     #[test]
     fn check_upload_size_message_is_clear_and_actionable() {
-        let err = check_upload_size(CloudProvider::OpenaiWhisper, 40 * 1024 * 1024)
-            .unwrap_err();
+        let err = check_upload_size(CloudProvider::OpenaiWhisper, 40 * 1024 * 1024).unwrap_err();
         assert_eq!(err.code(), "validation");
         let msg = err.to_string();
         assert!(msg.contains("40.0 MB"));

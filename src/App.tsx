@@ -126,6 +126,12 @@ function App() {
   const [returnTo, setReturnTo] = useState<string | null>(null);
   const [model, setModel] = useState<WhisperModel | null>("large-v3-turbo");
   const [update, setUpdate] = useState<Update | null>(null);
+  // App-level toast — Save/Open had NO success/failure feedback (a failed save
+  // looked identical to a successful one → silent data loss). Auto-dismisses.
+  const [toast, setToast] = useState<{
+    kind: "ok" | "err";
+    text: string;
+  } | null>(null);
   const [downloadedModels, setDownloadedModels] = useState<WhisperModel[]>([]);
   const [downloading, setDownloading] = useState<{
     model: WhisperModel;
@@ -276,6 +282,15 @@ function App() {
 
   // Save the current project to a `.sundayedit` file the user picks. No-op
   // outside Tauri (no native dialog) or if the user cancels.
+  // Show a brief toast; auto-dismiss after a few seconds (unless replaced).
+  function notify(kind: "ok" | "err", text: string) {
+    setToast({ kind, text });
+    window.setTimeout(
+      () => setToast((cur) => (cur && cur.text === text ? null : cur)),
+      kind === "err" ? 6000 : 3500,
+    );
+  }
+
   async function saveProjectAs() {
     if (!project) return;
     const suggested = project.name.replace(/\.[^.]+$/, "");
@@ -286,9 +301,12 @@ function App() {
       });
       if (typeof path !== "string") return; // cancelled
       await ipc.project.save(project, path);
+      // A successful save MUST be acknowledged — without this, a failed save was
+      // indistinguishable from a successful one (silent data loss).
+      notify("ok", `Saved to ${path}`);
     } catch (e) {
-      // Either no native dialog (browser dev) or the write failed.
       console.error("project save failed", e);
+      notify("err", `Save failed: ${(e as Error).message}`);
     }
   }
 
@@ -304,8 +322,8 @@ function App() {
       setProject(opened);
       setReturnTo(null);
     } catch (e) {
-      // Either no native dialog (browser dev) or load/relink failed.
       console.error("project open failed", e);
+      notify("err", `Could not open project: ${(e as Error).message}`);
     }
   }
 
@@ -391,6 +409,21 @@ function App() {
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg)] text-[var(--color-fg)]">
       {update && (
         <UpdateBanner update={update} onDismiss={() => setUpdate(null)} />
+      )}
+
+      {/* App-level toast (Save/Open success + failure). */}
+      {toast && (
+        <div
+          role="status"
+          onClick={() => setToast(null)}
+          className={`fixed bottom-5 left-1/2 z-50 -translate-x-1/2 cursor-pointer rounded-lg px-4 py-2.5 text-[var(--text-ui-sm)] shadow-lg ${
+            toast.kind === "err"
+              ? "bg-[var(--color-danger,#b3261e)] text-white"
+              : "bg-[var(--color-bg-elevated)] text-[var(--color-fg)] ring-1 ring-[var(--color-border)]"
+          }`}
+        >
+          {toast.text}
+        </div>
       )}
 
       {/* Left rail — picks which tool the right dock shows, grouped into

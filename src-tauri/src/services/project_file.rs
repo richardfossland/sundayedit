@@ -23,7 +23,9 @@ use sqlx::{Row, SqlitePool};
 use std::str::FromStr;
 
 use crate::error::{AppError, AppResult};
-use crate::model::{Caption, Clip, ExportConfig, GlossaryTerm, Project, ProjectMeta, Speaker, Style, Word};
+use crate::model::{
+    Caption, Clip, ExportConfig, GlossaryTerm, Project, ProjectMeta, Speaker, Style, Word,
+};
 
 const SCHEMA_VERSION: i64 = 3;
 
@@ -436,7 +438,10 @@ mod tests {
         assert_eq!(loaded.export_config.caption_color, "yellow");
         assert_eq!(loaded.export_config.max_chars_per_line, 52);
         assert_eq!(loaded.project_meta.title, "Grace: A Sermon");
-        assert_eq!(loaded.project_meta.proper_nouns, "Lars, kerygma, soteriology");
+        assert_eq!(
+            loaded.project_meta.proper_nouns,
+            "Lars, kerygma, soteriology"
+        );
     }
 
     #[tokio::test]
