@@ -161,9 +161,19 @@ fn split_glossary(value: &str) -> Vec<String> {
 /// been written to a sidecar next to the source video. It points the caller's
 /// own scheme at that file: `sundayrec://captions?path=<encoded sidecar>`.
 ///
+/// When `recording_path` is supplied (the original media the caller sent us via
+/// `sundayedit://import`), it's echoed back as `&recording=<encoded>` so the
+/// caller can attach the captions to the right recording without guessing —
+/// e.g. SundayRec writes `<recording>.transcript.json`. It's optional: a plain
+/// user-saved SRT (no inbound deep link) has no recording to echo.
+///
 /// `return_to` must be a clean URL scheme (RFC 3986: ALPHA followed by
-/// alphanumerics / `+` / `-` / `.`); the path is percent-encoded.
-pub fn captions_callback_url(return_to: &str, sidecar_path: &str) -> AppResult<String> {
+/// alphanumerics / `+` / `-` / `.`); both paths are percent-encoded.
+pub fn captions_callback_url(
+    return_to: &str,
+    sidecar_path: &str,
+    recording_path: Option<&str>,
+) -> AppResult<String> {
     let scheme = return_to.trim();
     let valid_scheme = !scheme.is_empty()
         && scheme
@@ -178,10 +188,15 @@ pub fn captions_callback_url(return_to: &str, sidecar_path: &str) -> AppResult<S
             "invalid returnTo scheme: {return_to:?}"
         )));
     }
-    Ok(format!(
+    let mut url = format!(
         "{scheme}://captions?path={}",
         encode_component(sidecar_path)
-    ))
+    );
+    if let Some(rec) = recording_path.map(str::trim).filter(|s| !s.is_empty()) {
+        url.push_str("&recording=");
+        url.push_str(&encode_component(rec));
+    }
+    Ok(url)
 }
 
 /// Percent-encode a string as a URL query-component value: RFC 3986 unreserved
@@ -359,7 +374,7 @@ mod tests {
 
     #[test]
     fn builds_a_callback_url() {
-        let url = captions_callback_url("sundayrec", "/Users/ola/a b.srt").unwrap();
+        let url = captions_callback_url("sundayrec", "/Users/ola/a b.srt", None).unwrap();
         assert_eq!(url, "sundayrec://captions?path=%2FUsers%2Fola%2Fa%20b.srt");
         // The caller can parse it straight back to the path.
         assert_eq!(
@@ -369,10 +384,29 @@ mod tests {
     }
 
     #[test]
+    fn callback_url_echoes_the_recording_path() {
+        // The recording the caller sent us is echoed back so it can attach the
+        // captions without guessing (SundayRec writes <recording>.transcript.json).
+        let url = captions_callback_url(
+            "sundayrec",
+            "/Users/ola/tale.srt",
+            Some("/Users/ola/tale.mp4"),
+        )
+        .unwrap();
+        assert_eq!(
+            url,
+            "sundayrec://captions?path=%2FUsers%2Fola%2Ftale.srt&recording=%2FUsers%2Fola%2Ftale.mp4"
+        );
+        // A blank/whitespace recording is treated as absent (no empty param).
+        let url = captions_callback_url("sundayrec", "/a.srt", Some("  ")).unwrap();
+        assert_eq!(url, "sundayrec://captions?path=%2Fa.srt");
+    }
+
+    #[test]
     fn rejects_a_bad_return_to_scheme() {
-        assert!(captions_callback_url("", "/a.srt").is_err());
-        assert!(captions_callback_url("ht tp", "/a.srt").is_err());
-        assert!(captions_callback_url("1bad", "/a.srt").is_err()); // must start with a letter
-        assert!(captions_callback_url("a/b", "/a.srt").is_err());
+        assert!(captions_callback_url("", "/a.srt", None).is_err());
+        assert!(captions_callback_url("ht tp", "/a.srt", None).is_err());
+        assert!(captions_callback_url("1bad", "/a.srt", None).is_err()); // must start with a letter
+        assert!(captions_callback_url("a/b", "/a.srt", None).is_err());
     }
 }
