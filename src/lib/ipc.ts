@@ -208,9 +208,19 @@ export const deeplink = {
   /** Validate + structure a raw `sundayedit://import?…` URL. */
   parseImport: (url: string) =>
     call<ImportRequest>("deeplink_parse_import", { url }),
-  /** Build the `<returnTo>://captions?path=…` hand-back URL for the caller. */
-  captionsCallbackUrl: (returnTo: string, sidecarPath: string) =>
-    call<string>("deeplink_captions_callback_url", { returnTo, sidecarPath }),
+  /** Build the `<returnTo>://captions?path=…[&recording=…]` hand-back URL for
+   *  the caller. `recordingPath` echoes back the media we were sent so the
+   *  source app attaches the captions to the right recording. */
+  captionsCallbackUrl: (
+    returnTo: string,
+    sidecarPath: string,
+    recordingPath?: string | null,
+  ) =>
+    call<string>("deeplink_captions_callback_url", {
+      returnTo,
+      sidecarPath,
+      recordingPath: recordingPath ?? null,
+    }),
   /** Subscribe to inbound deep-link import URLs (emitted by the native layer). */
   onImport: (cb: (url: string) => void): Promise<UnlistenFn> =>
     listen<string>(EVENT_DEEP_LINK_IMPORT, (e) => cb(e.payload)),

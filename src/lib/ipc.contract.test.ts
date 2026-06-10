@@ -236,6 +236,19 @@ describe("ipc contract — deeplink", () => {
     expectCall("deeplink_captions_callback_url", {
       returnTo: "sundayrec",
       sidecarPath: "/side.srt",
+      recordingPath: null,
+    });
+  });
+  it("deeplink_captions_callback_url echoes the recording path", async () => {
+    await ipc.deeplink.captionsCallbackUrl(
+      "sundayrec",
+      "/side.srt",
+      "/rec.mp4",
+    );
+    expectCall("deeplink_captions_callback_url", {
+      returnTo: "sundayrec",
+      sidecarPath: "/side.srt",
+      recordingPath: "/rec.mp4",
     });
   });
   it("onImport subscribes to the deep-link event", async () => {

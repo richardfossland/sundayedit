@@ -120,7 +120,13 @@ export function ExportPanel({ project, onProjectChange, returnTo }: Props) {
       // Best-effort — the sidecar is saved regardless of whether this succeeds.
       if (returnTo && (format === "srt" || format === "vtt")) {
         try {
-          const url = await ipc.deeplink.captionsCallbackUrl(returnTo, out);
+          // Echo back the recording we were sent so the source app attaches the
+          // captions to the right file (e.g. SundayRec's `.transcript.json`).
+          const url = await ipc.deeplink.captionsCallbackUrl(
+            returnTo,
+            out,
+            project.video_path,
+          );
           const { openUrl } = await import("@tauri-apps/plugin-opener");
           await openUrl(url);
           setSaveMsg(t("exportSentBack"));

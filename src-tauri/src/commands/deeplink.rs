@@ -14,13 +14,16 @@ pub fn deeplink_parse_import(url: String) -> AppResult<ImportRequest> {
     parse_import_url(&url)
 }
 
-/// Build the hand-back URL (`<returnTo>://captions?path=…`) for the caller that
-/// launched us, pointing at a freshly written caption sidecar. The renderer
-/// opens it after a successful export so the source app can pick up the result.
+/// Build the hand-back URL (`<returnTo>://captions?path=…[&recording=…]`) for the
+/// caller that launched us, pointing at a freshly written caption sidecar. When
+/// `recording_path` is given (the media the caller sent us), it's echoed back so
+/// the source app attaches the captions to the right recording. The renderer
+/// opens the URL after a successful export so the source app can pick up the result.
 #[tauri::command]
 pub fn deeplink_captions_callback_url(
     return_to: String,
     sidecar_path: String,
+    recording_path: Option<String>,
 ) -> AppResult<String> {
-    captions_callback_url(&return_to, &sidecar_path)
+    captions_callback_url(&return_to, &sidecar_path, recording_path.as_deref())
 }
