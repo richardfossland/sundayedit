@@ -35,7 +35,7 @@ pub struct FillerHit {
 /// Filler words per language. Lowercased, punctuation-stripped before match.
 fn filler_set(language: &str) -> &'static [&'static str] {
     match language {
-        "no" | "nb" | "nn" => &["eh", "øh", " øh", "hm", "altså", "liksom", " liksom"],
+        "no" | "nb" | "nn" => &["eh", "øh", "hm", "altså", "liksom"],
         // default to English
         _ => &["um", "uh", "uhm", "erm", "hmm", "like", "y'know"],
     }
