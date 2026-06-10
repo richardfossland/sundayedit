@@ -85,12 +85,16 @@ pub fn write_vtt(project: &Project, opts: VttOptions) -> String {
     let mut out = String::with_capacity(project.captions.len() * 80 + 16);
     out.push_str("WEBVTT\n\n");
     let speakers_map = speakers_by_id(&project.speakers);
-    for (i, c) in project.captions.iter().enumerate() {
+    let mut idx = 1u32;
+    for c in &project.captions {
         if opts.strip_empty && c.words.is_empty() {
             continue;
         }
-        // Cue id is optional in VTT; using sequential is a nice debugging aid.
-        out.push_str(&format!("{}\n", i + 1));
+        // Cue id is optional in VTT; a contiguous 1-based counter (incremented
+        // only on emit, like the SRT writer) is a nice debugging aid — using the
+        // raw enumerate index would leave gaps where `strip_empty` dropped cues.
+        out.push_str(&format!("{idx}\n"));
+        idx += 1;
         out.push_str(&fmt_vtt_time(c.start_ms));
         out.push_str(" --> ");
         out.push_str(&fmt_vtt_time(c.end_ms));
@@ -773,6 +777,48 @@ mod tests {
         assert_eq!(
             blank_separators, 1,
             "embedded blank line corrupted VTT cue framing: {out:?}"
+        );
+    }
+
+    #[test]
+    fn vtt_cue_ids_stay_contiguous_when_strip_empty_drops_a_cue() {
+        // A wordless caption between two real ones must not leave a gap in the
+        // VTT cue numbering (1, 2 — not 1, 3) when strip_empty removes it.
+        let mut proj = p();
+        proj.captions.insert(
+            1,
+            Caption {
+                id: "empty".into(),
+                start_ms: 3800,
+                end_ms: 3900,
+                words: vec![],
+                speaker_id: None,
+                style_id: None,
+                notes: None,
+                ai_generated: true,
+                last_edited_at: 0,
+            },
+        );
+        let out = write_vtt(
+            &proj,
+            VttOptions {
+                include_speakers: false,
+                strip_empty: true,
+            },
+        );
+        let body = out.strip_prefix("WEBVTT\n\n").unwrap_or(&out);
+        // Two cues emitted, numbered 1 then 2 (the dropped empty cue leaves no gap).
+        assert!(
+            body.starts_with("1\n"),
+            "first cue id should be 1: {body:?}"
+        );
+        assert!(
+            body.contains("\n2\n"),
+            "second cue id should be 2: {body:?}"
+        );
+        assert!(
+            !body.contains("\n3\n"),
+            "no gap from the dropped cue: {body:?}"
         );
     }
 
