@@ -22,7 +22,8 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(commands::asr::DownloadControl::default());
+        .manage(commands::asr::DownloadControl::default())
+        .manage(commands::asr::TranscribeControl::default());
 
     // Auto-update + relaunch + deep-link import are desktop-only.
     #[cfg(desktop)]
@@ -99,6 +100,7 @@ pub fn run() {
             commands::asr::asr_download_model,
             commands::asr::asr_cancel_download,
             commands::asr::asr_transcribe_local,
+            commands::asr::asr_cancel_transcribe,
             // API key storage (Phase 2.2)
             commands::secrets::secret_set,
             commands::secrets::secret_delete,

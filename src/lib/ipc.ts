@@ -278,6 +278,8 @@ export const asr = {
       model,
       options,
     }),
+  /** Cancel the in-flight local transcription (the run errors "cancelled"). */
+  cancelTranscribe: () => call<void>("asr_cancel_transcribe"),
   /** Subscribe to local-transcription progress. Returns an unlisten function. */
   onTranscribeProgress: (
     cb: (p: TranscribeProgress) => void,

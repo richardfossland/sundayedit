@@ -53,7 +53,9 @@ tauri-plugin-dialog = "2.7.1"
 
 # Phase 2 — local Whisper (optional: building it needs a C/C++ toolchain +
 # cmake and pulls a multi-GB model at runtime, so it's off by default).
-whisper-rs = { version = "0.14", optional = true }
+# Declared per-target at the bottom of this file: macOS gets the `metal` GPU
+# backend (0.14's embedded Metal shader fails to compile on current macOS and
+# CPU-only inference is far too slow for the product promise), others CPU.
 
 # HTTP client. Used by the Whisper model downloader (Phase 2.1/9.2) — which
 # must ship in the default build, since a fresh install has to fetch a model
@@ -81,3 +83,14 @@ llm = []
 # Enable speaker diarization via the `sundayedit-diarize` sidecar (Phase 4.2).
 # No extra crate — just shells out — but gated so the default build stubs it.
 diarize = []
+
+# whisper.cpp with the Metal GPU backend (GGML_METAL_EMBED_LIBRARY — shader
+# blob embedded, nothing extra to bundle). whisper-rs 0.16: 0.14's embedded
+# Metal shader fails to compile on current macOS, and its abort-callback
+# trampoline has a type-confusion bug we work around in local.rs.
+[target.'cfg(target_os = "macos")'.dependencies]
+whisper-rs = { version = "0.16", optional = true, features = ["metal"] }
+
+# CPU-only elsewhere (CUDA/Vulkan would need an SDK on the build host).
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+whisper-rs = { version = "0.16", optional = true }
