@@ -9,6 +9,7 @@ pub mod deeplink;
 pub mod diarize;
 pub mod export;
 pub mod glossary;
+pub mod highlight_reel;
 pub mod operations;
 pub mod polish;
 pub mod project;
