@@ -9,15 +9,38 @@
 //! the renderer drives the actual import using the existing project/context/
 //! glossary flows.
 //!
-//! Contract (mirrors `docs/integration/*` in the SundayRec repo; we own the
-//! `sundayedit://` scheme):
+//! ## Canonical contract
+//!
+//! The deep-link **grammar** now lives in the shared `sunday-contracts` crate as
+//! [`MediaHandoff`] — the suite-wide superset of what was originally
+//! SundayEdit's own format. We delegate all URL parsing to
+//! [`sunday_contracts::deeplink::parse_handoff_url`] so there is a single source
+//! of truth for the wire format across Rec → Edit and Edit → other apps. This
+//! module is a thin app-facing adapter:
+//!
+//! * [`ImportRequest`] is the renderer-facing, `ts-rs`-exported view of a
+//!   handoff. It carries the **full** canonical field set (path, media kind,
+//!   language, context, glossary, service/church ids, returnTo) so nothing is
+//!   silently dropped, while keeping the generated TypeScript binding the
+//!   renderer already consumes. The canonical `MediaHandoff` itself has no
+//!   `ts-rs` derive, so a literal type-import would lose the binding — hence the
+//!   conversion layer below plus a round-trip parity test (`canonical_*`) that
+//!   fails if the two field sets ever drift apart.
+//! * [`captions_callback_url`] is app-specific (it echoes the original
+//!   `recording` path so SundayRec can attach captions to the right file) and
+//!   has no equivalent in the canonical crate, so it stays here.
+//!
+//! Contract (handled by `sunday-contracts`):
 //!
 //! ```text
 //! sundayedit://import
-//!   ?path=<absolute path to the source video, REQUIRED>
+//!   ?path=<absolute path to the source media, REQUIRED>
+//!   &media_kind=<video|audio, optional>
 //!   &language=<ISO code, optional>            e.g. "no"
 //!   &context=<free-text priming, optional>    e.g. "Sermon, speaker: Ola Nordmann"
 //!   &glossary=<comma-separated terms>         e.g. "Ola Nordmann,kerygma"
+//!   &service_id=<id, optional>                e.g. a SundayPlan service
+//!   &church_id=<id, optional>
 //!   &returnTo=<caller scheme, optional>       e.g. "sundayrec"
 //! ```
 //!
@@ -28,21 +51,34 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use sunday_contracts as canonical;
+use sunday_contracts::MediaHandoff;
+
 use crate::error::{AppError, AppResult};
+use crate::services::video::MediaKind;
 
 /// The scheme SundayEdit registers for inbound deep links.
 pub const SCHEME: &str = "sundayedit";
-/// The only action understood today.
-pub const ACTION_IMPORT: &str = "import";
+/// The only action understood today. Re-exported from the canonical crate so
+/// the value is shared suite-wide.
+pub const ACTION_IMPORT: &str = canonical::ACTION_IMPORT;
 
-/// A validated request to import a video and seed its captioning context,
+/// A validated request to import a media file and seed its captioning context,
 /// parsed from a `sundayedit://import?…` deep link. The renderer turns this
 /// into a real project via the normal import + context/glossary flows.
+///
+/// This is the app-facing, `ts-rs`-exported projection of the canonical
+/// [`MediaHandoff`]; it carries the full superset of handoff fields so Rec → Edit
+/// (and future Edit → other) handoffs lose nothing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/lib/bindings/ImportRequest.ts")]
 pub struct ImportRequest {
     /// Absolute path to the source video/audio file. Always present.
     pub path: String,
+    /// Whether the caller flagged this as video or audio-only, if specified.
+    /// Maps the canonical `video`/`audio` wire kinds onto SundayEdit's own
+    /// `Video`/`AudioOnly` media classification.
+    pub media_kind: Option<MediaKind>,
     /// ISO language code to transcribe in, if the caller specified one.
     pub language: Option<String>,
     /// Free-text priming for context-aware recognition (killer feature #2).
@@ -50,111 +86,77 @@ pub struct ImportRequest {
     /// Glossary terms to seed (speaker names, jargon) — de-duplicated,
     /// order preserved.
     pub glossary: Vec<String>,
+    /// SundayPlan service the media belongs to, if the caller knows it.
+    pub service_id: Option<String>,
+    /// Church / tenant id the media belongs to, if the caller knows it.
+    pub church_id: Option<String>,
     /// Scheme of the app that launched us, so we can hand results back
     /// (e.g. `"sundayrec"`). `None` for a plain user-initiated link.
     pub return_to: Option<String>,
 }
 
+impl From<MediaHandoff> for ImportRequest {
+    fn from(h: MediaHandoff) -> Self {
+        ImportRequest {
+            path: h.path,
+            media_kind: h.media_kind.map(MediaKind::from_wire),
+            language: h.language,
+            context: h.context,
+            glossary: h.glossary,
+            service_id: h.service_id,
+            church_id: h.church_id,
+            return_to: h.return_to,
+        }
+    }
+}
+
+impl From<&ImportRequest> for MediaHandoff {
+    fn from(r: &ImportRequest) -> Self {
+        MediaHandoff {
+            action: ACTION_IMPORT.to_string(),
+            path: r.path.clone(),
+            media_kind: r.media_kind.map(MediaKind::to_wire),
+            language: r.language.clone(),
+            context: r.context.clone(),
+            glossary: r.glossary.clone(),
+            service_id: r.service_id.clone(),
+            church_id: r.church_id.clone(),
+            return_to: r.return_to.clone(),
+        }
+    }
+}
+
+impl MediaKind {
+    /// Map the canonical wire `MediaKind` onto SundayEdit's own classification
+    /// (the wire contract has no "audio_only" — its `Audio` is our `AudioOnly`).
+    fn from_wire(k: canonical::MediaKind) -> Self {
+        match k {
+            canonical::MediaKind::Video => MediaKind::Video,
+            canonical::MediaKind::Audio => MediaKind::AudioOnly,
+        }
+    }
+
+    /// Inverse of [`MediaKind::from_wire`].
+    fn to_wire(self) -> canonical::MediaKind {
+        match self {
+            MediaKind::Video => canonical::MediaKind::Video,
+            MediaKind::AudioOnly => canonical::MediaKind::Audio,
+        }
+    }
+}
+
 /// Parse a `sundayedit://import?…` URL into an [`ImportRequest`].
+///
+/// Delegates the grammar to the shared `sunday-contracts` crate (single source
+/// of truth across the suite) and adapts the result into the app-facing,
+/// `ts-rs`-exported shape, mapping the canonical error into [`AppError`].
 ///
 /// Returns [`AppError::Validation`] for anything that isn't a well-formed
 /// import link with a non-empty `path`.
 pub fn parse_import_url(url: &str) -> AppResult<ImportRequest> {
-    let trimmed = url.trim();
-
-    // Strip the scheme (case-insensitive), tolerating `://` or a bare `:`.
-    let rest = strip_scheme(trimmed, SCHEME)
-        .ok_or_else(|| AppError::Validation(format!("not a {SCHEME}:// link: {url}")))?;
-
-    // Split `action[?query]`. The action is everything up to the first `?`,
-    // `/`, or `#`; a trailing slash (`import/?…`) is tolerated.
-    let (action_part, query) = match rest.split_once('?') {
-        Some((a, q)) => (a, q),
-        None => (rest, ""),
-    };
-    let action = action_part.trim_end_matches('/').trim_start_matches('/');
-    if !action.eq_ignore_ascii_case(ACTION_IMPORT) {
-        return Err(AppError::Validation(format!(
-            "unsupported deep-link action: {action:?} (expected {ACTION_IMPORT:?})"
-        )));
-    }
-
-    let mut path: Option<String> = None;
-    let mut language: Option<String> = None;
-    let mut context: Option<String> = None;
-    let mut glossary: Vec<String> = Vec::new();
-    let mut return_to: Option<String> = None;
-
-    for pair in query.split('&').filter(|s| !s.is_empty()) {
-        let (raw_key, raw_val) = pair.split_once('=').unwrap_or((pair, ""));
-        let key = decode_component(raw_key);
-        let value = decode_component(raw_val);
-        match key.as_str() {
-            "path" => path = non_empty(value),
-            "language" | "lang" => language = non_empty(value),
-            "context" => context = non_empty(value),
-            "glossary" => glossary = split_glossary(&value),
-            "returnTo" | "return_to" => return_to = non_empty(value),
-            _ => {} // forward-compatible: ignore unknown keys
-        }
-    }
-
-    let path = path.ok_or_else(|| {
-        AppError::Validation("deep-link import is missing a non-empty `path`".into())
-    })?;
-
-    Ok(ImportRequest {
-        path,
-        language,
-        context,
-        glossary,
-        return_to,
-    })
-}
-
-/// If `s` begins with `scheme:` (case-insensitive), return the remainder with
-/// any leading `//` removed. Otherwise `None`.
-fn strip_scheme<'a>(s: &'a str, scheme: &str) -> Option<&'a str> {
-    let prefix_len = scheme.len() + 1; // "+ 1" for the ':'
-    if s.len() < prefix_len {
-        return None;
-    }
-    let (head, tail) = s.split_at(prefix_len);
-    let (name, colon) = head.split_at(scheme.len());
-    if colon != ":" || !name.eq_ignore_ascii_case(scheme) {
-        return None;
-    }
-    Some(tail.strip_prefix("//").unwrap_or(tail))
-}
-
-/// `Some(trimmed)` if non-empty after trimming, else `None`.
-fn non_empty(s: String) -> Option<String> {
-    let t = s.trim();
-    if t.is_empty() {
-        None
-    } else {
-        Some(t.to_string())
-    }
-}
-
-/// Split a comma-separated glossary value into trimmed, non-empty, de-duplicated
-/// terms (case-insensitive dedupe, first spelling wins, original order kept).
-fn split_glossary(value: &str) -> Vec<String> {
-    let mut seen: Vec<String> = Vec::new();
-    let mut out: Vec<String> = Vec::new();
-    for term in value.split(',') {
-        let t = term.trim();
-        if t.is_empty() {
-            continue;
-        }
-        let lower = t.to_lowercase();
-        if seen.contains(&lower) {
-            continue;
-        }
-        seen.push(lower);
-        out.push(t.to_string());
-    }
-    out
+    canonical::parse_handoff_url(url, SCHEME)
+        .map(ImportRequest::from)
+        .map_err(|e| AppError::Validation(e.0))
 }
 
 /// Build the hand-back URL the deep-link caller listens for, once captions have
@@ -166,6 +168,10 @@ fn split_glossary(value: &str) -> Vec<String> {
 /// caller can attach the captions to the right recording without guessing —
 /// e.g. SundayRec writes `<recording>.transcript.json`. It's optional: a plain
 /// user-saved SRT (no inbound deep link) has no recording to echo.
+///
+/// This is SundayEdit-specific (the canonical crate's `result_callback_url` has
+/// no recording echo and uses a `result` action), so it lives here; it reuses
+/// the canonical percent-codec to stay byte-for-byte compatible.
 ///
 /// `return_to` must be a clean URL scheme (RFC 3986: ALPHA followed by
 /// alphanumerics / `+` / `-` / `.`); both paths are percent-encoded.
@@ -201,73 +207,10 @@ pub fn captions_callback_url(
 
 /// Percent-encode a string as a URL query-component value: RFC 3986 unreserved
 /// characters (`A-Z a-z 0-9 - _ . ~`) pass through, everything else (including
-/// `/`, spaces and non-ASCII) becomes `%XX`. The exact inverse of
-/// [`decode_component`] for any input (spaces round-trip via `%20`, never `+`).
-pub fn encode_component(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for &b in s.as_bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char);
-            }
-            _ => {
-                out.push('%');
-                out.push(hex_digit(b >> 4));
-                out.push(hex_digit(b & 0x0f));
-            }
-        }
-    }
-    out
-}
-
-fn hex_digit(n: u8) -> char {
-    match n {
-        0..=9 => (b'0' + n) as char,
-        _ => (b'A' + (n - 10)) as char,
-    }
-}
-
-/// Percent-decode one query component. `%XX` → byte, `+` → space, everything
-/// else left as-is. Invalid `%` escapes are left unchanged rather than rejected, so a
-/// stray `%` in a path never sinks the whole import. Bytes are reassembled and
-/// read as UTF-8 (lossily) at the end.
-fn decode_component(s: &str) -> String {
-    let bytes = s.as_bytes();
-    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'+' => {
-                out.push(b' ');
-                i += 1;
-            }
-            b'%' if i + 2 < bytes.len() => match (hex_val(bytes[i + 1]), hex_val(bytes[i + 2])) {
-                (Some(hi), Some(lo)) => {
-                    out.push(hi << 4 | lo);
-                    i += 3;
-                }
-                _ => {
-                    out.push(b'%');
-                    i += 1;
-                }
-            },
-            b => {
-                out.push(b);
-                i += 1;
-            }
-        }
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
-
-fn hex_val(b: u8) -> Option<u8> {
-    match b {
-        b'0'..=b'9' => Some(b - b'0'),
-        b'a'..=b'f' => Some(b - b'a' + 10),
-        b'A'..=b'F' => Some(b - b'A' + 10),
-        _ => None,
-    }
-}
+/// `/`, spaces and non-ASCII) becomes `%XX`. Spaces round-trip via `%20`, never
+/// `+`. Re-exported from the canonical crate so every Sunday app encodes
+/// identically.
+pub use canonical::encode_component;
 
 #[cfg(test)]
 mod tests {
@@ -319,10 +262,28 @@ mod tests {
     #[test]
     fn optional_fields_default_cleanly() {
         let req = parse_import_url("sundayedit://import?path=/a.mp4").unwrap();
+        assert_eq!(req.media_kind, None);
         assert_eq!(req.language, None);
         assert_eq!(req.context, None);
         assert!(req.glossary.is_empty());
+        assert_eq!(req.service_id, None);
+        assert_eq!(req.church_id, None);
         assert_eq!(req.return_to, None);
+    }
+
+    #[test]
+    fn carries_the_full_superset() {
+        let req = parse_import_url(
+            "sundayedit://import?path=/a.mp4&media_kind=audio\
+             &service_id=svc-1&church_id=ch-1",
+        )
+        .unwrap();
+        assert_eq!(req.media_kind, Some(MediaKind::AudioOnly));
+        assert_eq!(req.service_id.as_deref(), Some("svc-1"));
+        assert_eq!(req.church_id.as_deref(), Some("ch-1"));
+        // `media_kind=video` maps onto the app's own Video classification.
+        let req = parse_import_url("sundayedit://import?path=/a.mp4&media_kind=video").unwrap();
+        assert_eq!(req.media_kind, Some(MediaKind::Video));
     }
 
     #[test]
@@ -355,32 +316,19 @@ mod tests {
     }
 
     #[test]
-    fn encode_decode_round_trips() {
-        for s in [
-            "/Users/ola/My Talk (2026).srt",
-            "C:\\Users\\Ola\\tale.vtt",
-            "kerygma + søndag/æøå",
-            "",
-        ] {
-            assert_eq!(
-                decode_component(&encode_component(s)),
-                s,
-                "round-trip {s:?}"
-            );
-        }
+    fn encode_round_trips_via_percent20() {
         // Spaces encode as %20 (not +), so they survive the +→space decode rule.
         assert_eq!(encode_component("a b"), "a%20b");
+        assert_eq!(
+            encode_component("/Users/ola/My Talk.srt"),
+            "%2FUsers%2Fola%2FMy%20Talk.srt"
+        );
     }
 
     #[test]
     fn builds_a_callback_url() {
         let url = captions_callback_url("sundayrec", "/Users/ola/a b.srt", None).unwrap();
         assert_eq!(url, "sundayrec://captions?path=%2FUsers%2Fola%2Fa%20b.srt");
-        // The caller can parse it straight back to the path.
-        assert_eq!(
-            decode_component("%2FUsers%2Fola%2Fa%20b.srt"),
-            "/Users/ola/a b.srt"
-        );
     }
 
     #[test]
@@ -408,5 +356,56 @@ mod tests {
         assert!(captions_callback_url("ht tp", "/a.srt", None).is_err());
         assert!(captions_callback_url("1bad", "/a.srt", None).is_err()); // must start with a letter
         assert!(captions_callback_url("a/b", "/a.srt", None).is_err());
+    }
+
+    // ── Canonical convergence: kill silent drift ────────────────────────────
+    //
+    // `ImportRequest` is a hand-written projection of the canonical
+    // `MediaHandoff`. If the canonical type grows or renames a field, these
+    // tests fail so we notice instead of silently dropping data on the wire.
+
+    #[test]
+    fn canonical_round_trips_the_full_superset() {
+        // Build a fully-populated canonical handoff, render it via the canonical
+        // builder, parse it through our adapter, and convert back. Equality
+        // proves every canonical field survives the SundayEdit round-trip.
+        let original = MediaHandoff {
+            action: ACTION_IMPORT.to_string(),
+            path: "/Users/ola/My Talk (2026).mov".to_string(),
+            media_kind: Some(canonical::MediaKind::Video),
+            language: Some("no".to_string()),
+            context: Some("Sermon, speaker: Ola".to_string()),
+            glossary: vec!["Ola".to_string(), "kerygma".to_string()],
+            service_id: Some("svc-1".to_string()),
+            church_id: Some("ch-1".to_string()),
+            return_to: Some("sundayrec".to_string()),
+        };
+        let url = canonical::build_handoff_url(SCHEME, &original);
+        let req = parse_import_url(&url).unwrap();
+        let round_tripped: MediaHandoff = (&req).into();
+        assert_eq!(
+            round_tripped, original,
+            "a canonical field drifted in the SundayEdit adapter"
+        );
+    }
+
+    #[test]
+    fn canonical_audio_kind_maps_to_audio_only() {
+        // The wire `audio` kind must survive as the app's `AudioOnly`, and back.
+        let original = MediaHandoff {
+            action: ACTION_IMPORT.to_string(),
+            path: "/a.mp3".to_string(),
+            media_kind: Some(canonical::MediaKind::Audio),
+            language: None,
+            context: None,
+            glossary: vec![],
+            service_id: None,
+            church_id: None,
+            return_to: None,
+        };
+        let url = canonical::build_handoff_url(SCHEME, &original);
+        let req = parse_import_url(&url).unwrap();
+        assert_eq!(req.media_kind, Some(MediaKind::AudioOnly));
+        assert_eq!(MediaHandoff::from(&req), original);
     }
 }

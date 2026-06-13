@@ -27,9 +27,12 @@ const counter = () => `id-${++n}`;
 function req(partial: Partial<ImportRequest>): ImportRequest {
   return {
     path: "/v.mp4",
+    media_kind: null,
     language: null,
     context: null,
     glossary: [],
+    service_id: null,
+    church_id: null,
     return_to: null,
     ...partial,
   };
