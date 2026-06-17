@@ -27,6 +27,7 @@ pub mod export_presets;
 pub mod filler;
 pub mod find_replace;
 pub mod glossary;
+pub mod highlight_reel;
 pub mod llm;
 pub mod operations;
 pub mod project_file;

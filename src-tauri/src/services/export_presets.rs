@@ -25,7 +25,7 @@ pub enum Aspect {
     Square,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/lib/bindings/ExportPreset.ts")]
 pub struct ExportPreset {
     pub id: String,
