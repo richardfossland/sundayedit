@@ -71,11 +71,9 @@ impl AsrProvider for LocalWhisperProvider {
             )));
         }
 
-        let ctx = WhisperContext::new_with_params(
-            &self.model_path,
-            WhisperContextParameters::default(),
-        )
-        .map_err(|e| AppError::Internal(format!("failed to load Whisper model: {e}")))?;
+        let ctx =
+            WhisperContext::new_with_params(&self.model_path, WhisperContextParameters::default())
+                .map_err(|e| AppError::Internal(format!("failed to load Whisper model: {e}")))?;
 
         let (samples, _sr) = read_wav_samples(audio_path)?;
 
@@ -129,9 +127,9 @@ impl AsrProvider for LocalWhisperProvider {
 
         let mut words: Vec<TranscribedWord> = Vec::new();
         for i in 0..n_segments {
-            let seg = state.get_segment(i).ok_or_else(|| {
-                AppError::Internal(format!("whisper segment {i} out of bounds"))
-            })?;
+            let seg = state
+                .get_segment(i)
+                .ok_or_else(|| AppError::Internal(format!("whisper segment {i} out of bounds")))?;
             let text = seg
                 .to_str_lossy()
                 .map_err(|e| AppError::Internal(format!("segment text: {e}")))?

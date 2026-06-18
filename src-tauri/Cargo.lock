@@ -4444,7 +4444,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sunday-auth"
 version = "0.1.0"
-source = "git+https://github.com/richardfossland/sunday-platform.git?tag=v0.2.0#8ad68ae3eb130f50441898d27d7dee88825ccd4e"
+source = "git+https://github.com/richardfossland/sunday-platform.git?tag=v0.3.0#6aede56bbc49f63057746b34e9014716a94827ae"
 dependencies = [
  "base64 0.22.1",
  "getrandom 0.2.17",
@@ -4455,8 +4455,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sunday-contracts"
+version = "0.4.0"
+source = "git+https://github.com/richardfossland/sunday-platform.git?tag=v0.4.1#b6fab75d9eed17a2454dfdf86f30f550f2e72732"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "sundayedit"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "chrono",
  "hound",
@@ -4468,6 +4476,7 @@ dependencies = [
  "sha2",
  "sqlx",
  "sunday-auth",
+ "sunday-contracts",
  "tauri",
  "tauri-build",
  "tauri-plugin-deep-link",

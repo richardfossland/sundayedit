@@ -23,7 +23,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(commands::asr::DownloadControl::default())
-        .manage(commands::asr::TranscribeControl::default());
+        .manage(commands::asr::TranscribeControl::default())
+        .manage(commands::highlight_reel::ReelRenderControl::default());
 
     // Auto-update + relaunch + deep-link import are desktop-only.
     #[cfg(desktop)]
@@ -144,6 +145,11 @@ pub fn run() {
             commands::clips::clips_generate,
             commands::clips::clips_apply_plan,
             commands::render::clip_burnin_render,
+            // Sermon Highlight Reel Studio (batch clip rendering)
+            commands::highlight_reel::reel_storyboard,
+            commands::highlight_reel::reel_build_plan,
+            commands::highlight_reel::reel_render_all,
+            commands::highlight_reel::reel_cancel_render,
             // Sunday-link deep-link import (Phase 8)
             commands::deeplink::deeplink_parse_import,
             commands::deeplink::deeplink_captions_callback_url,
