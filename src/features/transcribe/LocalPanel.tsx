@@ -11,7 +11,7 @@
 
 import { useRef, useState } from "react";
 import { appCacheDir, appDataDir, join } from "@tauri-apps/api/path";
-import { Cpu, Loader2, ShieldCheck, Download } from "lucide-react";
+import { Cpu, Loader2, ShieldCheck, Download, X } from "lucide-react";
 
 import { ipc, IPCError } from "@/lib/ipc";
 import type { Caption, Project, WhisperModel } from "@/lib/bindings";
@@ -75,10 +75,22 @@ export function LocalPanel({
 
       // 2. Stream progress while the model runs.
       setPhase({ stage: "preparing" });
+      // Inference ("running", whisper's own callback) covers 0–90% of the bar;
+      // the post-inference segment stream covers the last 10%. Monotonic via
+      // max() so the hand-off between the two phases can't jump backwards.
       unlisten = await ipc.asr.onTranscribeProgress((p) => {
         if (p.kind === "preparing") setPhase({ stage: "preparing" });
-        else if (p.kind === "segment")
-          setPhase({ stage: "running", fraction: p.fraction });
+        else if (p.kind === "running" || p.kind === "segment") {
+          const fraction =
+            p.kind === "running" ? p.fraction * 0.9 : 0.9 + p.fraction * 0.1;
+          setPhase((prev) => ({
+            stage: "running",
+            fraction:
+              prev.stage === "running"
+                ? Math.max(prev.fraction, fraction)
+                : fraction,
+          }));
+        }
       });
 
       const modelsDir = await join(await appDataDir(), "models");
@@ -90,11 +102,15 @@ export function LocalPanel({
       );
       onTranscribed(captions);
     } catch (e) {
-      setError(
-        e instanceof IPCError
-          ? e.message
-          : t("localFailed", { error: String(e) }),
-      );
+      const msg = e instanceof IPCError ? e.message : String(e);
+      // A user-initiated cancel is not an error — just return to idle.
+      if (!msg.includes("cancelled")) {
+        setError(
+          e instanceof IPCError
+            ? e.message
+            : t("localFailed", { error: String(e) }),
+        );
+      }
     } finally {
       unlisten?.();
       setPhase({ stage: "idle" });
@@ -142,11 +158,22 @@ export function LocalPanel({
             </button>
 
             {phase.stage === "running" && (
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-surface)]">
-                <div
-                  className="h-full bg-[var(--color-accent-500)] transition-[width]"
-                  style={{ width: `${Math.round(phase.fraction * 100)}%` }}
-                />
+              <div className="mt-3 flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-bg-surface)]">
+                  <div
+                    className="h-full bg-[var(--color-accent-500)] transition-[width]"
+                    style={{ width: `${Math.round(phase.fraction * 100)}%` }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void ipc.asr.cancelTranscribe()}
+                  title={t("actionCancel")}
+                  aria-label={t("actionCancel")}
+                  className="text-[var(--color-fg-muted)] opacity-70 hover:opacity-100"
+                >
+                  <X size={12} />
+                </button>
               </div>
             )}
 

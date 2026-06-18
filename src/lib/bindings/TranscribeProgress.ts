@@ -4,4 +4,4 @@ import type { Segment } from "./Segment";
 /**
  * Progress events streamed to the UI during a run.
  */
-export type TranscribeProgress = { "kind": "preparing" } | { "kind": "segment", fraction: number, segment: Segment, } | { "kind": "done" };
+export type TranscribeProgress = { "kind": "preparing" } | { "kind": "running", fraction: number, } | { "kind": "segment", fraction: number, segment: Segment, } | { "kind": "done" };

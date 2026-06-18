@@ -126,6 +126,10 @@ impl AsrOptions {
 pub enum TranscribeProgress {
     /// Model is loading / warming up.
     Preparing,
+    /// Inference is running — fraction is 0..1 of the audio decoded so far
+    /// (whisper's own progress callback, fired between encoder steps). This is
+    /// the long phase; without it the UI sat on "preparing" for the whole run.
+    Running { fraction: f32 },
     /// A segment finished — fraction is 0..1 of total audio processed.
     Segment { fraction: f32, segment: Segment },
     /// Done.
@@ -138,12 +142,16 @@ pub trait AsrProvider {
     fn name(&self) -> String;
 
     /// Transcribe `audio_path` (a 16 kHz mono WAV from Phase 1.2).
-    /// `progress` is called as segments complete.
+    /// `progress` is shared + 'static so the local provider can hand a clone to
+    /// whisper.cpp's progress callback (which outlives any plain borrow);
+    /// `cancel` is polled by the abort callback between encoder steps — raise
+    /// it to stop a run (surfaces as a "cancelled" error).
     fn transcribe(
         &self,
         audio_path: &Path,
         opts: &AsrOptions,
-        progress: &mut dyn FnMut(TranscribeProgress),
+        progress: std::sync::Arc<dyn Fn(TranscribeProgress) + Send + Sync>,
+        cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> AppResult<Transcript>;
 }
 

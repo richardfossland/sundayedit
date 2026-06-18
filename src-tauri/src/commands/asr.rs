@@ -45,6 +45,14 @@ pub struct DownloadControl {
     cancel: Arc<AtomicBool>,
 }
 
+/// Shared cancel flag for the in-flight local transcription (one at a time —
+/// the transcribe panel runs a single job). Polled by whisper's abort callback
+/// between encoder steps. Managed by the Tauri runtime.
+#[derive(Default)]
+pub struct TranscribeControl {
+    cancel: Arc<AtomicBool>,
+}
+
 fn now_ms() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
@@ -150,25 +158,36 @@ pub fn asr_cancel_download(control: tauri::State<'_, DownloadControl>) {
 }
 
 /// Transcribe an audio WAV with the local model and return editor-ready
-/// captions. Streams `transcribe-progress` events to the window.
+/// captions. Streams `transcribe-progress` events to the window (including
+/// `running` fractions from whisper's own progress callback while inference
+/// grinds). Async + spawn_blocking: a sync command runs on the MAIN thread,
+/// which froze the entire UI for the whole transcription. Cancellable via
+/// `asr_cancel_transcribe`.
 ///
 /// Without the `whisper` feature the provider returns a clear error that
 /// the renderer surfaces ("rebuild with --features whisper or use cloud").
 #[tauri::command]
-pub fn asr_transcribe_local(
+pub async fn asr_transcribe_local(
     window: tauri::Window,
+    control: tauri::State<'_, TranscribeControl>,
     audio_path: String,
     models_dir: String,
     model: WhisperModel,
     options: AsrOptions,
 ) -> AppResult<Vec<Caption>> {
-    let provider = LocalWhisperProvider::new(model, Path::new(&models_dir));
+    let cancel = control.cancel.clone();
+    cancel.store(false, Ordering::Relaxed);
 
-    let mut on_progress = |p: TranscribeProgress| {
-        let _ = window.emit("transcribe-progress", &p);
-    };
-
-    let transcript = provider.transcribe(Path::new(&audio_path), &options, &mut on_progress)?;
+    let transcript = tokio::task::spawn_blocking(move || {
+        let provider = LocalWhisperProvider::new(model, Path::new(&models_dir));
+        let on_progress: Arc<dyn Fn(TranscribeProgress) + Send + Sync> =
+            Arc::new(move |p: TranscribeProgress| {
+                let _ = window.emit("transcribe-progress", &p);
+            });
+        provider.transcribe(Path::new(&audio_path), &options, on_progress, cancel)
+    })
+    .await
+    .map_err(|e| crate::error::AppError::Internal(format!("transcribe task join: {e}")))??;
 
     let mut counter = 0usize;
     let captions = captionize(
@@ -181,4 +200,11 @@ pub fn asr_transcribe_local(
         },
     );
     Ok(captions)
+}
+
+/// Cancel the in-flight local transcription, if any. The abort callback picks
+/// the flag up between encoder steps, so the run stops within a step or two.
+#[tauri::command]
+pub fn asr_cancel_transcribe(control: tauri::State<'_, TranscribeControl>) {
+    control.cancel.store(true, Ordering::Relaxed);
 }
