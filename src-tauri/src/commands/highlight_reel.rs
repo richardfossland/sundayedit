@@ -163,95 +163,103 @@ pub async fn reel_render_all(
     let cancel = control.cancel.clone();
     cancel.store(false, Ordering::Relaxed);
 
-    let total = plan.total;
-    let mut completed: u32 = 0;
-    let mut failed_count: u32 = 0;
-    let mut rendered: Vec<String> = Vec::new();
-    let mut failed: Vec<(String, String)> = Vec::new();
-    let mut cancelled = false;
+    // ffmpeg burn-in is synchronous and blocks for minutes per clip. Run the
+    // whole batch on a blocking thread so it never starves the Tokio executor
+    // (mirrors asr_transcribe_local); progress is emitted from inside via
+    // window.emit, and cancel is polled between clips.
+    tokio::task::spawn_blocking(move || {
+        let total = plan.total;
+        let mut completed: u32 = 0;
+        let mut failed_count: u32 = 0;
+        let mut rendered: Vec<String> = Vec::new();
+        let mut failed: Vec<(String, String)> = Vec::new();
+        let mut cancelled = false;
 
-    let emit = |window: &tauri::Window, p: &ReelRenderProgress| {
-        let _ = window.emit("reel-render-progress", p);
-    };
+        let emit = |window: &tauri::Window, p: &ReelRenderProgress| {
+            let _ = window.emit("reel-render-progress", p);
+        };
 
-    // Initial 0% tick.
-    emit(
-        &window,
-        &ReelRenderProgress {
-            completed: 0,
-            total,
-            fraction: highlight_reel::render_fraction(0, total),
-            current_item_id: plan.items.first().map(|i| i.id.clone()),
-            failed: 0,
-        },
-    );
-
-    let title_style = Style::title_overlay();
-
-    for item in &plan.items {
-        if cancel.load(Ordering::Relaxed) {
-            cancelled = true;
-            break;
-        }
-
-        // Announce which item is starting.
+        // Initial 0% tick.
         emit(
             &window,
             &ReelRenderProgress {
-                completed,
+                completed: 0,
                 total,
-                fraction: highlight_reel::render_fraction(completed, total),
-                current_item_id: Some(item.id.clone()),
-                failed: failed_count,
+                fraction: highlight_reel::render_fraction(0, total),
+                current_item_id: plan.items.first().map(|i| i.id.clone()),
+                failed: 0,
             },
         );
 
-        let options = item.preset.to_clip_burnin_options(&item.clip);
-        let out = Path::new(&item.output_path);
-        // Ensure the output directory exists (best-effort; render reports the
-        // real error if it can't write).
-        if let Some(parent) = out.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
+        let title_style = Style::title_overlay();
 
-        match burnin::render_clip(&project, &item.clip, out, &options, &title_style) {
-            Ok(()) => rendered.push(item.output_path.clone()),
-            Err(e) => {
-                failed_count += 1;
-                failed.push((item.id.clone(), e.to_string()));
+        for item in &plan.items {
+            if cancel.load(Ordering::Relaxed) {
+                cancelled = true;
+                break;
             }
+
+            // Announce which item is starting.
+            emit(
+                &window,
+                &ReelRenderProgress {
+                    completed,
+                    total,
+                    fraction: highlight_reel::render_fraction(completed, total),
+                    current_item_id: Some(item.id.clone()),
+                    failed: failed_count,
+                },
+            );
+
+            let options = item.preset.to_clip_burnin_options(&item.clip);
+            let out = Path::new(&item.output_path);
+            // Ensure the output directory exists (best-effort; render reports the
+            // real error if it can't write).
+            if let Some(parent) = out.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+
+            match burnin::render_clip(&project, &item.clip, out, &options, &title_style) {
+                Ok(()) => rendered.push(item.output_path.clone()),
+                Err(e) => {
+                    failed_count += 1;
+                    failed.push((item.id.clone(), e.to_string()));
+                }
+            }
+
+            completed += 1;
+            emit(
+                &window,
+                &ReelRenderProgress {
+                    completed,
+                    total,
+                    fraction: highlight_reel::render_fraction(completed, total),
+                    current_item_id: Some(item.id.clone()),
+                    failed: failed_count,
+                },
+            );
         }
 
-        completed += 1;
+        // Final tick: no current item.
         emit(
             &window,
             &ReelRenderProgress {
                 completed,
                 total,
                 fraction: highlight_reel::render_fraction(completed, total),
-                current_item_id: Some(item.id.clone()),
+                current_item_id: None,
                 failed: failed_count,
             },
         );
-    }
 
-    // Final tick: no current item.
-    emit(
-        &window,
-        &ReelRenderProgress {
-            completed,
-            total,
-            fraction: highlight_reel::render_fraction(completed, total),
-            current_item_id: None,
-            failed: failed_count,
-        },
-    );
-
-    Ok(ReelRenderResult {
-        rendered,
-        failed,
-        cancelled,
+        ReelRenderResult {
+            rendered,
+            failed,
+            cancelled,
+        }
     })
+    .await
+    .map_err(|e| crate::error::AppError::Internal(format!("reel render task join: {e}")))
 }
 
 /// Cancel the in-flight batch render, if any. The loop stops after the current
