@@ -97,9 +97,16 @@ waveform, and burn-in work without a system ffmpeg:
 > release, confirm GPL compliance (offer the corresponding source) or swap to
 > an LGPL/own build. Fine for private test builds.
 
-> macOS builds are currently **arm64-only** (the fetch script + CI build the
-> runner's native arch). Intel/universal mac is a follow-up — it needs both
-> `ffmpeg-x86_64-apple-darwin` and `ffmpeg-aarch64-apple-darwin` present.
+> macOS release builds are **universal** (arm64 + `x86_64` in one app/DMG,
+> `tauri build --target universal-apple-darwin`). The fetch script's
+> `--universal` flag fetches the non-host arch's ffmpeg/ffprobe from the
+> same upstreams and `lipo`s the pair into `ffmpeg-universal-apple-darwin`
+> etc. — a universal build needs both the per-arch sidecars (tauri-build
+> validates each cargo slice) and the `-universal` ones (the bundler).
+> Local Whisper on Intel Macs runs on the CPU backend (Metal is
+> Apple-Silicon-only upstream) with an instruction baseline every
+> 10.15-capable Intel Mac has — see
+> `src-tauri/cmake/ggml-ci-portable.cmake`.
 
 ## Deferred — required before a real public 1.0
 
@@ -128,3 +135,14 @@ npm run tauri build            # add --features llm,whisper,diarize for full nat
 ```
 
 Artifacts land in `src-tauri/target/release/bundle/`.
+
+For a release-like **universal** macOS bundle (needs both rust targets:
+`rustup target add aarch64-apple-darwin x86_64-apple-darwin`):
+
+```bash
+node scripts/fetch-ffmpeg.mjs --universal
+CMAKE_PROJECT_TOP_LEVEL_INCLUDES="$PWD/src-tauri/cmake/ggml-ci-portable.cmake" \
+  npm run tauri build -- --target universal-apple-darwin --features whisper,llm
+```
+
+Artifacts land in `src-tauri/target/universal-apple-darwin/release/bundle/`.
