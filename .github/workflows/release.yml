@@ -27,9 +27,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macos-latest is Apple Silicon (arm64). Native-arch build so the
-          # fetched ffmpeg sidecar matches. (Intel-mac/universal is a
-          # follow-up — would need both-arch ffmpeg binaries.)
+          # macos-latest is an Apple Silicon (arm64) runner, but the build
+          # targets universal-apple-darwin: both rust std targets are
+          # installed, the x86_64 slice is cross-compiled, and one fat
+          # DMG/app serves Apple Silicon AND Intel Macs. fetch-ffmpeg runs
+          # in --universal mode so the ffmpeg/ffprobe sidecars are lipo'd
+          # fat binaries too (a universal Tauri build needs the per-arch
+          # sidecars for each cargo slice plus the -universal one for the
+          # bundler).
           #
           # `whisper` compiles whisper.cpp (cmake + C++) for real on-device
           # transcription; `llm` enables the Claude-API AI features. Without
@@ -37,11 +42,13 @@ jobs:
           # so it works regardless. `diarize` stays off — its sidecar binary
           # isn't bundled yet.
           - platform: macos-latest
-            args: "--features whisper,llm"
-            rust-targets: ""
+            args: "--target universal-apple-darwin --features whisper,llm"
+            rust-targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+            sidecar-args: "--universal"
           - platform: windows-latest
             args: "--features whisper,llm"
             rust-targets: ""
+            sidecar-args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -67,7 +74,7 @@ jobs:
         run: npm ci
 
       - name: Fetch bundled ffmpeg/ffprobe sidecars
-        run: node scripts/fetch-ffmpeg.mjs
+        run: node scripts/fetch-ffmpeg.mjs ${{ matrix.sidecar-args }}
 
       - name: Build, sign, and publish
         uses: tauri-apps/tauri-action@v0
@@ -81,9 +88,12 @@ jobs:
           # ("always_inline 'vmmlaq_s32' requires target feature 'i8mm'").
           # Disabling native drops -mcpu=native so detection and compilation
           # share one baseline — builds on the runner AND runs on all Apple
-          # Silicon (incl. M1/M1 Pro). whisper-rs-sys forwards CMAKE_* env
-          # vars as cmake defines; a FORCE cache entry survives ggml's
-          # option() (the WHISPER_NATIVE alias did not — option() reset it).
+          # Silicon (incl. M1/M1 Pro). The same include also pins the x86_64
+          # slice's instruction baseline (SSE4.2+AVX+F16C, no AVX2) so the
+          # universal build runs on every Intel Mac macOS 10.15 supports.
+          # whisper-rs-sys forwards CMAKE_* env vars as cmake defines; a
+          # FORCE cache entry survives ggml's option() (the WHISPER_NATIVE
+          # alias did not — option() reset it).
           CMAKE_PROJECT_TOP_LEVEL_INCLUDES: ${{ matrix.platform == 'macos-latest' && format('{0}/src-tauri/cmake/ggml-ci-portable.cmake', github.workspace) || '' }}
           # ── Updater signing (required) ──────────────────────────────────
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

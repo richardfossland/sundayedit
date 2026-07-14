@@ -15,3 +15,19 @@
 # overrides an existing cache value) — unlike the WHISPER_NATIVE=OFF alias,
 # which option() clobbered back to ON.
 set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+
+# x86_64 slice of the universal macOS build: pin the instruction baseline
+# explicitly. The Rust `cmake` crate marks the arm64→x86_64 cross-compile with
+# CMAKE_SYSTEM_NAME, so ggml sees CMAKE_CROSSCOMPILING and would default every
+# x86 SIMD option OFF (a scalar build — far too slow); a non-cross configure
+# would instead default them ALL on, including AVX2/FMA (Haswell-only —
+# SIGILLs on the 2012 Ivy Bridge Macs and the 2013 Mac Pro that our 10.15
+# minimum still supports). Pin the set every macOS-10.15-capable Intel Mac
+# has (Ivy Bridge, 2012+): SSE4.2 + AVX + F16C, no AVX2/FMA/BMI2.
+# ggml only applies these on x86 targets, so they're inert for the arm64 slice.
+set(GGML_SSE42 ON CACHE BOOL "" FORCE)
+set(GGML_AVX ON CACHE BOOL "" FORCE)
+set(GGML_F16C ON CACHE BOOL "" FORCE)
+set(GGML_AVX2 OFF CACHE BOOL "" FORCE)
+set(GGML_FMA OFF CACHE BOOL "" FORCE)
+set(GGML_BMI2 OFF CACHE BOOL "" FORCE)
