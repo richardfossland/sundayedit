@@ -43,11 +43,67 @@ function backend(): void {
     })[];
     speaker_id: string | null;
   };
+  // ── NLE (multi-track) entities (mirror bindings/{MediaItem,Track,TimelineItem}) ──
+  type MediaItem = {
+    id: string;
+    path: string;
+    content_hash: string;
+    kind: "video" | "audio_only";
+    duration_ms: number;
+    width: number;
+    height: number;
+    fps: number;
+    has_audio: boolean;
+    audio_wav_path: string | null;
+    original_filename: string;
+    added_at: number;
+  };
+  type Track = {
+    id: string;
+    kind: "video" | "audio" | "caption" | "overlay";
+    name: string;
+    index: number;
+    enabled: boolean;
+    locked: boolean;
+    muted: boolean;
+    solo: boolean;
+  };
+  type Transform = {
+    x: number;
+    y: number;
+    scale: number;
+    rotation_deg: number;
+    opacity: number;
+    crop: null;
+  };
+  type Transition = { kind: string; duration_ms: number };
+  type TextSpec = { text: string; style_id: string | null };
+  type TimelineItem = {
+    id: string;
+    track_id: string;
+    kind: "av" | "text" | "graphic";
+    source_media_id: string | null;
+    in_ms: number;
+    out_ms: number;
+    timeline_start_ms: number;
+    speed: number;
+    transform: Transform;
+    effects: unknown[];
+    transition_in: Transition | null;
+    text: TextSpec | null;
+    enabled: boolean;
+    locked: boolean;
+  };
   type Project = {
     name: string;
     language: string;
     captions: Caption[];
     speakers: { id: string; display_name: string; color_hex: string | null }[];
+    // Multi-track NLE arrays — `#[serde(default)]` on the Rust side, so older
+    // callers may omit them; the ops below treat a missing array as empty.
+    media?: MediaItem[];
+    tracks?: Track[];
+    timeline_items?: TimelineItem[];
   };
 
   const captionText = (c: Caption) => c.words.map((w) => w.text).join(" ");
@@ -370,6 +426,283 @@ function backend(): void {
     return { ...project, captions };
   }
 
+  // ── NLE timeline ops (mirror services/operations.rs timeline surface) ──
+  // Faithful enough to drive the multi-lane UI: each returns a plausibly-mutated
+  // Project (append/modify the relevant array), matching how ipc.timeline.* send
+  // camelCase args. New entity ids are minted server-side (`nle-N`), mirroring
+  // the Rust ops. The point is the wiring — command name + arg shape + the
+  // store round-trip that re-renders the lanes — not the exact clamp maths.
+  const nleId = () => `nle-${nextId++}`;
+  const media = (p: Project): MediaItem[] => p.media ?? [];
+  const tracks = (p: Project): Track[] => p.tracks ?? [];
+  const items = (p: Project): TimelineItem[] => p.timeline_items ?? [];
+  const basename = (path: string) => path.split(/[\\/]/).pop() || path;
+  const identityTransform = (): Transform => ({
+    x: 0,
+    y: 0,
+    scale: 1,
+    rotation_deg: 0,
+    opacity: 1,
+    crop: null,
+  });
+  const findItem = (p: Project, id: string): TimelineItem => {
+    const it = items(p).find((i) => i.id === id);
+    if (!it) throw err(`timeline item ${id} not found`);
+    return it;
+  };
+  /** Timeline span (ms) of a clip: start .. start + source-length / speed. */
+  const itemSpan = (it: TimelineItem) => {
+    const start = it.timeline_start_ms;
+    const end = start + (it.out_ms - it.in_ms) / Math.max(0.01, it.speed);
+    return { start, end };
+  };
+
+  function importMedia(project: Project, path: string): Project {
+    const item: MediaItem = {
+      id: nleId(),
+      path,
+      content_hash: `hash-${path}`,
+      kind: /\.(mp3|wav|m4a|flac|ogg)$/i.test(path) ? "audio_only" : "video",
+      duration_ms: 12_000,
+      width: 1920,
+      height: 1080,
+      fps: 30,
+      has_audio: true,
+      audio_wav_path: null,
+      original_filename: basename(path),
+      added_at: 0,
+    };
+    return { ...project, media: [...media(project), item] };
+  }
+  function removeMedia(project: Project, mediaId: string): Project {
+    if (items(project).some((i) => i.source_media_id === mediaId)) {
+      throw err(`media ${mediaId} is still referenced by a timeline item`);
+    }
+    return {
+      ...project,
+      media: media(project).filter((m) => m.id !== mediaId),
+    };
+  }
+  /** Renumber tracks densely by their current order (mirrors reorder/remove). */
+  function renumber(list: Track[]): Track[] {
+    return list.map((tk, i) => ({ ...tk, index: i }));
+  }
+  function addTrack(
+    project: Project,
+    kind: Track["kind"],
+    name: string,
+  ): Project {
+    const track: Track = {
+      id: nleId(),
+      kind,
+      name,
+      index: tracks(project).length,
+      enabled: true,
+      locked: false,
+      muted: false,
+      solo: false,
+    };
+    return { ...project, tracks: [...tracks(project), track] };
+  }
+  function removeTrack(project: Project, trackId: string): Project {
+    if (items(project).some((i) => i.track_id === trackId)) {
+      throw err(`track ${trackId} is not empty`);
+    }
+    const kept = tracks(project).filter((tk) => tk.id !== trackId);
+    return { ...project, tracks: renumber(kept) };
+  }
+  function reorderTrack(
+    project: Project,
+    trackId: string,
+    newIndex: number,
+  ): Project {
+    const list = [...tracks(project)].sort((a, b) => a.index - b.index);
+    const from = list.findIndex((tk) => tk.id === trackId);
+    if (from < 0) throw err(`track ${trackId} not found`);
+    const [moved] = list.splice(from, 1);
+    const to = Math.max(0, Math.min(newIndex, list.length));
+    list.splice(to, 0, moved);
+    return { ...project, tracks: renumber(list) };
+  }
+  function setTrackFlags(
+    project: Project,
+    trackId: string,
+    flags: {
+      enabled: boolean | null;
+      locked: boolean | null;
+      muted: boolean | null;
+      solo: boolean | null;
+    },
+  ): Project {
+    const next = tracks(project).map((tk) =>
+      tk.id === trackId
+        ? {
+            ...tk,
+            enabled: flags.enabled ?? tk.enabled,
+            locked: flags.locked ?? tk.locked,
+            muted: flags.muted ?? tk.muted,
+            solo: flags.solo ?? tk.solo,
+          }
+        : tk,
+    );
+    return { ...project, tracks: next };
+  }
+  function addTimelineItem(
+    project: Project,
+    trackId: string,
+    sourceMediaId: string | null,
+    inMs: number,
+    outMs: number,
+    timelineStartMs: number,
+    kind: TimelineItem["kind"],
+  ): Project {
+    const item: TimelineItem = {
+      id: nleId(),
+      track_id: trackId,
+      kind,
+      source_media_id: sourceMediaId,
+      in_ms: inMs,
+      out_ms: outMs,
+      timeline_start_ms: timelineStartMs,
+      speed: 1,
+      transform: identityTransform(),
+      effects: [],
+      transition_in: null,
+      text: null,
+      enabled: true,
+      locked: false,
+    };
+    return { ...project, timeline_items: [...items(project), item] };
+  }
+  function splitTimelineItem(
+    project: Project,
+    itemId: string,
+    atTimelineMs: number,
+  ): Project {
+    const orig = findItem(project, itemId);
+    const { start, end } = itemSpan(orig);
+    if (atTimelineMs <= start || atTimelineMs >= end) {
+      throw err(`split at ${atTimelineMs} outside the clip`);
+    }
+    const sourceCut = orig.in_ms + (atTimelineMs - start) * orig.speed;
+    const left = { ...orig, out_ms: sourceCut };
+    const right = {
+      ...orig,
+      id: nleId(),
+      in_ms: sourceCut,
+      timeline_start_ms: atTimelineMs,
+    };
+    const arr = items(project).slice();
+    const i = arr.findIndex((it) => it.id === itemId);
+    arr.splice(i, 1, left, right);
+    return { ...project, timeline_items: arr };
+  }
+  function trimTimelineItem(
+    project: Project,
+    itemId: string,
+    edges: {
+      newInMs: number | null;
+      newOutMs: number | null;
+      newTimelineStartMs: number | null;
+    },
+  ): Project {
+    const next = items(project).map((it) =>
+      it.id === itemId
+        ? {
+            ...it,
+            in_ms: edges.newInMs ?? it.in_ms,
+            out_ms: edges.newOutMs ?? it.out_ms,
+            timeline_start_ms: edges.newTimelineStartMs ?? it.timeline_start_ms,
+          }
+        : it,
+    );
+    return { ...project, timeline_items: next };
+  }
+  function moveTimelineItem(
+    project: Project,
+    itemId: string,
+    newTrackId: string,
+    newTimelineStartMs: number,
+  ): Project {
+    const next = items(project).map((it) =>
+      it.id === itemId
+        ? {
+            ...it,
+            track_id: newTrackId,
+            timeline_start_ms: Math.max(0, newTimelineStartMs),
+          }
+        : it,
+    );
+    return { ...project, timeline_items: next };
+  }
+  function rippleDeleteItem(project: Project, itemId: string): Project {
+    const gone = findItem(project, itemId);
+    const gap = itemSpan(gone).end - itemSpan(gone).start;
+    const next = items(project)
+      .filter((it) => it.id !== itemId)
+      .map((it) =>
+        it.track_id === gone.track_id &&
+        it.timeline_start_ms > gone.timeline_start_ms
+          ? { ...it, timeline_start_ms: it.timeline_start_ms - gap }
+          : it,
+      );
+    return { ...project, timeline_items: next };
+  }
+  function setTransition(
+    project: Project,
+    itemId: string,
+    kind: string,
+    durationMs: number,
+  ): Project {
+    const next = items(project).map((it) =>
+      it.id === itemId
+        ? { ...it, transition_in: { kind, duration_ms: durationMs } }
+        : it,
+    );
+    return { ...project, timeline_items: next };
+  }
+  function clearTransition(project: Project, itemId: string): Project {
+    const next = items(project).map((it) =>
+      it.id === itemId ? { ...it, transition_in: null } : it,
+    );
+    return { ...project, timeline_items: next };
+  }
+  function setTransform(
+    project: Project,
+    itemId: string,
+    transform: Transform,
+  ): Project {
+    const next = items(project).map((it) =>
+      it.id === itemId ? { ...it, transform } : it,
+    );
+    return { ...project, timeline_items: next };
+  }
+  function addTextItem(
+    project: Project,
+    trackId: string,
+    timelineStartMs: number,
+    durationMs: number,
+    text: string,
+  ): Project {
+    const item: TimelineItem = {
+      id: nleId(),
+      track_id: trackId,
+      kind: "text",
+      source_media_id: null,
+      in_ms: 0,
+      out_ms: durationMs,
+      timeline_start_ms: timelineStartMs,
+      speed: 1,
+      transform: identityTransform(),
+      effects: [],
+      transition_in: null,
+      text: { text, style_id: null },
+      enabled: true,
+      locked: false,
+    };
+    return { ...project, timeline_items: [...items(project), item] };
+  }
+
   type Args = Record<string, unknown>;
   function invoke(cmd: string, args: Args): Promise<unknown> {
     const project = args.project as Project;
@@ -489,6 +822,169 @@ function backend(): void {
         ]);
       case "export_validate":
         return Promise.resolve([]);
+
+      // ── NLE timeline / clip-track ops (mirror ipc.timeline.*) ──
+      case "op_import_media":
+        return Promise.resolve(importMedia(project, args.path as string));
+      case "op_remove_media":
+        return Promise.resolve(removeMedia(project, args.mediaId as string));
+      case "op_add_track":
+        return Promise.resolve(
+          addTrack(project, args.kind as Track["kind"], args.name as string),
+        );
+      case "op_remove_track":
+        return Promise.resolve(removeTrack(project, args.trackId as string));
+      case "op_reorder_track":
+        return Promise.resolve(
+          reorderTrack(
+            project,
+            args.trackId as string,
+            args.newIndex as number,
+          ),
+        );
+      case "op_set_track_flags":
+        return Promise.resolve(
+          setTrackFlags(project, args.trackId as string, {
+            enabled: (args.enabled as boolean | null) ?? null,
+            locked: (args.locked as boolean | null) ?? null,
+            muted: (args.muted as boolean | null) ?? null,
+            solo: (args.solo as boolean | null) ?? null,
+          }),
+        );
+      case "op_add_timeline_item":
+        return Promise.resolve(
+          addTimelineItem(
+            project,
+            args.trackId as string,
+            (args.sourceMediaId as string | null) ?? null,
+            args.inMs as number,
+            args.outMs as number,
+            args.timelineStartMs as number,
+            args.kind as TimelineItem["kind"],
+          ),
+        );
+      case "op_split_timeline_item":
+        return Promise.resolve(
+          splitTimelineItem(
+            project,
+            args.itemId as string,
+            args.atTimelineMs as number,
+          ),
+        );
+      case "op_trim_timeline_item":
+        return Promise.resolve(
+          trimTimelineItem(project, args.itemId as string, {
+            newInMs: (args.newInMs as number | null) ?? null,
+            newOutMs: (args.newOutMs as number | null) ?? null,
+            newTimelineStartMs:
+              (args.newTimelineStartMs as number | null) ?? null,
+          }),
+        );
+      case "op_move_timeline_item":
+        return Promise.resolve(
+          moveTimelineItem(
+            project,
+            args.itemId as string,
+            args.newTrackId as string,
+            args.newTimelineStartMs as number,
+          ),
+        );
+      case "op_ripple_delete_item":
+        return Promise.resolve(
+          rippleDeleteItem(project, args.itemId as string),
+        );
+      case "op_set_transition":
+        return Promise.resolve(
+          setTransition(
+            project,
+            args.itemId as string,
+            args.kind as string,
+            args.durationMs as number,
+          ),
+        );
+      case "op_clear_transition":
+        return Promise.resolve(clearTransition(project, args.itemId as string));
+      case "op_set_transform":
+        return Promise.resolve(
+          setTransform(
+            project,
+            args.itemId as string,
+            args.transform as Transform,
+          ),
+        );
+      case "op_add_text_item":
+        return Promise.resolve(
+          addTextItem(
+            project,
+            args.trackId as string,
+            args.timelineStartMs as number,
+            args.durationMs as number,
+            args.text as string,
+          ),
+        );
+
+      // ── media import dialog + probe ──
+      case "accepted_media_extensions":
+        return Promise.resolve([
+          "mp4",
+          "mov",
+          "mkv",
+          "webm",
+          "mp3",
+          "wav",
+          "m4a",
+        ]);
+      case "plugin:dialog|open":
+        // The media-bin Import button opens this picker; return a deterministic
+        // path so the real button drives `op_import_media` end-to-end.
+        return Promise.resolve("/demo/broll.mp4");
+      case "plugin:dialog|save":
+        // The compose-export "save as" picker; a deterministic output path lets
+        // the real button drive `compose_render` end-to-end.
+        return Promise.resolve("/demo/out.mp4");
+      case "video_probe":
+        return Promise.resolve({
+          duration_ms: 12_000,
+          width: 1920,
+          height: 1080,
+          fps: 30,
+          video_codec: "h264",
+          audio_codec: "aac",
+          audio_channels: 2,
+          audio_sample_rate: 48_000,
+          container: "mp4",
+          kind: "video",
+        });
+
+      // ── compose / render engine ──
+      case "compose_render": {
+        // Emit a couple of progress ticks then resolve. Nothing in-app listens
+        // yet (the compose UI lands later), so the ticks are surfaced as window
+        // CustomEvents — observable from a spec without reimplementing Tauri's
+        // event bus.
+        const emit = (fraction: number, done: boolean) =>
+          window.dispatchEvent(
+            new CustomEvent("compose-render-progress", {
+              detail: {
+                out_ms: Math.round(fraction * 12_000),
+                total_ms: 12_000,
+                fraction,
+                frame: Math.round(fraction * 360),
+                done,
+              },
+            }),
+          );
+        return new Promise<void>((resolve) => {
+          setTimeout(() => emit(0.5, false), 0);
+          setTimeout(() => {
+            emit(1, true);
+            resolve();
+          }, 10);
+        });
+      }
+      case "compose_cancel":
+        return Promise.resolve(undefined);
+
       default:
         // Unhandled commands (downloaded models, deep-link, updater) resolve
         // empty so app boot doesn't throw — the workflows don't depend on them.
@@ -510,12 +1006,23 @@ function backend(): void {
  * load the app and click into the bundled demo project. Leaves the page in the
  * editor shell, ready for workflow assertions.
  */
-export async function openDemoProject(page: Page): Promise<void> {
+export async function openDemoProject(
+  page: Page,
+  options: { tauri?: boolean } = {},
+): Promise<void> {
   await page.addInitScript(backend);
   await page.addInitScript(() => {
     localStorage.setItem("sundayedit.onboarded", "1");
     localStorage.setItem("sundayedit.locale", "no");
   });
+  // Opt-in: mark the window as a Tauri host so `isTauri()`-guarded surfaces
+  // (compose export, preview render, native pickers) render + run. Default off,
+  // so the browser-only specs keep exercising the graceful-degradation paths.
+  if (options.tauri) {
+    await page.addInitScript(() => {
+      (window as unknown as { isTauri: boolean }).isTauri = true;
+    });
+  }
   await page.goto("/");
   await page.getByRole("button", { name: /utforsk demo-prosjektet/i }).click();
   // The editor heading confirms we're in the shell, not the import screen.

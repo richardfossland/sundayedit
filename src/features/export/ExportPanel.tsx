@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { isTauri } from "@tauri-apps/api/core";
 import {
   AlertTriangle,
   Eye,
@@ -27,6 +28,7 @@ import { useT, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { ExportConfigPanel } from "./ExportConfigPanel";
 import { BurnInPreview } from "./BurnInPreview";
+import { ComposeExport } from "./ComposeExport";
 
 interface Props {
   project: Project;
@@ -238,6 +240,18 @@ export function ExportPanel({ project, onProjectChange, returnTo }: Props) {
             {t("exportConfigTitle")}
           </span>
         </button>
+
+        {/* Multi-track compose export — flatten every track into one MP4. Shown
+            only in NLE mode (placed clips) and under Tauri (native save + ffmpeg
+            compose engine). Added path; the sidecar/burn-in exports are intact. */}
+        {isTauri() && project.timeline_items.length > 0 && (
+          <div className="mt-3 border-t border-[var(--color-border)] pt-3">
+            <h3 className="mb-1 text-[var(--text-ui-xs)] font-semibold uppercase tracking-wider text-[var(--color-fg-subtle)]">
+              {t("exportComposeHeader")}
+            </h3>
+            <ComposeExport project={project} />
+          </div>
+        )}
       </div>
 
       {/* Platform burn-in */}

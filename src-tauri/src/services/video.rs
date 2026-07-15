@@ -16,7 +16,7 @@
 //! ffmpeg installed.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -302,6 +302,44 @@ pub fn find_relink_candidate(
     Ok(None)
 }
 
+// ── Clip thumbnails ─────────────────────────────────────────────────────────────
+
+/// Build the ffmpeg argument vector for a single-frame thumbnail grab at
+/// `at_ms`, scaled to 120px tall (width auto, even). Input-side `-ss` seeking
+/// keeps it fast on long media. Pure — no IO — so it's unit-testable.
+pub fn thumbnail_args(media_path: &str, at_ms: i64, out_path: &str) -> Vec<String> {
+    vec![
+        "-ss".into(),
+        format!("{:.3}", at_ms.max(0) as f64 / 1000.0),
+        "-i".into(),
+        media_path.into(),
+        "-frames:v".into(),
+        "1".into(),
+        "-vf".into(),
+        "scale=-2:120".into(),
+        "-y".into(),
+        out_path.into(),
+    ]
+}
+
+/// Extract a single JPEG thumbnail frame from `media_path` at `at_ms` into
+/// `out_path`. Returns `out_path` on success. Spawns the bundled ffmpeg.
+pub fn extract_thumbnail(media_path: &str, at_ms: i64, out_path: &str) -> AppResult<String> {
+    let args = thumbnail_args(media_path, at_ms, out_path);
+    let status = Command::new(ffmpeg_path())
+        .args(&args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| AppError::Internal(format!("failed to launch ffmpeg for thumbnail: {e}")))?;
+    if !status.success() {
+        return Err(AppError::Internal(format!(
+            "ffmpeg thumbnail extraction failed for '{media_path}'"
+        )));
+    }
+    Ok(out_path.to_string())
+}
+
 // ── Binary resolution ──────────────────────────────────────────────────────────
 //
 // Resolution order (first hit wins):
@@ -525,6 +563,29 @@ mod tests {
         let found =
             find_relink_candidate(&hash, &[dir.path().to_path_buf()], Some("sermon.mp4")).unwrap();
         assert_eq!(found, Some(moved));
+    }
+
+    // ── thumbnail arg construction ────────────────────────────────────────────
+    #[test]
+    fn thumbnail_args_seek_scale_and_output() {
+        let args = thumbnail_args("/media/clip.mp4", 2500, "/out/thumb.jpg");
+        // Input-side seek in seconds.
+        let ss = args.iter().position(|a| a == "-ss").unwrap();
+        assert_eq!(args[ss + 1], "2.500");
+        // Single frame, 120px tall (even width).
+        let vf = args.iter().position(|a| a == "-vf").unwrap();
+        assert_eq!(args[vf + 1], "scale=-2:120");
+        assert!(args.windows(2).any(|w| w[0] == "-frames:v" && w[1] == "1"));
+        // Output is the final arg, overwrite enabled.
+        assert_eq!(args.last().unwrap(), "/out/thumb.jpg");
+        assert!(args.iter().any(|a| a == "-y"));
+    }
+
+    #[test]
+    fn thumbnail_args_clamp_negative_time_to_zero() {
+        let args = thumbnail_args("/m.mp4", -1000, "/o.jpg");
+        let ss = args.iter().position(|a| a == "-ss").unwrap();
+        assert_eq!(args[ss + 1], "0.000");
     }
 
     #[test]

@@ -90,6 +90,10 @@ pub struct Caption {
     pub ai_generated: bool,
     #[ts(type = "number")]
     pub last_edited_at: i64,
+    /// Which caption/overlay track this caption belongs to (NLE multi-track).
+    /// `#[serde(default)]` so pre-multitrack JSON deserializes.
+    #[serde(default)]
+    pub track_id: Option<String>,
 }
 
 impl Caption {
@@ -331,6 +335,166 @@ impl Default for ProjectMeta {
     }
 }
 
+// ── NLE multi-track domain ────────────────────────────────────────────────────
+//
+// The foundation for SundayEdit's multi-track timeline. A project owns a pool of
+// `MediaItem`s (imported source files), a set of `Track`s, and the `TimelineItem`s
+// placed on those tracks. Geometry (`Transform`, `CropRect`) is expressed as
+// fractions of the output frame so it's resolution-independent.
+
+/// An imported source media file. The `content_hash` gives path-stable identity
+/// (same as the scalar `video_content_hash`); `audio_wav_path` caches the
+/// extracted PCM used for waveform + ASR.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/MediaItem.ts")]
+pub struct MediaItem {
+    pub id: String,
+    pub path: String,
+    pub content_hash: String,
+    pub kind: crate::services::video::MediaKind,
+    #[ts(type = "number")]
+    pub duration_ms: i64,
+    pub width: i32,
+    pub height: i32,
+    pub fps: f32,
+    pub has_audio: bool,
+    pub audio_wav_path: Option<String>,
+    pub original_filename: String,
+    #[ts(type = "number")]
+    pub added_at: i64,
+}
+
+/// The kind of a track — governs which items may live on it and how it renders.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/lib/bindings/TrackKind.ts")]
+pub enum TrackKind {
+    Video,
+    Audio,
+    Caption,
+    Overlay,
+}
+
+/// A horizontal lane on the timeline. `index` is the stacking order (0 = bottom).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/Track.ts")]
+pub struct Track {
+    pub id: String,
+    pub kind: TrackKind,
+    pub name: String,
+    pub index: i32,
+    pub enabled: bool,
+    pub locked: bool,
+    pub muted: bool,
+    pub solo: bool,
+}
+
+/// A rectangular crop, as fractions of the source frame.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/CropRect.ts")]
+pub struct CropRect {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+/// Geometric transform for a timeline item, as fractions of the output frame
+/// (resolution-independent). `Default` is the identity transform.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/Transform.ts")]
+pub struct Transform {
+    pub x: f32,
+    pub y: f32,
+    pub scale: f32,
+    pub rotation_deg: f32,
+    pub opacity: f32,
+    pub crop: Option<CropRect>,
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+            rotation_deg: 0.0,
+            opacity: 1.0,
+            crop: None,
+        }
+    }
+}
+
+/// A processing effect applied to a timeline item. `params` is an opaque JSON
+/// bag keyed by effect `kind`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/Effect.ts")]
+pub struct Effect {
+    pub id: String,
+    pub kind: String,
+    #[ts(type = "unknown")]
+    pub params: serde_json::Value,
+    pub enabled: bool,
+}
+
+/// A transition (e.g. crossfade) at the leading edge of a timeline item.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/Transition.ts")]
+pub struct Transition {
+    pub kind: String,
+    #[ts(type = "number")]
+    pub duration_ms: i64,
+}
+
+/// What a `TimelineItem` represents.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../src/lib/bindings/TimelineItemKind.ts")]
+pub enum TimelineItemKind {
+    Av,
+    Text,
+    Graphic,
+}
+
+/// Minimal text spec for Text/Graphic overlay items.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/TextSpec.ts")]
+pub struct TextSpec {
+    pub text: String,
+    pub style_id: Option<String>,
+}
+
+/// A single clip placed on a track. `in_ms`/`out_ms` index into the source
+/// media; `timeline_start_ms` is where it sits on the timeline.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/lib/bindings/TimelineItem.ts")]
+pub struct TimelineItem {
+    pub id: String,
+    pub track_id: String,
+    pub kind: TimelineItemKind,
+    pub source_media_id: Option<String>,
+    #[ts(type = "number")]
+    pub in_ms: i64,
+    #[ts(type = "number")]
+    pub out_ms: i64,
+    #[ts(type = "number")]
+    pub timeline_start_ms: i64,
+    pub speed: f32,
+    pub transform: Transform,
+    pub effects: Vec<Effect>,
+    pub transition_in: Option<Transition>,
+    pub text: Option<TextSpec>,
+    pub enabled: bool,
+    pub locked: bool,
+}
+
+impl TimelineItem {
+    /// Where this item ends on the timeline, accounting for `speed`.
+    pub fn timeline_end_ms(&self) -> i64 {
+        self.timeline_start_ms + (((self.out_ms - self.in_ms) as f32 / self.speed.max(0.01)) as i64)
+    }
+}
+
 // ── Project ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -364,6 +528,15 @@ pub struct Project {
     /// Editable project metadata (title, description, proper-noun hints).
     #[serde(default)]
     pub project_meta: ProjectMeta,
+    /// NLE multi-track: pool of imported source media.
+    #[serde(default)]
+    pub media: Vec<MediaItem>,
+    /// NLE multi-track: the timeline's tracks.
+    #[serde(default)]
+    pub tracks: Vec<Track>,
+    /// NLE multi-track: clips placed on the tracks.
+    #[serde(default)]
+    pub timeline_items: Vec<TimelineItem>,
     #[ts(type = "number")]
     pub created_at: i64,
     #[ts(type = "number")]
@@ -411,5 +584,236 @@ impl Project {
             last_end = c.end_ms;
         }
         Ok(())
+    }
+
+    /// Validate the multi-track timeline invariants:
+    ///   1. Every `TimelineItem.track_id` resolves to a `Track`.
+    ///   2. Every `Some(source_media_id)` resolves to a `MediaItem`.
+    ///   3. `in_ms < out_ms`, both within `[0, media.duration_ms]`.
+    ///   4. `timeline_start_ms >= 0`.
+    ///   5. Per Video/Audio track, items are sorted by `timeline_start_ms` and
+    ///      do not overlap (using `timeline_end_ms`). Exact adjacency is OK — a
+    ///      `transition_in` crossfade is a boundary, not a geometric overlap.
+    pub fn validate_timeline(&self) -> Result<(), String> {
+        // 1–4: per-item checks.
+        for (i, it) in self.timeline_items.iter().enumerate() {
+            let track = self
+                .tracks
+                .iter()
+                .find(|t| t.id == it.track_id)
+                .ok_or_else(|| {
+                    format!(
+                        "timeline_item[{}] references unknown track_id {}",
+                        i, it.track_id
+                    )
+                })?;
+            let _ = track;
+
+            if let Some(mid) = &it.source_media_id {
+                let media = self.media.iter().find(|m| &m.id == mid).ok_or_else(|| {
+                    format!(
+                        "timeline_item[{}] references unknown source_media_id {}",
+                        i, mid
+                    )
+                })?;
+                if it.in_ms >= it.out_ms {
+                    return Err(format!("timeline_item[{}] has in_ms >= out_ms", i));
+                }
+                if it.in_ms < 0 || it.out_ms > media.duration_ms {
+                    return Err(format!(
+                        "timeline_item[{}] range [{}, {}] out of media bounds [0, {}]",
+                        i, it.in_ms, it.out_ms, media.duration_ms
+                    ));
+                }
+            } else if it.in_ms >= it.out_ms {
+                return Err(format!("timeline_item[{}] has in_ms >= out_ms", i));
+            }
+
+            if it.timeline_start_ms < 0 {
+                return Err(format!("timeline_item[{}] has negative timeline_start_ms", i));
+            }
+        }
+
+        // 5: non-overlap per Video/Audio track.
+        for track in self
+            .tracks
+            .iter()
+            .filter(|t| matches!(t.kind, TrackKind::Video | TrackKind::Audio))
+        {
+            let mut items: Vec<&TimelineItem> = self
+                .timeline_items
+                .iter()
+                .filter(|it| it.track_id == track.id)
+                .collect();
+            items.sort_by_key(|it| it.timeline_start_ms);
+            let mut prev_end = i64::MIN;
+            for it in items {
+                if it.timeline_start_ms < prev_end {
+                    return Err(format!(
+                        "track {} has overlapping items at {} (previous ended {})",
+                        track.id, it.timeline_start_ms, prev_end
+                    ));
+                }
+                prev_end = it.timeline_end_ms();
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod timeline_tests {
+    use super::*;
+    use crate::services::video::MediaKind;
+
+    fn media(id: &str, dur: i64) -> MediaItem {
+        MediaItem {
+            id: id.into(),
+            path: format!("/v/{}.mp4", id),
+            content_hash: "h".into(),
+            kind: MediaKind::Video,
+            duration_ms: dur,
+            width: 1920,
+            height: 1080,
+            fps: 30.0,
+            has_audio: true,
+            audio_wav_path: None,
+            original_filename: format!("{}.mp4", id),
+            added_at: 0,
+        }
+    }
+
+    fn track(id: &str, kind: TrackKind, index: i32) -> Track {
+        Track {
+            id: id.into(),
+            kind,
+            name: id.into(),
+            index,
+            enabled: true,
+            locked: false,
+            muted: false,
+            solo: false,
+        }
+    }
+
+    fn item(id: &str, track_id: &str, media_id: Option<&str>, start: i64, in_ms: i64, out_ms: i64) -> TimelineItem {
+        TimelineItem {
+            id: id.into(),
+            track_id: track_id.into(),
+            kind: TimelineItemKind::Av,
+            source_media_id: media_id.map(|s| s.to_string()),
+            in_ms,
+            out_ms,
+            timeline_start_ms: start,
+            speed: 1.0,
+            transform: Transform::default(),
+            effects: vec![],
+            transition_in: None,
+            text: None,
+            enabled: true,
+            locked: false,
+        }
+    }
+
+    fn base() -> Project {
+        Project {
+            id: "p".into(),
+            name: "n".into(),
+            video_path: "/v.mp4".into(),
+            video_content_hash: "h".into(),
+            video_duration_ms: 10_000,
+            video_width: 1920,
+            video_height: 1080,
+            video_fps: 30.0,
+            audio_wav_path: None,
+            language: "no".into(),
+            default_style: Style::broadcast_news(),
+            context_description: None,
+            captions: vec![],
+            speakers: vec![],
+            glossary: vec![],
+            clips: vec![],
+            talk_summary: None,
+            export_config: ExportConfig::default(),
+            project_meta: ProjectMeta::default(),
+            media: vec![media("m1", 5000)],
+            tracks: vec![track("t1", TrackKind::Video, 0)],
+            timeline_items: vec![],
+            created_at: 0,
+            updated_at: 0,
+        }
+    }
+
+    #[test]
+    fn valid_timeline_passes() {
+        let mut p = base();
+        p.timeline_items = vec![
+            item("i1", "t1", Some("m1"), 0, 0, 2000),
+            item("i2", "t1", Some("m1"), 2000, 0, 1000), // exact adjacency OK
+        ];
+        assert!(p.validate_timeline().is_ok());
+    }
+
+    #[test]
+    fn transform_default_is_identity() {
+        let t = Transform::default();
+        assert_eq!(t.scale, 1.0);
+        assert_eq!(t.opacity, 1.0);
+        assert_eq!(t.x, 0.0);
+        assert_eq!(t.crop, None);
+    }
+
+    #[test]
+    fn timeline_end_ms_accounts_for_speed() {
+        let mut it = item("i", "t1", Some("m1"), 1000, 0, 2000);
+        assert_eq!(it.timeline_end_ms(), 3000);
+        it.speed = 2.0;
+        assert_eq!(it.timeline_end_ms(), 2000);
+    }
+
+    #[test]
+    fn unknown_track_fails() {
+        let mut p = base();
+        p.timeline_items = vec![item("i1", "nope", Some("m1"), 0, 0, 1000)];
+        assert!(p.validate_timeline().is_err());
+    }
+
+    #[test]
+    fn unknown_media_fails() {
+        let mut p = base();
+        p.timeline_items = vec![item("i1", "t1", Some("nope"), 0, 0, 1000)];
+        assert!(p.validate_timeline().is_err());
+    }
+
+    #[test]
+    fn in_after_out_fails() {
+        let mut p = base();
+        p.timeline_items = vec![item("i1", "t1", Some("m1"), 0, 1000, 1000)];
+        assert!(p.validate_timeline().is_err());
+    }
+
+    #[test]
+    fn out_beyond_media_duration_fails() {
+        let mut p = base();
+        p.timeline_items = vec![item("i1", "t1", Some("m1"), 0, 0, 6000)]; // media is 5000
+        assert!(p.validate_timeline().is_err());
+    }
+
+    #[test]
+    fn negative_timeline_start_fails() {
+        let mut p = base();
+        p.timeline_items = vec![item("i1", "t1", Some("m1"), -1, 0, 1000)];
+        assert!(p.validate_timeline().is_err());
+    }
+
+    #[test]
+    fn overlapping_items_fail() {
+        let mut p = base();
+        p.timeline_items = vec![
+            item("i1", "t1", Some("m1"), 0, 0, 2000),
+            item("i2", "t1", Some("m1"), 1000, 0, 1000), // overlaps i1 (ends 2000)
+        ];
+        assert!(p.validate_timeline().is_err());
     }
 }

@@ -3,9 +3,12 @@ import type { Caption } from "./Caption";
 import type { Clip } from "./Clip";
 import type { ExportConfig } from "./ExportConfig";
 import type { GlossaryTerm } from "./GlossaryTerm";
+import type { MediaItem } from "./MediaItem";
 import type { ProjectMeta } from "./ProjectMeta";
 import type { Speaker } from "./Speaker";
 import type { Style } from "./Style";
+import type { TimelineItem } from "./TimelineItem";
+import type { Track } from "./Track";
 
 export type Project = { id: string, name: string, video_path: string, video_content_hash: string, video_duration_ms: number, video_width: number, video_height: number, video_fps: number, audio_wav_path: string | null, language: string, default_style: Style, context_description: string | null, captions: Array<Caption>, speakers: Array<Speaker>, glossary: Array<GlossaryTerm>, 
 /**
@@ -23,4 +26,16 @@ export_config: ExportConfig,
 /**
  * Editable project metadata (title, description, proper-noun hints).
  */
-project_meta: ProjectMeta, created_at: number, updated_at: number, };
+project_meta: ProjectMeta, 
+/**
+ * NLE multi-track: pool of imported source media.
+ */
+media: Array<MediaItem>, 
+/**
+ * NLE multi-track: the timeline's tracks.
+ */
+tracks: Array<Track>, 
+/**
+ * NLE multi-track: clips placed on the tracks.
+ */
+timeline_items: Array<TimelineItem>, created_at: number, updated_at: number, };

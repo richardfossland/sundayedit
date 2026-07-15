@@ -1,0 +1,204 @@
+/**
+ * Multi-track compose export (Task U) — flatten the whole timeline (every video
+ * / audio / caption / overlay track) into one MP4 via the ffmpeg
+ * `filter_complex` compose engine.
+ *
+ * This is an ADDED export path that sits alongside the sidecar + burn-in exports
+ * in `ExportPanel`; it never touches them. The flow:
+ *   pick output (save dialog) → build ComposeSettings from the project geometry →
+ *   `ipc.compose.render` → a fixed progress overlay driven by the
+ *   `compose-render-progress` event, with a Cancel button (`ipc.compose.cancel`).
+ *
+ * Everything here assumes Tauri; the caller guards mounting behind `isTauri()`.
+ */
+
+import { useEffect, useRef, useState } from "react";
+import { save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { Clapperboard, Loader2, X, CheckCircle2 } from "lucide-react";
+
+import { ipc, IPCError } from "@/lib/ipc";
+import type { Project } from "@/lib/bindings";
+import {
+  defaultComposeSettings,
+  subscribeComposeProgress,
+} from "@/lib/composeEngine";
+import { useT } from "@/lib/i18n";
+
+type Phase =
+  | { kind: "idle" }
+  | { kind: "rendering"; percent: number; cancelling: boolean }
+  | { kind: "done"; path: string }
+  | { kind: "error"; message: string };
+
+export function ComposeExport({ project }: { project: Project }) {
+  const t = useT();
+  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  // Live progress subscription; torn down on unmount / when the render settles.
+  const unsubRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => unsubRef.current?.(), []);
+
+  async function doExport() {
+    const base = project.name.replace(/\.[^.]+$/, "");
+    const out = await saveDialog({
+      defaultPath: `${base}_composed.mp4`,
+      filters: [{ name: "Video", extensions: ["mp4"] }],
+    });
+    if (typeof out !== "string") return; // cancelled the dialog
+
+    setPhase({ kind: "rendering", percent: 0, cancelling: false });
+    unsubRef.current = subscribeComposeProgress((p) => {
+      const pct = Math.round((p.fraction ?? 0) * 100);
+      setPhase((cur) =>
+        cur.kind === "rendering"
+          ? { ...cur, percent: Math.max(cur.percent, pct) }
+          : cur,
+      );
+    });
+
+    try {
+      await ipc.compose.render(project, out, defaultComposeSettings(project));
+      setPhase({ kind: "done", path: out });
+    } catch (e) {
+      const message =
+        e instanceof IPCError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : String(e);
+      // A user-triggered cancel surfaces as an error from the render future;
+      // treat it as a benign cancelled state rather than a failure.
+      setPhase(
+        /cancel/i.test(message)
+          ? { kind: "error", message: t("composeCancelled") }
+          : { kind: "error", message },
+      );
+    } finally {
+      unsubRef.current?.();
+      unsubRef.current = null;
+    }
+  }
+
+  function cancel() {
+    setPhase((cur) =>
+      cur.kind === "rendering" ? { ...cur, cancelling: true } : cur,
+    );
+    void ipc.compose.cancel().catch(() => {});
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void doExport()}
+        className="mt-2 flex w-full items-center gap-2 rounded-md border border-[var(--color-accent-500)]/50 bg-[var(--color-accent-500)]/8 px-3 py-2 text-left text-[var(--color-accent-300)] transition-colors hover:border-[var(--color-accent-500)] hover:bg-[var(--color-accent-500)]/12"
+      >
+        <Clapperboard size={14} className="shrink-0" />
+        <span className="flex flex-col">
+          <span className="text-[var(--text-ui-xs)] font-semibold">
+            {t("exportComposeAction")}
+          </span>
+          <span className="text-[10px] text-[var(--color-fg-muted)]">
+            {t("exportComposeDesc")}
+          </span>
+        </span>
+      </button>
+
+      {phase.kind !== "idle" && (
+        <div
+          role="dialog"
+          aria-label={t("composeProgressTitle")}
+          data-testid="compose-progress"
+          className="fixed inset-0 z-[60] grid place-items-center bg-black/60 p-6"
+        >
+          <div className="w-full max-w-md rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-2">
+              <Clapperboard
+                size={16}
+                className="text-[var(--color-accent-400)]"
+              />
+              <h3 className="text-[var(--text-ui-md)] font-semibold">
+                {t("composeProgressTitle")}
+              </h3>
+            </div>
+
+            {phase.kind === "rendering" && (
+              <>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-bg-surface)]">
+                  <div
+                    className="h-full rounded-full bg-[var(--color-accent-500)] transition-[width]"
+                    style={{ width: `${phase.percent}%` }}
+                    data-testid="compose-progress-bar"
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="font-mono text-[var(--text-ui-sm)] tabular-nums text-[var(--color-fg-muted)]">
+                    {phase.percent}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={cancel}
+                    disabled={phase.cancelling}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-[var(--text-ui-sm)] font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] disabled:opacity-50"
+                  >
+                    {phase.cancelling ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <X size={13} />
+                    )}
+                    {phase.cancelling
+                      ? t("composeCancelling")
+                      : t("composeCancel")}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {phase.kind === "done" && (
+              <>
+                <p className="flex items-start gap-2 text-[var(--text-ui-sm)] text-[var(--color-fg)]">
+                  <CheckCircle2
+                    size={16}
+                    className="mt-0.5 shrink-0 text-[var(--color-success)]"
+                  />
+                  <span data-testid="compose-done">
+                    {t("composeDone", { path: phase.path })}
+                  </span>
+                </p>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setPhase({ kind: "idle" })}
+                    className="rounded-md bg-[var(--color-accent-600)] px-4 py-1.5 text-[var(--text-ui-sm)] font-semibold text-[var(--color-neutral-950)] hover:bg-[var(--color-accent-500)]"
+                  >
+                    {t("composeClose")}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {phase.kind === "error" && (
+              <>
+                <p
+                  className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)]"
+                  data-testid="compose-error"
+                >
+                  {phase.message}
+                </p>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setPhase({ kind: "idle" })}
+                    className="rounded-md border border-[var(--color-border)] px-4 py-1.5 text-[var(--text-ui-sm)] font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+                  >
+                    {t("composeClose")}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

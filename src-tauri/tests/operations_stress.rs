@@ -88,6 +88,7 @@ fn caption(id: &str, words: Vec<Word>) -> Caption {
         notes: None,
         ai_generated: true,
         last_edited_at: 0,
+        track_id: None,
     }
 }
 
@@ -114,6 +115,9 @@ fn empty_project() -> Project {
         project_meta: ProjectMeta::default(),
         created_at: 0,
         updated_at: 0,
+        media: vec![],
+        tracks: vec![],
+        timeline_items: vec![],
     }
 }
 

@@ -29,6 +29,14 @@ pub fn video_probe(path: String) -> AppResult<VideoMetadata> {
     video::probe(Path::new(&path))
 }
 
+/// Grab a single-frame thumbnail from `media_path` at `at_ms`, scaled to 120px
+/// tall, written to `out_path` (JPEG). Returns the written path. Used by the
+/// timeline/media-bin clip previews.
+#[tauri::command]
+pub fn extract_thumbnail(media_path: String, at_ms: i64, out_path: String) -> AppResult<String> {
+    video::extract_thumbnail(&media_path, at_ms, &out_path)
+}
+
 /// Create a fresh in-memory Project from a video file. Captions are empty
 /// until the user transcribes (Phase 2). The video is hashed for path
 /// stability and a sensible default style is applied.
@@ -66,6 +74,9 @@ pub fn project_create_from_video(path: String) -> AppResult<Project> {
         project_meta: ProjectMeta::default(),
         created_at: now,
         updated_at: now,
+        media: vec![],
+        tracks: vec![],
+        timeline_items: vec![],
     })
 }
 

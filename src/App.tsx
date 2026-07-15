@@ -18,10 +18,10 @@ import {
   RefreshCw,
   Scissors,
   PanelRightClose,
-  Play,
   FileText,
   Save,
   FolderOpen,
+  Clapperboard,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -31,6 +31,8 @@ import {
 
 import { CaptionEditor } from "@/features/editor/CaptionEditor";
 import { Timeline } from "@/features/timeline/Timeline";
+import { ClipInspector } from "@/features/timeline/ClipInspector";
+import { MediaBin } from "@/features/media/MediaBin";
 import { ContextPanel } from "@/features/context/ContextPanel";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { Onboarding } from "@/features/onboarding/Onboarding";
@@ -50,8 +52,10 @@ import { ClipsPanel } from "@/features/clips/ClipsPanel";
 import { TranslatePanel } from "@/features/translate/TranslatePanel";
 import { SpeakersPanel } from "@/features/speakers/SpeakersPanel";
 import { SAMPLE_PROJECT } from "@/lib/sampleProject";
+import { useProjectStore, useUndoHotkeys } from "@/lib/useProjectStore";
 import { ipc } from "@/lib/ipc";
 import type {
+  Caption,
   DownloadProgress,
   Project,
   Style,
@@ -70,6 +74,7 @@ import logoUrl from "@/assets/logo.svg";
 // The editing tools that live in the right-hand dock — each operates on the
 // captions visible in the centre workspace.
 type DockTool =
+  | "media"
   | "context"
   | "style"
   | "speakers"
@@ -89,6 +94,7 @@ type DockToolDef = { id: DockTool; icon: LucideIcon; labelKey: TKey };
 // The dock tools, grouped by intent so the 56px rail reads as three clusters
 // (Content · Format · AI) separated by hairlines, not nine icons competing.
 const DOCK_GROUPS: Array<DockToolDef[]> = [
+  [{ id: "media", icon: Clapperboard, labelKey: "navMedia" }],
   [
     { id: "context", icon: BookText, labelKey: "navContext" },
     { id: "projectmeta", icon: FileText, labelKey: "navProjectMeta" },
@@ -113,14 +119,66 @@ function dockLabelKey(tool: DockTool): TKey {
   return DOCK_TOOLS.find((d) => d.id === tool)?.labelKey ?? "navContext";
 }
 
+// Route freshly-transcribed captions onto a Caption track. Transcription (local
+// or cloud) hands back a flat caption list with no track binding, but the NLE
+// wants every caption to live on a Caption track. If the project already has one
+// (the schema-v4 backfill creates one when opening any file, so it usually
+// does), reuse it; otherwise synthesize one in the SAME store update so the
+// result stays atomic — no async `addTrack` round-trip that could interleave
+// with the caption assignment. Legacy caption-only routing keeps working: the
+// captions still land on the project, now additionally tagged with a track id.
+function routeCaptionsToCaptionTrack(
+  prev: Project,
+  captions: Caption[],
+): Project {
+  let tracks = prev.tracks;
+  let captionTrack = tracks.find((tr) => tr.kind === "caption");
+  if (!captionTrack) {
+    const nextIndex =
+      tracks.reduce((max, tr) => Math.max(max, tr.index), -1) + 1;
+    captionTrack = {
+      id: crypto.randomUUID(),
+      kind: "caption",
+      name: "Undertekster",
+      index: nextIndex,
+      enabled: true,
+      locked: false,
+      muted: false,
+      solo: false,
+    };
+    tracks = [...tracks, captionTrack];
+  }
+  const trackId = captionTrack.id;
+  return {
+    ...prev,
+    tracks,
+    captions: captions.map((c) => ({ ...c, track_id: trackId })),
+  };
+}
+
 function App() {
   const t = useT();
-  const [project, setProject] = useState<Project | null>(null);
+  // The open project + its undo/redo history live in one shared store. `reset`
+  // replaces the whole project and clears history (open/import/demo/back);
+  // `setProject` is the non-undoable direct replace for edits that were never
+  // part of the undo stack (dock panels, style, transcription results).
+  const project = useProjectStore((s) => s.project);
+  const setProject = useProjectStore((s) => s.setProject);
+  const resetProject = useProjectStore((s) => s.reset);
+  // ⌘Z / ⌘⇧Z, mounted once for the whole app (no-op until a project exists).
+  useUndoHotkeys();
   // Which tool the right dock shows, and whether the dock is open.
   const [dockTool, setDockTool] = useState<DockTool>("context");
   const [dockOpen, setDockOpen] = useState(true);
   // The active modal (transcribe / clips / export / settings), or null.
   const [modal, setModal] = useState<ModalKind | null>(null);
+  // The timeline clip selected for the inspector (or null). Cleared whenever the
+  // open project changes so a stale id never points into a different project.
+  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const projectId = project?.id;
+  useEffect(() => {
+    setSelectedClipId(null);
+  }, [projectId]);
   // Scheme of the Sunday-suite app that deep-linked us here (Phase 8), so the
   // Export panel can offer to hand the captions back. Null for normal launches.
   const [returnTo, setReturnTo] = useState<string | null>(null);
@@ -202,7 +260,7 @@ function App() {
             const req = await ipc.deeplink.parseImport(url);
             const proj = await ipc.project.createFromVideo(req.path);
             if (cancelled) return;
-            setProject(seedProjectFromImport(proj, req));
+            resetProject(seedProjectFromImport(proj, req));
             setReturnTo(req.return_to);
             setModal("transcribe");
           } catch (e) {
@@ -219,7 +277,7 @@ function App() {
       cancelled = true;
       unlisten?.();
     };
-  }, [notify]);
+  }, [notify, resetProject]);
 
   // Fetch the chosen Whisper model on first use. Streams progress; refreshes
   // the downloaded set on completion.
@@ -263,9 +321,9 @@ function App() {
             /* private mode — onboarding just shows again next launch */
           }
           setOnboarded(true);
-          setProject(proj);
+          resetProject(proj);
         }}
-        onTryDemo={() => setProject(SAMPLE_PROJECT)}
+        onTryDemo={() => resetProject(SAMPLE_PROJECT)}
       />
     );
   }
@@ -279,12 +337,12 @@ function App() {
           <UpdateBanner update={update} onDismiss={() => setUpdate(null)} />
         )}
         <div className="flex-1">
-          <ImportScreen onProjectReady={setProject} />
+          <ImportScreen onProjectReady={resetProject} />
         </div>
         <div className="border-t border-[var(--color-border)] px-6 py-3 text-center">
           <button
             type="button"
-            onClick={() => setProject(SAMPLE_PROJECT)}
+            onClick={() => resetProject(SAMPLE_PROJECT)}
             className="text-[var(--text-ui-sm)] text-[var(--color-fg-muted)] underline-offset-4 hover:text-[var(--color-accent-400)] hover:underline"
           >
             {t("importDemoLink")}
@@ -324,7 +382,7 @@ function App() {
       });
       if (typeof path !== "string") return; // cancelled
       const opened = await ipc.project.open(path);
-      setProject(opened);
+      resetProject(opened);
       setReturnTo(null);
     } catch (e) {
       console.error("project open failed", e);
@@ -404,11 +462,17 @@ function App() {
       group: t("paletteGroupProject"),
       icon: FileVideo,
       run: () => {
-        setProject(null);
+        resetProject(null);
         setReturnTo(null);
       },
     },
   ];
+
+  // The live timeline item behind the current selection (or null if it was
+  // deleted / never set). Read fresh each render so committed ops reflect at once.
+  const selectedItem = selectedClipId
+    ? (project.timeline_items.find((i) => i.id === selectedClipId) ?? null)
+    : null;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg)] text-[var(--color-fg)]">
@@ -437,7 +501,7 @@ function App() {
         <button
           type="button"
           onClick={() => {
-            setProject(null);
+            resetProject(null);
             setReturnTo(null);
           }}
           title={t("navBackToImport")}
@@ -473,7 +537,7 @@ function App() {
       </nav>
 
       {/* Centre workspace — always: preview, editor, timeline. */}
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar
           project={project}
           onOpenProject={openProject}
@@ -483,21 +547,26 @@ function App() {
           onExport={() => setModal("export")}
           onSettings={() => setModal("settings")}
         />
-        <PreviewZone project={project} />
         <div className="min-h-0 flex-1 overflow-y-auto border-t border-[var(--color-border)]">
-          <CaptionEditor
-            key={project.id}
-            project={project}
-            onProjectChange={setProject}
-          />
+          <CaptionEditor key={project.id} />
         </div>
         <div className="h-56 shrink-0 border-t border-[var(--color-border)]">
           <Timeline
             project={project}
-            onProjectChange={setProject}
             videoSrc={videoSrc}
+            onSelectClip={setSelectedClipId}
           />
         </div>
+
+        {/* Clip inspector — floats above the timeline when a clip is selected. */}
+        {selectedItem && (
+          <div className="pointer-events-none absolute right-4 top-16 bottom-[15rem] z-40 flex items-start justify-end">
+            <ClipInspector
+              item={selectedItem}
+              onClose={() => setSelectedClipId(null)}
+            />
+          </div>
+        )}
       </main>
 
       {/* Right dock — the focused editing tool. */}
@@ -518,7 +587,9 @@ function App() {
             </button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {dockTool === "context" ? (
+            {dockTool === "media" ? (
+              <MediaBin project={project} />
+            ) : dockTool === "context" ? (
               <ContextPanel project={project} onProjectChange={setProject} />
             ) : dockTool === "projectmeta" ? (
               <ProjectMetaPanel
@@ -567,15 +638,20 @@ function App() {
               onProjectChange={setProject}
               onTranscribed={(captions) => {
                 // Functional merge so the audio_wav_path LocalPanel just set
-                // (via onProjectChange) isn't clobbered by a stale closure.
-                setProject((prev) => (prev ? { ...prev, captions } : prev));
+                // (via onProjectChange) isn't clobbered by a stale closure. The
+                // captions are routed onto a Caption track (created if missing).
+                setProject((prev) =>
+                  prev ? routeCaptionsToCaptionTrack(prev, captions) : prev,
+                );
                 setModal(null);
               }}
             />
             <CloudPanel
               project={project}
               onTranscribed={(captions) => {
-                setProject((prev) => (prev ? { ...prev, captions } : prev));
+                setProject((prev) =>
+                  prev ? routeCaptionsToCaptionTrack(prev, captions) : prev,
+                );
                 setModal(null);
               }}
             />
@@ -707,36 +783,6 @@ function TopbarButton({
     >
       <Icon size={15} /> {label}
     </button>
-  );
-}
-
-// The centre-stage preview. The real <video> attaches here once the asset
-// protocol + playhead clock land (Phase 1.3); for now it's a ready placeholder
-// so the workspace reads as "video on top, captions below".
-function PreviewZone({ project }: { project: Project }) {
-  const aspect =
-    project.video_width > 0 && project.video_height > 0
-      ? project.video_width / project.video_height
-      : 16 / 9;
-  return (
-    <div className="grid h-64 shrink-0 place-items-center bg-black">
-      <div
-        className="grid h-full max-h-full place-items-center"
-        style={{ aspectRatio: aspect }}
-      >
-        <div className="flex flex-col items-center gap-2 text-center text-[var(--color-fg-subtle)]">
-          <div className="grid h-12 w-12 place-items-center rounded-full bg-white/5">
-            <Play size={20} className="ml-0.5" />
-          </div>
-          <span className="text-[var(--text-ui-sm)]">{project.name}</span>
-          {project.video_width > 0 && (
-            <span className="text-[var(--text-ui-xs)]">
-              {project.video_width}×{project.video_height}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }
 

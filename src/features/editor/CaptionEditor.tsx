@@ -10,10 +10,11 @@
  *     review, Phase 3.3)
  *   - Focus mode dims all-confident captions
  *   - "Fix terms" runs the glossary auto-correction pass (Phase 3.4)
- *   - ⌘Z / ⌘⇧Z undo/redo (via useEditorHistory)
+ *   - ⌘Z / ⌘⇧Z undo/redo (via the shared useProjectStore)
  *
  * All edits go through the Rust pure-function operations and flow through
- * the history hook, so undo/redo and invariant-validation come for free.
+ * the shared project store, so undo/redo and invariant-validation come for
+ * free — and timeline drags share the very same undo stack.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -41,7 +42,11 @@ import {
   type Word,
 } from "@/lib/bindings";
 import { ipc } from "@/lib/ipc";
-import { useEditorHistory } from "@/lib/useEditorHistory";
+import {
+  useProjectStore,
+  selectCanUndo,
+  selectCanRedo,
+} from "@/lib/useProjectStore";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import {
@@ -57,11 +62,6 @@ import {
   type Selection,
 } from "./selection";
 
-interface Props {
-  project: Project;
-  onProjectChange?: (project: Project) => void;
-}
-
 interface WordRef {
   captionId: string;
   wordIndex: number;
@@ -70,13 +70,26 @@ function sameRef(a: WordRef, b: WordRef) {
   return a.captionId === b.captionId && a.wordIndex === b.wordIndex;
 }
 
-export function CaptionEditor({
-  project: initialProject,
-  onProjectChange,
-}: Props) {
+/**
+ * Reads the open project from the shared store. App only mounts us once a
+ * project exists, but the store is nullable — guard so the inner editor always
+ * has a non-null Project.
+ */
+export function CaptionEditor() {
+  const project = useProjectStore((s) => s.project);
+  if (!project) return null;
+  return <CaptionEditorInner project={project} />;
+}
+
+function CaptionEditorInner({ project }: { project: Project }) {
   const t = useT();
-  const editor = useEditorHistory(initialProject);
-  const project = editor.project;
+  // All undoable edits flow through the shared store's history.
+  const run = useProjectStore((s) => s.run);
+  const undo = useProjectStore((s) => s.undo);
+  const redo = useProjectStore((s) => s.redo);
+  const busy = useProjectStore((s) => s.busy);
+  const canUndo = useProjectStore(selectCanUndo);
+  const canRedo = useProjectStore(selectCanRedo);
 
   const [focusMode, setFocusMode] = useState(false);
   const [threshold, setThreshold] = useState(70);
@@ -116,10 +129,6 @@ export function CaptionEditor({
       setAnchorId(id);
     }
   }
-
-  useEffect(() => {
-    onProjectChange?.(project);
-  }, [project, onProjectChange]);
 
   const stats = useMemo(() => {
     let uncertain = 0,
@@ -171,22 +180,20 @@ export function CaptionEditor({
   async function editWord(ref: WordRef, newText: string) {
     setEditing(null);
     if (newText.trim().length === 0) return;
-    await editor.run((p) =>
+    await run((p) =>
       ipc.ops.editWord(p, ref.captionId, ref.wordIndex, newText),
     );
   }
   async function lockWord(ref: WordRef) {
-    await editor.run((p) =>
-      ipc.ops.lockWord(p, ref.captionId, ref.wordIndex, true),
-    );
+    await run((p) => ipc.ops.lockWord(p, ref.captionId, ref.wordIndex, true));
   }
   async function acceptAlternate(ref: WordRef, altIndex: number) {
-    await editor.run((p) =>
+    await run((p) =>
       ipc.ops.acceptAlternate(p, ref.captionId, ref.wordIndex, altIndex),
     );
   }
   async function applyGlossary() {
-    await editor.run(async (p) => {
+    await run(async (p) => {
       const result = await ipc.ops.applyGlossary(p);
       setGlossaryToast(
         result.corrections.length === 0
@@ -209,25 +216,23 @@ export function CaptionEditor({
 
   async function bulkMerge() {
     if (!contiguous) return;
-    await editor.run((p) => ipc.ops.mergeCaptions(p, selectedIds));
+    await run((p) => ipc.ops.mergeCaptions(p, selectedIds));
   }
   async function bulkDelete() {
     if (selectedIds.length === 0) return;
-    await editor.run((p) => ipc.cleanup.bulkDelete(p, selectedIds));
+    await run((p) => ipc.cleanup.bulkDelete(p, selectedIds));
     setSelection(clearSelection());
   }
   async function bulkSetSpeaker(speakerId: string | null) {
     if (selectedIds.length === 0) return;
-    await editor.run((p) =>
-      ipc.cleanup.bulkSetSpeaker(p, selectedIds, speakerId),
-    );
+    await run((p) => ipc.cleanup.bulkSetSpeaker(p, selectedIds, speakerId));
   }
   async function shiftWholeProject() {
     const raw = window.prompt(t("editorShiftAllPrompt"), "0");
     if (raw === null) return;
     const offset = Number(raw);
     if (!Number.isFinite(offset) || offset === 0) return;
-    await editor.run((p) => ipc.ops.shiftAll(p, offset));
+    await run((p) => ipc.ops.shiftAll(p, offset));
   }
 
   useEffect(() => {
@@ -246,15 +251,15 @@ export function CaptionEditor({
         <div className="flex items-center gap-0.5">
           <IconBtn
             title={t("editorUndo")}
-            disabled={!editor.canUndo || editor.busy}
-            onClick={editor.undo}
+            disabled={!canUndo || busy}
+            onClick={undo}
           >
             <Undo2 size={15} />
           </IconBtn>
           <IconBtn
             title={t("editorRedo")}
-            disabled={!editor.canRedo || editor.busy}
-            onClick={editor.redo}
+            disabled={!canRedo || busy}
+            onClick={redo}
           >
             <Redo2 size={15} />
           </IconBtn>
@@ -265,7 +270,7 @@ export function CaptionEditor({
           <button
             type="button"
             onClick={applyGlossary}
-            disabled={editor.busy}
+            disabled={busy}
             className="flex items-center gap-1.5 rounded-md bg-[var(--color-bg-surface)] px-3 py-1.5 text-[var(--text-ui-sm)] font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] disabled:opacity-50"
             title={t("editorFixTermsTitle")}
           >
@@ -347,7 +352,7 @@ export function CaptionEditor({
               selected={isSelected(selection, caption.id)}
               cursor={cursor}
               editing={editing}
-              busy={editor.busy}
+              busy={busy}
               onSelect={onSelectCaption}
               onCursor={setCursor}
               onStartEdit={setEditing}
@@ -364,7 +369,7 @@ export function CaptionEditor({
           count={selectionCount(selection)}
           contiguous={contiguous}
           speakers={project.speakers}
-          busy={editor.busy}
+          busy={busy}
           onSelectAll={() => setSelection(selectAll(orderedIds))}
           onClear={() => {
             setSelection(clearSelection());

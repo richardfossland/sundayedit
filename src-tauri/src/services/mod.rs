@@ -19,6 +19,7 @@
 
 pub mod asr;
 pub mod burnin;
+pub mod compose;
 pub mod deeplink;
 pub mod diarize;
 pub mod document;
@@ -34,5 +35,6 @@ pub mod project_file;
 pub mod reflow;
 pub mod secrets;
 pub mod style_presets;
+pub mod timeline_ops;
 pub mod video;
 pub mod waveform;

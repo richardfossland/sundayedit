@@ -3,6 +3,7 @@ import { render, cleanup, screen, fireEvent } from "@testing-library/react";
 
 import { CaptionEditor } from "./CaptionEditor";
 import { SAMPLE_PROJECT } from "@/lib/sampleProject";
+import { useProjectStore } from "@/lib/useProjectStore";
 import { useLocale } from "@/lib/i18n";
 import type { Project } from "@/lib/bindings";
 
@@ -16,6 +17,14 @@ vi.mock("@tauri-apps/api/core", () => ({
 beforeEach(() => {
   invoke.mockReset();
   useLocale.setState({ lang: "en" });
+  // The editor now sources its project from the shared store; seed a clean one.
+  useProjectStore.setState({
+    project: SAMPLE_PROJECT,
+    past: [],
+    future: [],
+    busy: false,
+    inFlight: false,
+  });
 });
 
 afterEach(() => {
@@ -23,9 +32,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function renderEditor(onChange = vi.fn()) {
-  render(<CaptionEditor project={SAMPLE_PROJECT} onProjectChange={onChange} />);
-  return onChange;
+/** Render the store-backed editor (project seeded in beforeEach). */
+function renderEditor() {
+  render(<CaptionEditor />);
+}
+
+/** The project the store currently holds (what an op commits to). */
+function storeProject(): Project | null {
+  return useProjectStore.getState().project;
 }
 
 /** The per-row select checkboxes, in render order (c1, c2, c3). */
@@ -50,7 +64,7 @@ describe("CaptionEditor — bulk action bar", () => {
   it("merges contiguous captions through op_merge_captions", async () => {
     const next: Project = { ...SAMPLE_PROJECT, updated_at: 1 };
     invoke.mockResolvedValueOnce(next); // op_merge_captions
-    const onChange = renderEditor();
+    renderEditor();
 
     // c1 + c2 are adjacent → Merge enabled.
     fireEvent.click(selectBoxes()[0]);
@@ -66,7 +80,8 @@ describe("CaptionEditor — bulk action bar", () => {
         captionIds: ["c1", "c2"],
       }),
     );
-    await vi.waitFor(() => expect(onChange).toHaveBeenCalledWith(next));
+    // The op commits to the shared store (undoable).
+    await vi.waitFor(() => expect(storeProject()).toEqual(next));
   });
 
   it("disables Merge for a non-contiguous selection (no round-trip)", () => {
@@ -84,7 +99,7 @@ describe("CaptionEditor — bulk action bar", () => {
   it("bulk-deletes the selected captions through bulk_delete_captions", async () => {
     const next: Project = { ...SAMPLE_PROJECT, updated_at: 2 };
     invoke.mockResolvedValueOnce(next);
-    const onChange = renderEditor();
+    renderEditor();
 
     fireEvent.click(selectBoxes()[1]);
     fireEvent.click(selectBoxes()[2]);
@@ -96,7 +111,7 @@ describe("CaptionEditor — bulk action bar", () => {
         captionIds: ["c2", "c3"],
       }),
     );
-    await vi.waitFor(() => expect(onChange).toHaveBeenCalledWith(next));
+    await vi.waitFor(() => expect(storeProject()).toEqual(next));
   });
 
   it("sets a speaker on the selection through bulk_set_speaker", async () => {

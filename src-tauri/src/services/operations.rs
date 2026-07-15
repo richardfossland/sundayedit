@@ -129,6 +129,7 @@ pub fn merge_captions(project: &Project, caption_ids: &[&str], now_ms: i64) -> A
                 .iter()
                 .all(|c| c.ai_generated),
         last_edited_at: now_ms,
+        track_id: None,
     };
 
     let mut new_captions = project.captions.clone();
@@ -483,6 +484,7 @@ mod tests {
             notes: None,
             ai_generated: true,
             last_edited_at: 0,
+            track_id: None,
         }
     }
 
@@ -531,6 +533,9 @@ mod tests {
             project_meta: crate::model::ProjectMeta::default(),
             created_at: 0,
             updated_at: 0,
+            media: vec![],
+            tracks: vec![],
+            timeline_items: vec![],
         }
     }
 

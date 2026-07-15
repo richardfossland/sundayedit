@@ -24,7 +24,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(commands::asr::DownloadControl::default())
         .manage(commands::asr::TranscribeControl::default())
-        .manage(commands::highlight_reel::ReelRenderControl::default());
+        .manage(commands::highlight_reel::ReelRenderControl::default())
+        .manage(commands::compose::ComposeRenderControl::default());
 
     // Auto-update + relaunch + deep-link import are desktop-only.
     #[cfg(desktop)]
@@ -69,6 +70,22 @@ pub fn run() {
             commands::operations::op_accept_alternate,
             commands::operations::op_retime_word,
             commands::operations::op_apply_glossary,
+            // NLE timeline / clip-track operations (multi-track)
+            commands::timeline_ops::op_import_media,
+            commands::timeline_ops::op_remove_media,
+            commands::timeline_ops::op_add_track,
+            commands::timeline_ops::op_remove_track,
+            commands::timeline_ops::op_reorder_track,
+            commands::timeline_ops::op_set_track_flags,
+            commands::timeline_ops::op_add_timeline_item,
+            commands::timeline_ops::op_split_timeline_item,
+            commands::timeline_ops::op_trim_timeline_item,
+            commands::timeline_ops::op_move_timeline_item,
+            commands::timeline_ops::op_ripple_delete_item,
+            commands::timeline_ops::op_set_transition,
+            commands::timeline_ops::op_clear_transition,
+            commands::timeline_ops::op_set_transform,
+            commands::timeline_ops::op_add_text_item,
             // AI glossary suggestions (Phase 3.4 mode 3)
             commands::glossary::glossary_suggest_estimate,
             commands::glossary::glossary_suggest,
@@ -85,6 +102,7 @@ pub fn run() {
             commands::export::save_export,
             // Project lifecycle + video import (Phase 1)
             commands::project::video_probe,
+            commands::project::extract_thumbnail,
             commands::project::project_create_from_video,
             commands::project::project_save,
             commands::project::project_open,
@@ -150,6 +168,10 @@ pub fn run() {
             commands::highlight_reel::reel_build_plan,
             commands::highlight_reel::reel_render_all,
             commands::highlight_reel::reel_cancel_render,
+            // Multi-track compose render engine (filter_complex pipeline)
+            commands::compose::compose_render,
+            commands::compose::compose_preview_proxy,
+            commands::compose::compose_cancel,
             // Sunday-link deep-link import (Phase 8)
             commands::deeplink::deeplink_parse_import,
             commands::deeplink::deeplink_captions_callback_url,

@@ -208,6 +208,9 @@ mod tests {
             project_meta: crate::model::ProjectMeta::default(),
             created_at: 0,
             updated_at: 0,
+            media: vec![],
+            tracks: vec![],
+            timeline_items: vec![],
         }
     }
 
@@ -227,6 +230,7 @@ mod tests {
             notes: None,
             ai_generated: true,
             last_edited_at: 0,
+            track_id: None,
         }
     }
 

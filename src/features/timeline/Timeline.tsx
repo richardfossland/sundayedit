@@ -1,18 +1,19 @@
 /**
- * NLE timeline (Phase 1.3) — the spatial canvas where captions align to audio.
+ * NLE timeline (Task 2D) — the multi-lane spatial canvas of the editor.
  *
- * A fixed-size viewport that renders the visible time window (pan = scrollMs,
- * zoom = pxPerMs) rather than one enormous scrolled element — so a 90-minute
- * project stays smooth. The waveform is drawn windowed into a canvas; captions
- * are a virtualized DOM track (only the visible window gets nodes). Drag a
- * caption to move it, drag its edges to retime; both commit through the pure
- * backend ops (clamped to neighbours).
+ * A fixed-size viewport renders the visible time window (pan = scrollMs, zoom =
+ * pxPerMs) rather than one enormous scrolled element, so a 90-minute project
+ * stays smooth. A left gutter carries one header per track (name + mute/solo/
+ * lock + reorder); the viewport stacks one lane per track. Caption tracks keep
+ * rendering the flagship captions (virtualized, drag to move / edge-drag to
+ * retime — unchanged). Video/Audio/Overlay tracks render their placed clips as
+ * boxes; drag moves a clip along time and across tracks, edge-drag trims it, and
+ * both commit through the pure backend ops on the shared undo stack.
  *
  * Transport is J/K/L shuttle (reverse/stop/forward, doubling on repeat) plus
- * Space; an internal playhead clock advances by the signed rate so the timeline
- * is usable on its own — a real <video> can attach to the same playheadMs/rate
- * contract later. Drags snap to neighbouring caption edges, the playhead and the
- * bounds (S toggles snapping).
+ * Space; an internal playhead clock advances by the signed rate. Drags snap to
+ * neighbouring edges, the playhead and the bounds (S toggles snapping). Media
+ * dragged from the bin drops onto a lane to become a new clip.
  */
 
 import {
@@ -23,37 +24,91 @@ import {
   useRef,
   useState,
 } from "react";
-import { appCacheDir } from "@tauri-apps/api/path";
-import { ZoomIn, ZoomOut, Play, Pause, Magnet } from "lucide-react";
+import { appCacheDir, join } from "@tauri-apps/api/path";
+import { convertFileSrc, isTauri } from "@tauri-apps/api/core";
+import {
+  ZoomIn,
+  ZoomOut,
+  Play,
+  Pause,
+  Magnet,
+  Volume2,
+  VolumeX,
+  Lock,
+  Unlock,
+  Headphones,
+  ChevronUp,
+  ChevronDown,
+  Clapperboard,
+  Loader2,
+  RotateCcw,
+} from "lucide-react";
 
-import type { Caption, Project, WaveformData } from "@/lib/bindings";
+import type {
+  Caption,
+  MediaItem,
+  Project,
+  TimelineItem,
+  Track,
+  WaveformData,
+} from "@/lib/bindings";
 import { confidenceTier } from "@/lib/bindings";
 import { ipc } from "@/lib/ipc";
+import { useProjectStore } from "@/lib/useProjectStore";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import * as tl from "./geometry";
+import {
+  itemSpan,
+  stackedTracks,
+  trackAtY,
+  timelineDurationMs,
+} from "./laneLayout";
 import { MediaPlayer } from "./MediaPlayer";
+import { renderPreviewProxy } from "@/lib/composeEngine";
+import { MEDIA_DND_MIME } from "@/features/media/MediaBin";
 
 interface Props {
   project: Project;
-  onProjectChange: (p: Project) => void;
   /** Asset URL for the source video, or undefined when none is attachable
-   *  (browser/demo, no Tauri asset protocol). When set, a <video> is bound to
-   *  the playhead clock instead of the static timecode placeholder. */
+   *  (browser/demo, no Tauri asset protocol). Legacy single-video fallback when
+   *  the project has no placed clips; multi-track preview reads `project`. */
   videoSrc?: string;
+  /** Notified with the selected clip's id (or null when cleared), so the host
+   *  can show the clip inspector. Selection highlight stays local either way. */
+  onSelectClip?: (itemId: string | null) => void;
 }
 
 const RULER_H = 22;
 const WAVE_H = 72;
-const CAPTION_H = 56;
+const LANE_H = 52;
+const GUTTER_W = 150;
 
-type Drag = {
+/** Caption move/resize drag (flagship captions on a caption track). */
+type CaptionDrag = {
   kind: "move" | "resize-start" | "resize-end";
   id: string;
   startClientX: number;
   origStart: number;
   origEnd: number;
   deltaMs: number;
+};
+
+/** Clip move/trim drag (timeline items on video/audio/overlay tracks). */
+type ClipDrag = {
+  kind: "move" | "resize-start" | "resize-end";
+  id: string;
+  trackId: string;
+  trackKind: Track["kind"];
+  speed: number;
+  startClientX: number;
+  origStart: number;
+  origInMs: number;
+  origOutMs: number;
+  deltaMs: number;
+  /** Cross-track target (move only); equals `trackId` until the pointer moves
+   *  over a compatible lane. */
+  targetTrackId: string;
 };
 
 /** Worst (highest) confidence tier across a caption's words → box tint. */
@@ -73,15 +128,43 @@ const TIER_BORDER: Record<number, string> = {
   4: "var(--color-danger)",
 };
 
-export function Timeline({ project, onProjectChange, videoSrc }: Props) {
+export function Timeline({ project, videoSrc, onSelectClip }: Props) {
   const t = useT();
-  const durationMs = Math.max(1, project.video_duration_ms);
+  // Every timeline edit commits through the SAME shared undo stack as caption
+  // edits, so moves/trims/flags are undoable and never diverge from the editor.
+  const run = useProjectStore((s) => s.run);
+  const durationMs = Math.max(1, timelineDurationMs(project));
   const fps = project.video_fps > 0 ? project.video_fps : 30;
 
   const captions = useMemo(
     () => [...project.captions].sort((a, b) => a.start_ms - b.start_ms),
     [project.captions],
   );
+
+  // Tracks in stacking order (top lane first) + a media lookup for clip labels.
+  const stacked = useMemo(
+    () => stackedTracks(project.tracks),
+    [project.tracks],
+  );
+  const mediaById = useMemo(() => {
+    const m = new Map<string, MediaItem>();
+    for (const it of project.media) m.set(it.id, it);
+    return m;
+  }, [project.media]);
+  // Clips grouped by track, each start-sorted and carrying its timeline span.
+  const clipsByTrack = useMemo(() => {
+    const by = new Map<
+      string,
+      { start_ms: number; end_ms: number; ti: TimelineItem }[]
+    >();
+    for (const ti of project.timeline_items) {
+      const arr = by.get(ti.track_id) ?? [];
+      arr.push({ ...itemSpan(ti), ti });
+      by.set(ti.track_id, arr);
+    }
+    for (const arr of by.values()) arr.sort((a, b) => a.start_ms - b.start_ms);
+    return by;
+  }, [project.timeline_items]);
 
   const [view, setView] = useState<tl.TimelineView>({
     pxPerMs: 0.05,
@@ -94,14 +177,36 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
   const playing = rate !== 0;
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [drag, setDrag] = useState<Drag | null>(null);
+  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [drag, setDrag] = useState<CaptionDrag | null>(null);
+  const [clipDrag, setClipDrag] = useState<ClipDrag | null>(null);
+  const [dropTrackId, setDropTrackId] = useState<string | null>(null);
   const [waveform, setWaveform] = useState<WaveformData | null>(null);
   // A transient warning when the user scrubs the native video control while the
   // timeline is driving playback (the two clocks would fight).
   const [scrubWarning, setScrubWarning] = useState(false);
+  // Preview-render proxy: a flattened composite the MediaPlayer plays instead of
+  // the live per-clip mapping, so the user can see the true composite. Rendered
+  // on demand through the compose engine; cleared to return to the live preview.
+  const [proxySrc, setProxySrc] = useState<string | undefined>(undefined);
+  const [previewState, setPreviewState] = useState<
+    "idle" | "rendering" | "done"
+  >("idle");
+
+  // Notify the host of the selected clip while keeping the local highlight ring
+  // in sync — one call site so selection and the inspector never diverge.
+  const selectClip = useCallback(
+    (id: string | null) => {
+      setSelectedClipId(id);
+      onSelectClip?.(id);
+    },
+    [onSelectClip],
+  );
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lanesScrollRef = useRef<HTMLDivElement | null>(null);
+  const headerScrollRef = useRef<HTMLDivElement | null>(null);
 
   // Keep the visible window within [0, duration].
   const clampScroll = useCallback(
@@ -195,8 +300,10 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
     ctx.fillRect(0, 0, width, WAVE_H);
 
     if (!waveform || waveform.levels.length === 0) return;
-    // Pick the pyramid level matching the full-duration content width.
-    const targetBuckets = durationMs * view.pxPerMs;
+    // The waveform spans the primary source video, not the whole timeline.
+    const sourceDurationMs = Math.max(1, project.video_duration_ms);
+    // Pick the pyramid level matching the source content width.
+    const targetBuckets = sourceDurationMs * view.pxPerMs;
     let level = waveform.levels[waveform.levels.length - 1];
     for (const lv of waveform.levels) {
       if (lv.length >= targetBuckets) {
@@ -213,8 +320,8 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
     ctx.beginPath();
     for (let x = 0; x < width; x++) {
       const ms = tl.xToMs(x, view);
-      if (ms < 0 || ms > durationMs) continue;
-      const frac = ms / durationMs;
+      if (ms < 0 || ms > sourceDurationMs) continue;
+      const frac = ms / sourceDurationMs;
       const peak =
         level[Math.min(level.length - 1, Math.floor(frac * level.length))];
       if (!peak) continue;
@@ -222,7 +329,7 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
       ctx.lineTo(x + 0.5, mid - peak.min * amp);
     }
     ctx.stroke();
-  }, [waveform, view, durationMs]);
+  }, [waveform, view, project.video_duration_ms]);
 
   // ── interactions ───────────────────────────────────────────────────────────
   function seekToX(clientX: number) {
@@ -234,6 +341,17 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
       fps,
     );
     setPlayheadMs(ms);
+  }
+
+  /** ms under a client X, clamped to the timeline + frame-snapped. */
+  function clientXToMs(clientX: number): number {
+    const el = viewportRef.current;
+    if (!el) return 0;
+    const x = clientX - el.getBoundingClientRect().left;
+    return tl.snapToFrame(
+      Math.max(0, Math.min(durationMs, tl.xToMs(x, view))),
+      fps,
+    );
   }
 
   function onWheel(e: React.WheelEvent) {
@@ -267,15 +385,24 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
     });
   }
 
-  // Caption drag (move / resize) — preview locally, commit on release.
+  // Keep the gutter's header column vertically aligned with the lanes as they
+  // scroll (both grow with the track count).
+  function syncHeaderScroll() {
+    if (headerScrollRef.current && lanesScrollRef.current) {
+      headerScrollRef.current.scrollTop = lanesScrollRef.current.scrollTop;
+    }
+  }
+
+  // ── caption drag (move / resize) — preview locally, commit on release ──────
   function onCaptionPointerDown(
     e: React.PointerEvent,
     c: Caption,
-    kind: Drag["kind"],
+    kind: CaptionDrag["kind"],
   ) {
     e.stopPropagation();
     (e.target as Element).setPointerCapture?.(e.pointerId);
     setSelectedId(c.id);
+    selectClip(null);
     setDrag({
       kind,
       id: c.id,
@@ -286,15 +413,47 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
     });
   }
 
+  // ── clip drag (move across tracks / trim) — preview locally, commit on release
+  function onClipPointerDown(
+    e: React.PointerEvent,
+    track: Track,
+    ti: TimelineItem,
+    kind: ClipDrag["kind"],
+  ) {
+    e.stopPropagation();
+    if (track.locked || ti.locked) return;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    selectClip(ti.id);
+    setSelectedId(null);
+    setClipDrag({
+      kind,
+      id: ti.id,
+      trackId: track.id,
+      trackKind: track.kind,
+      speed: Math.max(0.01, ti.speed),
+      startClientX: e.clientX,
+      origStart: ti.timeline_start_ms,
+      origInMs: ti.in_ms,
+      origOutMs: ti.out_ms,
+      deltaMs: 0,
+      targetTrackId: track.id,
+    });
+  }
+
   function onPointerMove(e: React.PointerEvent) {
+    if (drag) {
+      moveCaptionDrag(e);
+      return;
+    }
+    if (clipDrag) moveClipDrag(e);
+  }
+
+  function moveCaptionDrag(e: React.PointerEvent) {
     if (!drag) return;
     const rawDelta = (e.clientX - drag.startClientX) / view.pxPerMs;
-    // The edge the cursor is dragging: the start for move/resize-start, the
-    // end for resize-end.
     const base = drag.kind === "resize-end" ? drag.origEnd : drag.origStart;
     let edge = base + rawDelta;
     if (snapEnabled) {
-      // Snap to nearby caption boundaries, the playhead and the bounds.
       const [vs, ve] = tl.visibleRange(view);
       const targets = [0, durationMs, playheadMs];
       for (const { item } of tl.visibleCaptions(captions, vs, ve)) {
@@ -307,36 +466,143 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
     setDrag({ ...drag, deltaMs });
   }
 
-  async function onPointerUp() {
-    if (!drag) return;
-    const d = drag;
-    setDrag(null);
-    if (d.deltaMs === 0) return;
-    try {
-      const next =
-        d.kind === "move"
-          ? await ipc.ops.moveCaption(project, d.id, d.deltaMs)
-          : await ipc.ops.resizeCaption(
-              project,
-              d.id,
-              d.kind === "resize-start" ? d.origStart + d.deltaMs : d.origStart,
-              d.kind === "resize-end" ? d.origEnd + d.deltaMs : d.origEnd,
-            );
-      onProjectChange(next);
-    } catch {
-      // Clamped/invalid drag — leave the project untouched.
+  function moveClipDrag(e: React.PointerEvent) {
+    if (!clipDrag) return;
+    const rawDelta = (e.clientX - clipDrag.startClientX) / view.pxPerMs;
+    // The edge being dragged, expressed on the timeline. resize-end targets the
+    // clip's trailing edge (source-out mapped through speed); move/resize-start
+    // target the leading edge at timeline_start_ms.
+    const timelineBase =
+      clipDrag.kind === "resize-end"
+        ? clipDrag.origStart +
+          (clipDrag.origOutMs - clipDrag.origInMs) / clipDrag.speed
+        : clipDrag.origStart;
+    let edge = timelineBase + rawDelta;
+    if (snapEnabled) {
+      const targets = [0, durationMs, playheadMs];
+      for (const arr of clipsByTrack.values()) {
+        for (const s of arr) {
+          if (s.ti.id === clipDrag.id) continue;
+          targets.push(s.start_ms, s.end_ms);
+        }
+      }
+      edge = tl.snap(edge, targets, view.pxPerMs);
     }
+    const deltaMs = tl.snapToFrame(edge, fps) - timelineBase;
+
+    // Vertical hit-test → cross-track target (move only, compatible kind).
+    let targetTrackId = clipDrag.trackId;
+    if (clipDrag.kind === "move" && lanesScrollRef.current) {
+      const rect = lanesScrollRef.current.getBoundingClientRect();
+      const y = e.clientY - rect.top + lanesScrollRef.current.scrollTop;
+      const hit = trackAtY(y, project.tracks, LANE_H);
+      if (hit && !hit.locked && hit.kind === clipDrag.trackKind) {
+        targetTrackId = hit.id;
+      }
+    }
+    setDropTrackId(clipDrag.kind === "move" ? targetTrackId : null);
+    setClipDrag({ ...clipDrag, deltaMs, targetTrackId });
+  }
+
+  async function onPointerUp() {
+    if (drag) {
+      const d = drag;
+      setDrag(null);
+      if (d.deltaMs === 0) return;
+      try {
+        await run((p) =>
+          d.kind === "move"
+            ? ipc.ops.moveCaption(p, d.id, d.deltaMs)
+            : ipc.ops.resizeCaption(
+                p,
+                d.id,
+                d.kind === "resize-start"
+                  ? d.origStart + d.deltaMs
+                  : d.origStart,
+                d.kind === "resize-end" ? d.origEnd + d.deltaMs : d.origEnd,
+              ),
+        );
+      } catch {
+        // Clamped/invalid drag — leave the project untouched.
+      }
+      return;
+    }
+    if (clipDrag) {
+      const d = clipDrag;
+      setClipDrag(null);
+      setDropTrackId(null);
+      const movedTrack = d.targetTrackId !== d.trackId;
+      if (d.deltaMs === 0 && !movedTrack) return;
+      try {
+        await run((p) => {
+          if (d.kind === "move") {
+            return ipc.timeline.moveTimelineItem(
+              p,
+              d.id,
+              d.targetTrackId,
+              d.origStart + d.deltaMs,
+            );
+          }
+          if (d.kind === "resize-start") {
+            return ipc.timeline.trimTimelineItem(p, d.id, {
+              newInMs: d.origInMs + d.deltaMs * d.speed,
+              newTimelineStartMs: d.origStart + d.deltaMs,
+            });
+          }
+          // resize-end: only the source-out edge moves.
+          return ipc.timeline.trimTimelineItem(p, d.id, {
+            newOutMs: d.origOutMs + d.deltaMs * d.speed,
+          });
+        });
+      } catch {
+        // Clamped/invalid trim/move — leave the project untouched.
+      }
+    }
+  }
+
+  // Drop a media row from the bin onto a lane → place it as a clip.
+  async function onLaneDrop(e: React.DragEvent, track: Track) {
+    const mediaId = e.dataTransfer.getData(MEDIA_DND_MIME);
+    setDropTrackId(null);
+    if (!mediaId || track.locked || track.kind === "caption") return;
+    e.preventDefault();
+    const media = mediaById.get(mediaId);
+    if (!media) return;
+    const dropTimeMs = clientXToMs(e.clientX);
+    try {
+      await run((p) =>
+        ipc.timeline.addTimelineItem(
+          p,
+          track.id,
+          mediaId,
+          0,
+          media.duration_ms,
+          dropTimeMs,
+          "av",
+        ),
+      );
+    } catch {
+      // Overlapping/invalid placement — the backend clamps or rejects.
+    }
+  }
+
+  function onLaneDragOver(e: React.DragEvent, track: Track) {
+    if (track.locked || track.kind === "caption") return;
+    if (!e.dataTransfer.types.includes(MEDIA_DND_MIME)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    if (dropTrackId !== track.id) setDropTrackId(track.id);
   }
 
   function selectAndSeek(c: Caption) {
     setSelectedId(c.id);
+    selectClip(null);
     setPlayheadMs(c.start_ms);
   }
 
   function step(dir: -1 | 1, count: number) {
     const idx = captions.findIndex((c) => c.id === selectedId);
     if (idx === -1) {
-      // Nothing selected → frame-step the playhead.
       setPlayheadMs((p) =>
         tl.snapToFrame(
           Math.max(0, Math.min(durationMs, p + ((dir * 1000) / fps) * count)),
@@ -386,9 +652,51 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
     }
   }
 
+  // Toggle a track flag through the shared undo stack.
+  function toggleFlag(track: Track, flag: "muted" | "solo" | "locked") {
+    void run((p) =>
+      ipc.timeline.setTrackFlags(p, track.id, { [flag]: !track[flag] }),
+    ).catch(() => {});
+  }
+
+  // Move a lane up (toward the top = higher index) or down.
+  function reorder(track: Track, dir: -1 | 1) {
+    const next = track.index + dir;
+    if (next < 0) return;
+    void run((p) => ipc.timeline.reorderTrack(p, track.id, next)).catch(
+      () => {},
+    );
+  }
+
+  // ── preview render (proxy) ─────────────────────────────────────────────────
+  // Flatten the timeline to a temp file and load it into the preview so the user
+  // sees the true composite (transitions/overlays/PiP). Best-effort: off-Tauri /
+  // if the compose engine can't run, it silently returns to the live preview.
+  async function renderPreview() {
+    if (!isTauri()) return;
+    setPreviewState("rendering");
+    try {
+      const out = await join(await appCacheDir(), "sundayedit-preview.mp4");
+      const ok = await renderPreviewProxy(project, out);
+      if (ok) {
+        setProxySrc(`${convertFileSrc(out)}?t=${Date.now()}`);
+        setPreviewState("done");
+      } else {
+        setPreviewState("idle");
+      }
+    } catch {
+      setPreviewState("idle");
+    }
+  }
+
+  function clearPreview() {
+    setProxySrc(undefined);
+    setPreviewState("idle");
+  }
+
   // ── render ───────────────────────────────────────────────────────────────
   const [visStart, visEnd] = tl.visibleRange(view);
-  const visible = tl.visibleCaptions(captions, visStart, visEnd);
+  const visibleCaptionRows = tl.visibleCaptions(captions, visStart, visEnd);
   const ticks = tl.rulerTicks(view, 80);
   const playheadX = tl.msToX(playheadMs, view);
 
@@ -398,12 +706,14 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
-      {/* Preview area — a real <video> bound to the playhead clock when one is
-          attachable (videoSrc), else the timecode placeholder. */}
+      {/* Preview — a real <video> bound to the playhead clock; multi-track when
+          the project has placed clips, else the legacy single-source src. */}
       <div className="relative flex flex-[3] items-center justify-center border-b border-[var(--color-border)] bg-black/40">
-        {videoSrc ? (
+        {videoSrc || (isTauri() && project.timeline_items.length > 0) ? (
           <MediaPlayer
             src={videoSrc}
+            project={project}
+            proxySrc={proxySrc}
             playheadMs={playheadMs}
             rate={rate}
             durationMs={durationMs}
@@ -449,6 +759,46 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
             {rate < 0 ? `◂ ${-rate}×` : `${rate}× ▸`}
           </span>
         )}
+
+        {/* Preview-render (proxy): flatten the timeline into the preview. */}
+        {isTauri() && project.timeline_items.length > 0 && (
+          <div className="ml-2 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => void renderPreview()}
+              disabled={previewState === "rendering"}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[var(--text-ui-xs)] font-medium transition-colors disabled:opacity-60",
+                previewState === "done"
+                  ? "border-[var(--color-accent-500)]/50 text-[var(--color-accent-300)]"
+                  : "border-[var(--color-border)] text-[var(--color-fg-muted)] hover:border-[var(--color-accent-600)] hover:text-[var(--color-fg)]",
+              )}
+            >
+              {previewState === "rendering" ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Clapperboard size={13} />
+              )}
+              {previewState === "rendering"
+                ? t("timelinePreviewRendering")
+                : previewState === "done"
+                  ? t("timelinePreviewDone")
+                  : t("timelinePreviewRender")}
+            </button>
+            {previewState === "done" && (
+              <button
+                type="button"
+                onClick={clearPreview}
+                title={t("timelinePreviewLive")}
+                aria-label={t("timelinePreviewLive")}
+                className="grid h-6 w-6 place-items-center rounded-md text-[var(--color-fg-subtle)] hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-fg)]"
+              >
+                <RotateCcw size={13} />
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="flex-1" />
         <button
           type="button"
@@ -486,113 +836,421 @@ export function Timeline({ project, onProjectChange, videoSrc }: Props) {
         </button>
       </div>
 
-      {/* Timeline viewport */}
-      <div
-        ref={viewportRef}
-        className="relative flex-[2] select-none overflow-hidden"
-        onWheel={onWheel}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={() => drag && onPointerUp()}
-      >
-        {/* Ruler */}
+      {/* Body: track-header gutter + time viewport */}
+      <div className="flex min-h-0 flex-[2]">
+        {/* Left gutter — one header per track. */}
         <div
-          className="relative border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)]"
-          style={{ height: RULER_H }}
-          onPointerDown={(e) => seekToX(e.clientX)}
+          className="flex shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-bg-elevated)]"
+          style={{ width: GUTTER_W }}
         >
-          {ticks.map((ms) => (
-            <div
-              key={ms}
-              className="absolute top-0 flex h-full items-center"
-              style={{ left: tl.msToX(ms, view) }}
-            >
-              <span className="border-l border-[var(--color-border)] pl-1 font-mono text-[9px] text-[var(--color-fg-subtle)]">
-                {tl.formatTimecode(ms, fps)}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Waveform */}
-        <canvas
-          ref={canvasRef}
-          className="block w-full cursor-text"
-          style={{ height: WAVE_H }}
-          onPointerDown={(e) => seekToX(e.clientX)}
-        />
-
-        {/* Caption track */}
-        <div
-          className="relative border-t border-[var(--color-border)]"
-          style={{ height: CAPTION_H }}
-          onPointerDown={(e) => {
-            seekToX(e.clientX);
-            setSelectedId(null);
-          }}
-        >
-          {visible.map(({ item: c }) => {
-            const dragging = drag?.id === c.id ? drag : null;
-            const start =
-              c.start_ms +
-              (dragging && dragging.kind !== "resize-end"
-                ? dragging.deltaMs
-                : 0);
-            const end =
-              c.end_ms +
-              (dragging && dragging.kind !== "resize-start"
-                ? dragging.deltaMs
-                : 0);
-            const left = tl.msToX(start, view);
-            const width = Math.max(2, (end - start) * view.pxPerMs);
-            const selected = selectedId === c.id;
-            const tier = worstTier(c);
-            return (
-              <div
-                key={c.id}
-                className={cn(
-                  "absolute top-1 bottom-1 overflow-hidden rounded border-l-2 bg-[var(--color-bg-surface)] text-[var(--text-ui-xs)]",
-                  selected
-                    ? "ring-2 ring-[var(--color-accent-500)]"
-                    : "border-[var(--color-border)]",
-                )}
-                style={{ left, width, borderLeftColor: TIER_BORDER[tier] }}
-                onPointerDown={(e) => onCaptionPointerDown(e, c, "move")}
-                onClick={() => selectAndSeek(c)}
-                title={c.words.map((w) => w.text).join(" ")}
-              >
-                {/* resize handles */}
-                <span
-                  className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize hover:bg-[var(--color-accent-500)]/40"
-                  onPointerDown={(e) =>
-                    onCaptionPointerDown(e, c, "resize-start")
-                  }
-                />
-                <span
-                  className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize hover:bg-[var(--color-accent-500)]/40"
-                  onPointerDown={(e) =>
-                    onCaptionPointerDown(e, c, "resize-end")
-                  }
-                />
-                <div className="truncate px-2 py-1 text-[var(--color-fg-muted)]">
-                  {c.words.map((w) => w.text).join(" ") || "—"}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Playhead across all tracks */}
-        {playheadX >= 0 && playheadX <= view.widthPx && (
           <div
-            className="pointer-events-none absolute top-0 bottom-0 w-px bg-white/90"
-            style={{ left: playheadX }}
+            className="shrink-0 border-b border-[var(--color-border)]"
+            style={{ height: RULER_H + WAVE_H }}
           />
-        )}
+          <div ref={headerScrollRef} className="min-h-0 flex-1 overflow-hidden">
+            {stacked.map((track, i) => (
+              <TrackHeader
+                key={track.id}
+                track={track}
+                height={LANE_H}
+                canMoveUp={i > 0}
+                canMoveDown={i < stacked.length - 1}
+                onToggle={(flag) => toggleFlag(track, flag)}
+                onMove={(dir) => reorder(track, dir)}
+                labels={{
+                  mute: t("trackMute"),
+                  solo: t("trackSolo"),
+                  lock: t("trackLock"),
+                  up: t("trackMoveUp"),
+                  down: t("trackMoveDown"),
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Time viewport */}
+        <div
+          ref={viewportRef}
+          className="relative min-w-0 flex-1 select-none overflow-hidden"
+          onWheel={onWheel}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={() => (drag || clipDrag) && onPointerUp()}
+        >
+          {/* Ruler */}
+          <div
+            className="relative border-b border-[var(--color-border)] bg-[var(--color-bg-elevated)]"
+            style={{ height: RULER_H }}
+            onPointerDown={(e) => seekToX(e.clientX)}
+          >
+            {ticks.map((ms) => (
+              <div
+                key={ms}
+                className="absolute top-0 flex h-full items-center"
+                style={{ left: tl.msToX(ms, view) }}
+              >
+                <span className="border-l border-[var(--color-border)] pl-1 font-mono text-[9px] text-[var(--color-fg-subtle)]">
+                  {tl.formatTimecode(ms, fps)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Waveform (primary source) */}
+          <canvas
+            ref={canvasRef}
+            className="block w-full cursor-text"
+            style={{ height: WAVE_H }}
+            onPointerDown={(e) => seekToX(e.clientX)}
+          />
+
+          {/* Stacked track lanes */}
+          <div
+            ref={lanesScrollRef}
+            onScroll={syncHeaderScroll}
+            className="overflow-y-auto"
+            style={{ height: `calc(100% - ${RULER_H + WAVE_H}px)` }}
+          >
+            {stacked.map((track) => (
+              <div
+                key={track.id}
+                className={cn(
+                  "relative border-t border-[var(--color-border)]",
+                  dropTrackId === track.id &&
+                    "bg-[var(--color-accent-500)]/10 ring-1 ring-inset ring-[var(--color-accent-500)]/50",
+                  !track.enabled && "opacity-50",
+                )}
+                style={{ height: LANE_H }}
+                onDragOver={(e) => onLaneDragOver(e, track)}
+                onDragLeave={() =>
+                  dropTrackId === track.id && setDropTrackId(null)
+                }
+                onDrop={(e) => onLaneDrop(e, track)}
+                onPointerDown={(e) => {
+                  seekToX(e.clientX);
+                  setSelectedId(null);
+                  selectClip(null);
+                }}
+              >
+                {track.kind === "caption"
+                  ? visibleCaptionRows.map(({ item: c }) => (
+                      <CaptionBox
+                        key={c.id}
+                        caption={c}
+                        view={view}
+                        drag={drag?.id === c.id ? drag : null}
+                        selected={selectedId === c.id}
+                        locked={track.locked}
+                        onPointerDown={(e, kind) =>
+                          onCaptionPointerDown(e, c, kind)
+                        }
+                        onSelect={() => selectAndSeek(c)}
+                      />
+                    ))
+                  : tl
+                      .visibleCaptions(
+                        clipsByTrack.get(track.id) ?? [],
+                        visStart,
+                        visEnd,
+                      )
+                      .map(({ item: span }) => (
+                        <ClipBox
+                          key={span.ti.id}
+                          item={span.ti}
+                          media={
+                            span.ti.source_media_id
+                              ? mediaById.get(span.ti.source_media_id)
+                              : undefined
+                          }
+                          view={view}
+                          speed={Math.max(0.01, span.ti.speed)}
+                          drag={clipDrag?.id === span.ti.id ? clipDrag : null}
+                          selected={selectedClipId === span.ti.id}
+                          locked={track.locked}
+                          onPointerDown={(e, kind) =>
+                            onClipPointerDown(e, track, span.ti, kind)
+                          }
+                          onSelect={() => {
+                            selectClip(span.ti.id);
+                            setSelectedId(null);
+                            setPlayheadMs(span.ti.timeline_start_ms);
+                          }}
+                        />
+                      ))}
+              </div>
+            ))}
+          </div>
+
+          {/* Playhead across the viewport */}
+          {playheadX >= 0 && playheadX <= view.widthPx && (
+            <div
+              className="pointer-events-none absolute top-0 bottom-0 w-px bg-white/90"
+              style={{ left: playheadX }}
+            />
+          )}
+        </div>
       </div>
 
       <div className="border-t border-[var(--color-border)] px-3 py-1 text-[10px] text-[var(--color-fg-subtle)]">
         {t("timelineHelp")}
+      </div>
+    </div>
+  );
+}
+
+// ── lane sub-components ───────────────────────────────────────────────────────
+
+function TrackHeader({
+  track,
+  height,
+  canMoveUp,
+  canMoveDown,
+  onToggle,
+  onMove,
+  labels,
+}: {
+  track: Track;
+  height: number;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onToggle: (flag: "muted" | "solo" | "locked") => void;
+  onMove: (dir: -1 | 1) => void;
+  labels: {
+    mute: string;
+    solo: string;
+    lock: string;
+    up: string;
+    down: string;
+  };
+}) {
+  const audible = track.kind === "video" || track.kind === "audio";
+  return (
+    <div
+      className="flex items-center gap-1 border-t border-[var(--color-border)] px-2"
+      style={{ height }}
+    >
+      <div className="flex min-w-0 flex-1 flex-col justify-center">
+        <span className="truncate text-[var(--text-ui-xs)] font-medium">
+          {track.name}
+        </span>
+        <span className="text-[9px] uppercase tracking-wide text-[var(--color-fg-subtle)]">
+          {track.kind}
+        </span>
+      </div>
+      <div className="flex flex-col">
+        <button
+          type="button"
+          disabled={!canMoveUp}
+          onClick={() => onMove(1)}
+          title={labels.up}
+          aria-label={labels.up}
+          className="grid h-3.5 w-4 place-items-center text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] disabled:opacity-30"
+        >
+          <ChevronUp size={11} />
+        </button>
+        <button
+          type="button"
+          disabled={!canMoveDown}
+          onClick={() => onMove(-1)}
+          title={labels.down}
+          aria-label={labels.down}
+          className="grid h-3.5 w-4 place-items-center text-[var(--color-fg-subtle)] hover:text-[var(--color-fg)] disabled:opacity-30"
+        >
+          <ChevronDown size={11} />
+        </button>
+      </div>
+      {audible && (
+        <>
+          <FlagToggle
+            active={track.muted}
+            onClick={() => onToggle("muted")}
+            label={labels.mute}
+            on={<VolumeX size={13} />}
+            off={<Volume2 size={13} />}
+            activeClass="text-[var(--color-danger)]"
+          />
+          <FlagToggle
+            active={track.solo}
+            onClick={() => onToggle("solo")}
+            label={labels.solo}
+            on={<Headphones size={13} />}
+            off={<Headphones size={13} />}
+            activeClass="text-[var(--color-accent-400)]"
+          />
+        </>
+      )}
+      <FlagToggle
+        active={track.locked}
+        onClick={() => onToggle("locked")}
+        label={labels.lock}
+        on={<Lock size={13} />}
+        off={<Unlock size={13} />}
+        activeClass="text-[var(--color-warning)]"
+      />
+    </div>
+  );
+}
+
+function FlagToggle({
+  active,
+  onClick,
+  label,
+  on,
+  off,
+  activeClass,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  on: React.ReactNode;
+  off: React.ReactNode;
+  activeClass: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title={label}
+      aria-label={label}
+      className={cn(
+        "grid h-6 w-6 shrink-0 place-items-center rounded hover:bg-[var(--color-bg-surface)]",
+        active ? activeClass : "text-[var(--color-fg-subtle)]",
+      )}
+    >
+      {active ? on : off}
+    </button>
+  );
+}
+
+function CaptionBox({
+  caption: c,
+  view,
+  drag,
+  selected,
+  locked,
+  onPointerDown,
+  onSelect,
+}: {
+  caption: Caption;
+  view: tl.TimelineView;
+  drag: CaptionDrag | null;
+  selected: boolean;
+  locked: boolean;
+  onPointerDown: (e: React.PointerEvent, kind: CaptionDrag["kind"]) => void;
+  onSelect: () => void;
+}) {
+  const start =
+    c.start_ms + (drag && drag.kind !== "resize-end" ? drag.deltaMs : 0);
+  const end =
+    c.end_ms + (drag && drag.kind !== "resize-start" ? drag.deltaMs : 0);
+  const left = tl.msToX(start, view);
+  const width = Math.max(2, (end - start) * view.pxPerMs);
+  const tier = worstTier(c);
+  const text = c.words.map((w) => w.text).join(" ");
+  return (
+    <div
+      className={cn(
+        "absolute top-1 bottom-1 overflow-hidden rounded border-l-2 bg-[var(--color-bg-surface)] text-[var(--text-ui-xs)]",
+        selected
+          ? "ring-2 ring-[var(--color-accent-500)]"
+          : "border-[var(--color-border)]",
+      )}
+      style={{ left, width, borderLeftColor: TIER_BORDER[tier] }}
+      onPointerDown={(e) => !locked && onPointerDown(e, "move")}
+      onClick={onSelect}
+      title={text}
+    >
+      {!locked && (
+        <>
+          <span
+            className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize hover:bg-[var(--color-accent-500)]/40"
+            onPointerDown={(e) => onPointerDown(e, "resize-start")}
+          />
+          <span
+            className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize hover:bg-[var(--color-accent-500)]/40"
+            onPointerDown={(e) => onPointerDown(e, "resize-end")}
+          />
+        </>
+      )}
+      <div className="truncate px-2 py-1 text-[var(--color-fg-muted)]">
+        {text || "—"}
+      </div>
+    </div>
+  );
+}
+
+function ClipBox({
+  item,
+  media,
+  view,
+  speed,
+  drag,
+  selected,
+  locked,
+  onPointerDown,
+  onSelect,
+}: {
+  item: TimelineItem;
+  media: MediaItem | undefined;
+  view: tl.TimelineView;
+  speed: number;
+  drag: ClipDrag | null;
+  selected: boolean;
+  locked: boolean;
+  onPointerDown: (e: React.PointerEvent, kind: ClipDrag["kind"]) => void;
+  onSelect: () => void;
+}) {
+  const span = itemSpan(item);
+  // Live preview of the active drag.
+  let start = span.start_ms;
+  let end = span.end_ms;
+  if (drag) {
+    if (drag.kind === "move") {
+      start = drag.origStart + drag.deltaMs;
+      end = start + (span.end_ms - span.start_ms);
+    } else if (drag.kind === "resize-start") {
+      start = drag.origStart + drag.deltaMs;
+    } else {
+      end = span.end_ms + drag.deltaMs;
+    }
+  }
+  const left = tl.msToX(start, view);
+  const width = Math.max(2, (end - start) * view.pxPerMs);
+  const label =
+    item.text?.text || media?.original_filename || media?.path || item.kind;
+  return (
+    <div
+      className={cn(
+        "absolute top-1 bottom-1 overflow-hidden rounded bg-[var(--color-accent-600)]/25 text-[var(--text-ui-xs)]",
+        selected
+          ? "ring-2 ring-[var(--color-accent-500)]"
+          : "border border-[var(--color-accent-500)]/40",
+        drag && "opacity-80",
+      )}
+      style={{ left, width }}
+      onPointerDown={(e) => !locked && onPointerDown(e, "move")}
+      onClick={onSelect}
+      title={label}
+    >
+      {!locked && (
+        <>
+          <span
+            className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize hover:bg-[var(--color-accent-500)]/60"
+            onPointerDown={(e) => onPointerDown(e, "resize-start")}
+          />
+          <span
+            className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-ew-resize hover:bg-[var(--color-accent-500)]/60"
+            onPointerDown={(e) => onPointerDown(e, "resize-end")}
+          />
+        </>
+      )}
+      <div className="truncate px-2 py-1 text-[var(--color-fg)]">
+        {label}
+        {speed !== 1 && (
+          <span className="ml-1 text-[var(--color-accent-300)]">{speed}×</span>
+        )}
       </div>
     </div>
   );

@@ -55,10 +55,30 @@ Before transcription you tell SundayEdit what the video is about: names of peopl
 
 ## Out of scope for v1
 
-- Full video editing (cuts, transitions, effects beyond captions)
-- Multi-track audio mixing
 - Color grading
-- Anything that isn't directly about captions
+- Motion graphics / keyframe animation authoring
+- A plugin/effect SDK for third parties
+
+## NLE architecture
+
+SundayEdit is evolving from a caption-only editor into a pragmatic multi-track
+NLE, without diluting the flagship. The shape:
+
+- **Multi-track timeline.** Four track kinds — `Video`, `Audio`, `Caption`,
+  `Overlay` (`TrackKind` in `src-tauri/src/model.rs`). Captions remain a
+  **first-class track type**, and the confidence-highlighting pipeline (killer
+  #1) is untouched — the NLE grows around it, not over it.
+- **Pragmatic preview.** HTML5 `<video>` + a canvas overlay drives the live
+  preview now; final compositing is done by `ffmpeg` `filter_complex` at export.
+  A real-time WebCodecs compositor is deferred behind a capability check (see
+  ADR-009), with a preview-render proxy fallback in between.
+- **State in one store.** All editor state lives in a single Zustand
+  `useProjectStore` (`src/lib/useProjectStore.ts`) with snapshot undo/redo —
+  each op replaces the whole `Project`, and undo just keeps the previous
+  snapshot (`.run` / `.undo` / `.redo`, `selectCanUndo` / `selectCanRedo`).
+
+See `docs/DECISIONS.md` (ADR-007/008/009) and `docs/ARCHITECTURE.md` for the
+data model (`MediaItem` / `Track` / `TimelineItem`).
 
 ## Repository layout
 
@@ -73,15 +93,21 @@ src/                  React frontend
 src-tauri/            Rust backend
 └── src/
     ├── commands/     Tauri command handlers
-    ├── services/     Business logic (caption operations, export, ASR — later)
-    ├── db/           Recent files + project metadata
+    ├── services/     Business logic (operations, export, ASR, project_file, …)
+    ├── model.rs      Project data model (Project, Caption, Word, MediaItem,
+    │                 Track, TimelineItem, Transform, Effect, Transition, …)
     ├── error.rs
     └── lib.rs
 
-sql/                  Migration files
 docs/                 Architecture, decisions, calibration data
 tests/fixtures/       Test video files (Creative Commons)
 ```
+
+> **Note:** there is no `db/` Rust module (the `src-tauri/src/db/` dir is an
+> empty placeholder) and `sql/` is empty — there are no migration files. The
+> SQLite schema is created in-code in `services/project_file.rs::ensure_schema`
+> (`SCHEMA_VERSION = 4`), which also backfills a default video + caption track
+> when opening older files.
 
 ## Project file format
 

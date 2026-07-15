@@ -29,6 +29,9 @@ import type {
   FindOptions,
   GlossaryApplyResult,
   ImportRequest,
+  TimelineItemKind,
+  TrackKind,
+  Transform,
   PolishEstimate,
   PolishResult,
   Project,
@@ -140,6 +143,154 @@ export const ops = {
   /** Killer feature #2 post-pass: apply glossary aliases → canonical terms. */
   applyGlossary: (project: Project) =>
     call<GlossaryApplyResult>("op_apply_glossary", { project }),
+};
+
+// ── NLE timeline / clip-track operations (multi-track) ───────────────────────
+// Same pure-round-trip shape as `ops`: send the project + params, get the new
+// project back. New entity ids are generated on the Rust side.
+export const timeline = {
+  /** Probe + hash a media file and add it to the project's media pool. */
+  importMedia: (project: Project, path: string) =>
+    call<Project>("op_import_media", { project, path }),
+  /** Remove a media item — rejected if any timeline item still references it. */
+  removeMedia: (project: Project, mediaId: string) =>
+    call<Project>("op_remove_media", { project, mediaId }),
+  /** Add a track of the given kind; it gets the next stacking index. */
+  addTrack: (project: Project, kind: TrackKind, name: string) =>
+    call<Project>("op_add_track", { project, kind, name }),
+  /** Remove a track — rejected unless it's empty. */
+  removeTrack: (project: Project, trackId: string) =>
+    call<Project>("op_remove_track", { project, trackId }),
+  /** Restack a track to `newIndex`; every track is renumbered densely. */
+  reorderTrack: (project: Project, trackId: string, newIndex: number) =>
+    call<Project>("op_reorder_track", { project, trackId, newIndex }),
+  /** Toggle any subset of a track's flags; omit a flag to leave it unchanged. */
+  setTrackFlags: (
+    project: Project,
+    trackId: string,
+    flags: {
+      enabled?: boolean;
+      locked?: boolean;
+      muted?: boolean;
+      solo?: boolean;
+    },
+  ) =>
+    call<Project>("op_set_track_flags", {
+      project,
+      trackId,
+      enabled: flags.enabled ?? null,
+      locked: flags.locked ?? null,
+      muted: flags.muted ?? null,
+      solo: flags.solo ?? null,
+    }),
+  /** Place a clip on a track; in/out clamp to the source media duration. */
+  addTimelineItem: (
+    project: Project,
+    trackId: string,
+    sourceMediaId: string | null,
+    inMs: number,
+    outMs: number,
+    timelineStartMs: number,
+    kind: TimelineItemKind,
+  ) =>
+    call<Project>("op_add_timeline_item", {
+      project,
+      trackId,
+      sourceMediaId,
+      inMs,
+      outMs,
+      timelineStartMs,
+      kind,
+    }),
+  /** Split a clip at a timeline position; the split maps back into the source. */
+  splitTimelineItem: (project: Project, itemId: string, atTimelineMs: number) =>
+    call<Project>("op_split_timeline_item", { project, itemId, atTimelineMs }),
+  /** Edge-drag trim; each edge clamps to source bounds + neighbours. */
+  trimTimelineItem: (
+    project: Project,
+    itemId: string,
+    edges: {
+      newInMs?: number;
+      newOutMs?: number;
+      newTimelineStartMs?: number;
+    },
+  ) =>
+    call<Project>("op_trim_timeline_item", {
+      project,
+      itemId,
+      newInMs: edges.newInMs ?? null,
+      newOutMs: edges.newOutMs ?? null,
+      newTimelineStartMs: edges.newTimelineStartMs ?? null,
+    }),
+  /** Move a clip along time and/or across tracks; clamped to avoid overlap. */
+  moveTimelineItem: (
+    project: Project,
+    itemId: string,
+    newTrackId: string,
+    newTimelineStartMs: number,
+  ) =>
+    call<Project>("op_move_timeline_item", {
+      project,
+      itemId,
+      newTrackId,
+      newTimelineStartMs,
+    }),
+  /** Delete a clip and slide later same-track clips left to close the gap. */
+  rippleDeleteItem: (project: Project, itemId: string) =>
+    call<Project>("op_ripple_delete_item", { project, itemId }),
+  /** Set the leading-edge transition; duration clamps to the clip length. */
+  setTransition: (
+    project: Project,
+    itemId: string,
+    kind: string,
+    durationMs: number,
+  ) =>
+    call<Project>("op_set_transition", { project, itemId, kind, durationMs }),
+  /** Remove a clip's leading transition. */
+  clearTransition: (project: Project, itemId: string) =>
+    call<Project>("op_clear_transition", { project, itemId }),
+  /** Replace a clip's geometric transform (opacity/scale clamp server-side). */
+  setTransform: (project: Project, itemId: string, transform: Transform) =>
+    call<Project>("op_set_transform", { project, itemId, transform }),
+  /** Add a standalone text overlay clip (no source media). */
+  addTextItem: (
+    project: Project,
+    trackId: string,
+    timelineStartMs: number,
+    durationMs: number,
+    text: string,
+  ) =>
+    call<Project>("op_add_text_item", {
+      project,
+      trackId,
+      timelineStartMs,
+      durationMs,
+      text,
+    }),
+};
+
+// ── Compose / render engine (stub — backed in the Motor+UI phase) ────────────
+// The Rust `compose_render` / `compose_cancel` commands land later; the string
+// names are wired here now so the timeline UI can reference the engine.
+export const compose = {
+  /** Render the timeline to `output` with the given settings (ffmpeg pipeline). */
+  render: (project: Project, output: string, settings: unknown) =>
+    call<void>("compose_render", { project, output, settings }),
+  /** Render a fast LOW-RES preview proxy of the timeline to `output`. Settings
+   *  are derived from the project on the backend; progress streams on the
+   *  `compose-proxy-progress` event. */
+  previewProxy: (project: Project, output: string) =>
+    call<void>("compose_preview_proxy", { project, output }),
+  /** Cancel an in-flight compose (or proxy) render. */
+  cancel: () => call<void>("compose_cancel"),
+};
+
+// ── Media utilities (thumbnails) ─────────────────────────────────────────────
+export const media = {
+  /** Grab a single 120px-tall thumbnail frame from `mediaPath` at `atMs`,
+   *  writing a JPEG to `outPath`. Returns the written path. */
+  thumbnail: (mediaPath: string, atMs: number, outPath: string) =>
+    call<string>("extract_thumbnail", { mediaPath, atMs, outPath }),
 };
 
 // ── Export ──────────────────────────────────────────────────────────────────
@@ -501,6 +652,9 @@ export const diarize = {
 
 export const ipc = {
   ops,
+  timeline,
+  compose,
+  media,
   exporters,
   project,
   deeplink,

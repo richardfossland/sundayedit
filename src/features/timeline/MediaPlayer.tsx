@@ -16,12 +16,33 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { convertFileSrc } from "@tauri-apps/api/core";
+
+import type { Project } from "@/lib/bindings/Project";
 import { useT } from "@/lib/i18n";
 import { intentFor, reconcile, isUserGesture } from "./mediaSync";
+import { activeVideoItem, sourceTimeSec } from "./previewMap";
 
 interface Props {
-  /** Asset URL for the video (already run through convertFileSrc by App). */
-  src: string;
+  /**
+   * Legacy single-source mode: an asset URL for the video (already run through
+   * convertFileSrc by App). Used when no `project` timeline is supplied.
+   */
+  src?: string;
+  /**
+   * NLE multi-track mode: when supplied *and* it has `timeline_items`, the
+   * preview picks the active video clip under the playhead each frame and drives
+   * the element from that clip's source media instead of the `src` prop.
+   */
+  project?: Project;
+  /**
+   * Preview-render proxy: an already-composited file (asset URL) spanning the
+   * whole timeline. When set it takes precedence over the per-clip NLE mapping —
+   * the element plays this single flattened file against the timeline clock, so
+   * the user sees the true composite. Cleared to return to the live per-clip
+   * preview.
+   */
+  proxySrc?: string;
   /** Timeline playhead, ms — the position the element should show. */
   playheadMs: number;
   /** Signed shuttle rate: 0 stopped, <0 reverse, 1 realtime, doubling. */
@@ -36,6 +57,8 @@ interface Props {
 
 export function MediaPlayer({
   src,
+  project,
+  proxySrc,
   playheadMs,
   rate,
   durationMs,
@@ -51,10 +74,34 @@ export function MediaPlayer({
   // codec — fall back to the timeline-only experience and say why.
   const [unavailable, setUnavailable] = useState(false);
 
+  // NLE mode is active only when a project with placed clips is supplied AND no
+  // preview proxy is loaded; else we fall back to the single-source element
+  // (either the rendered proxy composite or the legacy single `src`).
+  const singleSrc = proxySrc ?? src;
+  const mappingMode =
+    !proxySrc && !!(project && project.timeline_items.length > 0);
+
+  // The media path currently loaded into the element (NLE mode). Swapping
+  // <video>.src reloads decode, so we only reassign it when the path changes.
+  const loadedMediaPath = useRef<string | null>(null);
+  // Toggling the proxy on/off swaps the element between the single flattened
+  // file and the per-clip NLE mapping. Forget the last-loaded clip path so the
+  // NLE branch re-syncs the element the next frame after we return to live.
+  useEffect(() => {
+    loadedMediaPath.current = null;
+  }, [proxySrc]);
+
   // Reconcile the element to the playhead every frame. We read the latest props
   // off refs so the rAF loop doesn't restart on every playhead tick.
-  const stateRef = useRef({ playheadMs, rate, durationMs, fps });
-  stateRef.current = { playheadMs, rate, durationMs, fps };
+  const stateRef = useRef({
+    playheadMs,
+    rate,
+    durationMs,
+    fps,
+    project,
+    proxySrc,
+  });
+  stateRef.current = { playheadMs, rate, durationMs, fps, project, proxySrc };
 
   useEffect(() => {
     let raf = 0;
@@ -62,33 +109,79 @@ export function MediaPlayer({
       const video = videoRef.current;
       if (video) {
         const s = stateRef.current;
-        // The timeline's durationMs is the authority for when playback ends
-        // (same domain we export against). The element's own duration may
-        // disagree slightly (probe metadata vs container length); pass it only
-        // to clamp the seek target so we never seek past real footage. This
-        // keeps the preview and the timeline clock stopping at the same end.
-        const timelineDurSec = s.durationMs / 1000;
-        const elementDurSec = Number.isFinite(video.duration)
-          ? video.duration
-          : timelineDurSec;
-        const intent = intentFor(
-          s.playheadMs,
-          s.rate,
-          timelineDurSec,
-          s.fps,
-          elementDurSec,
-        );
-        const step = reconcile(intent, {
-          currentTimeSec: video.currentTime,
-          paused: video.paused,
-          durationSec: elementDurSec,
-        });
-        if (step.seekTo !== null || step.transport) {
-          lastProgrammaticAtMs.current = performance.now();
+
+        if (!s.proxySrc && s.project && s.project.timeline_items.length > 0) {
+          // ── NLE multi-track: drive the active clip's source media. ──
+          const active = activeVideoItem(s.project, s.playheadMs);
+          if (!active) {
+            // No clip under the playhead — hold the element paused (keep the
+            // last-loaded frame; don't fight an empty gap by seeking).
+            if (!video.paused) {
+              lastProgrammaticAtMs.current = performance.now();
+              video.pause();
+            }
+          } else {
+            // Swap decode only when the active media path actually changes.
+            if (loadedMediaPath.current !== active.media.path) {
+              loadedMediaPath.current = active.media.path;
+              video.src = convertFileSrc(active.media.path);
+            }
+            // Map the playhead into this clip's source time; clamp/pace against
+            // the media's OWN duration (this clip, not the whole timeline).
+            const srcTimeMs = sourceTimeSec(active.item, s.playheadMs) * 1000;
+            const mediaDurSec = active.media.duration_ms / 1000;
+            const elementDurSec = Number.isFinite(video.duration)
+              ? video.duration
+              : mediaDurSec;
+            const intent = intentFor(
+              srcTimeMs,
+              s.rate,
+              mediaDurSec,
+              s.fps,
+              elementDurSec,
+            );
+            const step = reconcile(intent, {
+              currentTimeSec: video.currentTime,
+              paused: video.paused,
+              durationSec: elementDurSec,
+            });
+            if (step.seekTo !== null || step.transport) {
+              lastProgrammaticAtMs.current = performance.now();
+            }
+            if (step.seekTo !== null) video.currentTime = step.seekTo;
+            if (step.transport === "play") void video.play().catch(() => {});
+            else if (step.transport === "pause") video.pause();
+          }
+        } else {
+          // ── Legacy single-source: element spans the whole timeline. ──
+          // The timeline's durationMs is the authority for when playback ends
+          // (same domain we export against). The element's own duration may
+          // disagree slightly (probe metadata vs container length); pass it only
+          // to clamp the seek target so we never seek past real footage. This
+          // keeps the preview and the timeline clock stopping at the same end.
+          const timelineDurSec = s.durationMs / 1000;
+          const elementDurSec = Number.isFinite(video.duration)
+            ? video.duration
+            : timelineDurSec;
+          const intent = intentFor(
+            s.playheadMs,
+            s.rate,
+            timelineDurSec,
+            s.fps,
+            elementDurSec,
+          );
+          const step = reconcile(intent, {
+            currentTimeSec: video.currentTime,
+            paused: video.paused,
+            durationSec: elementDurSec,
+          });
+          if (step.seekTo !== null || step.transport) {
+            lastProgrammaticAtMs.current = performance.now();
+          }
+          if (step.seekTo !== null) video.currentTime = step.seekTo;
+          if (step.transport === "play") void video.play().catch(() => {});
+          else if (step.transport === "pause") video.pause();
         }
-        if (step.seekTo !== null) video.currentTime = step.seekTo;
-        if (step.transport === "play") void video.play().catch(() => {});
-        else if (step.transport === "pause") video.pause();
       }
       raf = requestAnimationFrame(tick);
     };
@@ -111,7 +204,10 @@ export function MediaPlayer({
           not delivered media, so it carries no <track>. */}
       <video
         ref={videoRef}
-        src={src}
+        // In NLE mode the rAF loop sets `.src` imperatively (per active clip),
+        // so we leave the React attribute unbound to avoid clobbering it. In
+        // single-source mode this is either the rendered proxy or the legacy src.
+        src={mappingMode ? undefined : singleSrc}
         className="max-h-full max-w-full"
         // Timeline owns transport; the element is driven, not user-controlled.
         controls={false}

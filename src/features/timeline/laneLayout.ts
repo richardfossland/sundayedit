@@ -1,0 +1,82 @@
+/**
+ * Pure multi-lane layout math (Task 2D) — the DOM/React-free core behind the
+ * multi-track timeline: which vertical lane a pointer is over (clip cross-track
+ * drag), the timeline span of a clip, the visible-track stacking order, and the
+ * overall timeline duration once clips + captions can outrun the source video.
+ *
+ * Kept free of React so the tricky bits (hit-testing, duration derivation) are
+ * unit-tested in isolation, exactly like `geometry.ts` and `previewMap.ts`.
+ */
+
+import type { Project } from "@/lib/bindings/Project";
+import type { TimelineItem } from "@/lib/bindings/TimelineItem";
+import type { Track } from "@/lib/bindings/Track";
+import { timelineEndMs } from "./previewMap";
+
+/** The timeline span a clip occupies, in timeline-ms — the shape
+ *  `geometry.visibleCaptions` virtualizes over. `end_ms` accounts for `speed`
+ *  (mirrors the Rust `TimelineItem::timeline_end_ms`, via `previewMap`). */
+export function itemSpan(item: TimelineItem): {
+  start_ms: number;
+  end_ms: number;
+} {
+  return { start_ms: item.timeline_start_ms, end_ms: timelineEndMs(item) };
+}
+
+/**
+ * Tracks in stacking order for rendering: TOP lane first (highest `index`),
+ * bottom lane last — matching `previewMap`'s "highest index wins" compositing.
+ * Ties break on `id` so the order is stable across renders.
+ */
+export function stackedTracks(tracks: Track[]): Track[] {
+  return [...tracks].sort((a, b) =>
+    b.index !== a.index ? b.index - a.index : a.id < b.id ? -1 : 1,
+  );
+}
+
+/**
+ * Which stacked lane a vertical offset falls in. `y` is measured from the top
+ * of the lanes area (i.e. below the ruler/waveform). Returns the lane index
+ * into `stackedTracks(...)`, or null when outside every lane.
+ */
+export function laneAtY(
+  y: number,
+  laneCount: number,
+  laneH: number,
+): number | null {
+  if (laneH <= 0 || y < 0) return null;
+  const i = Math.floor(y / laneH);
+  return i >= 0 && i < laneCount ? i : null;
+}
+
+/**
+ * The track a vertical offset lands on, resolved through the stacking order.
+ * Returns the `Track` (so callers can gate on `kind`/`locked`) or null.
+ */
+export function trackAtY(
+  y: number,
+  tracks: Track[],
+  laneH: number,
+): Track | null {
+  const stacked = stackedTracks(tracks);
+  const i = laneAtY(y, stacked.length, laneH);
+  return i === null ? null : stacked[i];
+}
+
+/**
+ * The total timeline duration, ms — the bound the viewport clamps/pans against
+ * once clips and captions can extend past the primary source video. Max over:
+ * the primary `video_duration_ms`, every clip's timeline end, and every caption
+ * end. Never negative.
+ */
+export function timelineDurationMs(project: Project): number {
+  let max = Math.max(0, project.video_duration_ms);
+  for (const item of project.timeline_items) {
+    const end = timelineEndMs(item);
+    if (end > max) max = end;
+  }
+  for (const c of project.captions) {
+    if (c.end_ms > max) max = c.end_ms;
+  }
+  return max;
+}

@@ -242,6 +242,7 @@ mod tests {
                 notes: None,
                 ai_generated: true,
                 last_edited_at: 0,
+                track_id: None,
             }],
             speakers: vec![],
             glossary: vec![],
@@ -251,6 +252,9 @@ mod tests {
             project_meta: crate::model::ProjectMeta::default(),
             created_at: 0,
             updated_at: 0,
+            media: vec![],
+            tracks: vec![],
+            timeline_items: vec![],
         }
     }
 
@@ -389,6 +393,7 @@ mod tests {
                 notes: None,
                 ai_generated: true,
                 last_edited_at: 0,
+                track_id: None,
             }
         };
         let mut p = from_words(vec![("placeholder", 0, 1)]);

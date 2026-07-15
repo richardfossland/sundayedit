@@ -632,6 +632,7 @@ mod tests {
                     notes: None,
                     ai_generated: true,
                     last_edited_at: 0,
+                    track_id: None,
                 },
                 Caption {
                     id: "c2".into(),
@@ -647,6 +648,7 @@ mod tests {
                     notes: None,
                     ai_generated: true,
                     last_edited_at: 0,
+                    track_id: None,
                 },
             ],
             speakers: vec![
@@ -668,6 +670,9 @@ mod tests {
             project_meta: crate::model::ProjectMeta::default(),
             created_at: 0,
             updated_at: 0,
+            media: vec![],
+            tracks: vec![],
+            timeline_items: vec![],
         }
     }
 
@@ -740,6 +745,7 @@ mod tests {
             notes: None,
             ai_generated: true,
             last_edited_at: 0,
+            track_id: None,
         }];
         let out = write_srt(&proj, SrtOptions::default());
         // SRT parsers split cues on a blank line REGARDLESS of CR, so normalise
@@ -767,6 +773,7 @@ mod tests {
             notes: None,
             ai_generated: true,
             last_edited_at: 0,
+            track_id: None,
         }];
         let out = write_vtt(&proj, VttOptions::default());
         // After the "WEBVTT\n\n" header there must be exactly one cue, so exactly
@@ -797,6 +804,7 @@ mod tests {
                 notes: None,
                 ai_generated: true,
                 last_edited_at: 0,
+                track_id: None,
             },
         );
         let out = write_vtt(
@@ -876,6 +884,7 @@ mod tests {
             notes: None,
             ai_generated: true,
             last_edited_at: 0,
+            track_id: None,
         }];
         let bytes = build_docx(&proj, TxtOptions::default()).unwrap();
         let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
@@ -902,6 +911,7 @@ mod tests {
             notes: None,
             ai_generated: true,
             last_edited_at: 0,
+            track_id: None,
         });
         let out = write_json(&proj, JsonOptions { strip_empty: true });
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();

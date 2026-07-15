@@ -372,6 +372,7 @@ pub fn repair(
                 notes: cap.notes.clone(),
                 ai_generated: cap.ai_generated,
                 last_edited_at: now_ms,
+                track_id: None,
             });
             index += 1;
         }
@@ -472,6 +473,7 @@ mod tests {
             notes: None,
             ai_generated: true,
             last_edited_at: 0,
+            track_id: None,
         }
     }
 
@@ -498,6 +500,9 @@ mod tests {
             project_meta: crate::model::ProjectMeta::default(),
             created_at: 0,
             updated_at: 0,
+            media: vec![],
+            tracks: vec![],
+            timeline_items: vec![],
         }
     }
 

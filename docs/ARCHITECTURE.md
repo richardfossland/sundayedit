@@ -31,6 +31,12 @@ Killer-feature cells highlighted: ASR (with context priming) and Editor (with co
 
 ## Data model
 
+> **Evolving to multi-track (2026-07):** the timeline/editor is moving from
+> caption-only to a pragmatic multi-track NLE (see `docs/DECISIONS.md`
+> ADR-007). Alongside the caption model below, `Project` now carries
+> `media` / `tracks` / `timeline_items` (see "NLE timeline model"). Captions
+> stay first-class — they are simply one `TrackKind`.
+
 ```mermaid
 erDiagram
   Project ||--|{ Caption        : "ordered list"
@@ -115,6 +121,66 @@ erDiagram
 | `max_width_pct`                                                     | f32              |                                       |
 | `line_spacing`, `letter_spacing`                                    |                  |                                       |
 | `animation`                                                         | `AnimationSpec?` | fade, slide, karaoke, popup, none     |
+
+## NLE timeline model
+
+The multi-track types live in `src-tauri/src/model.rs` with ts-rs bindings under
+`src/lib/bindings`. All new `Project` fields are `#[serde(default)]`, so v4
+project files load older projects unchanged.
+
+### MediaItem (an imported source clip)
+
+| Field               | Type        | Notes                                          |
+| ------------------- | ----------- | ---------------------------------------------- |
+| `id`                | string      |                                                |
+| `path`              | string      | absolute path to the source file               |
+| `content_hash`      | string      | for relink on path break                       |
+| `kind`              | `MediaKind` | video / audio / image (from `services::video`) |
+| `duration_ms`       | i64         |                                                |
+| `width`, `height`   | i32         |                                                |
+| `fps`               | f32         |                                                |
+| `has_audio`         | bool        |                                                |
+| `audio_wav_path`    | string?     | cached extracted audio                         |
+| `original_filename` | string      |                                                |
+| `added_at`          | i64         | unix ms                                        |
+
+### Track (a lane on the timeline)
+
+| Field     | Type        | Notes                                     |
+| --------- | ----------- | ----------------------------------------- |
+| `id`      | string      |                                           |
+| `kind`    | `TrackKind` | `Video` / `Audio` / `Caption` / `Overlay` |
+| `name`    | string      |                                           |
+| `index`   | i32         | stacking order (0 = bottom)               |
+| `enabled` | bool        |                                           |
+| `locked`  | bool        |                                           |
+| `muted`   | bool        |                                           |
+| `solo`    | bool        |                                           |
+
+### TimelineItem (a clip placed on a track)
+
+| Field               | Type               | Notes                                                      |
+| ------------------- | ------------------ | ---------------------------------------------------------- |
+| `id`                | string             |                                                            |
+| `track_id`          | string             | FK → `Track`                                               |
+| `kind`              | `TimelineItemKind` | `Av` / `Text` / `Graphic`                                  |
+| `source_media_id`   | string?            | FK → `MediaItem` (none for pure text/graphic)              |
+| `in_ms`, `out_ms`   | i64                | source in/out point                                        |
+| `timeline_start_ms` | i64                | where it sits on the timeline                              |
+| `speed`             | f32                | playback-rate multiplier                                   |
+| `transform`         | `Transform`        | position/scale/rotation/opacity/crop; `Default` = identity |
+| `effects`           | `Effect[]`         | opaque `{kind, params}` bag, each toggleable               |
+| `transition_in`     | `Transition?`      | `{kind, duration_ms}` at the leading edge                  |
+| `text`              | `TextSpec?`        | `{text, style_id}` for Text/Graphic items                  |
+| `enabled`, `locked` | bool               |                                                            |
+
+`TimelineItem::timeline_end_ms()` derives the end from
+`timeline_start_ms + (out_ms − in_ms) / speed`. `Project::validate_timeline()`
+runs after every timeline edit — it checks that each item's track and media
+references resolve, that in/out ranges are well-formed and within media bounds,
+that `timeline_start_ms` is non-negative, and that items don't overlap on
+`Video`/`Audio` tracks — mirroring how `Project::validate` guards the caption
+model.
 
 ## Confidence tiers — the killer feature
 

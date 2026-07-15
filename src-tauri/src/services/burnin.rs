@@ -93,7 +93,7 @@ pub fn default_encoder() -> Encoder {
 }
 
 /// Map (codec, encoder) to the ffmpeg `-c:v` value.
-fn encoder_name(codec: VideoCodec, encoder: Encoder) -> &'static str {
+pub(crate) fn encoder_name(codec: VideoCodec, encoder: Encoder) -> &'static str {
     match (codec, encoder) {
         (VideoCodec::H264, Encoder::Cpu) => "libx264",
         (VideoCodec::H264, Encoder::VideoToolbox) => "h264_videotoolbox",
@@ -109,7 +109,7 @@ fn encoder_name(codec: VideoCodec, encoder: Encoder) -> &'static str {
 /// Escape a path for use inside an ffmpeg filtergraph. Colons and
 /// backslashes (Windows) and single quotes must be escaped, otherwise
 /// `ass=C:\path` breaks the filter parser.
-fn escape_filter_path(p: &str) -> String {
+pub(crate) fn escape_filter_path(p: &str) -> String {
     p.replace('\\', "/")
         .replace(':', "\\:")
         .replace('\'', "\\'")
