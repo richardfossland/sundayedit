@@ -38,7 +38,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Phase 1 — video import + waveform
-sha2 = "0.10"      # content hashing for path-stability relink
+sha2 = "0.11"      # content hashing for path-stability relink
 hound = "3.5"      # WAV reader for waveform peak computation
 
 # Phase 7 — find & replace (regex search in captions)
