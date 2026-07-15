@@ -52,7 +52,7 @@ keyring = { version = "3", features = ["apple-native", "windows-native"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
 # Type generation for the frontend
-ts-rs = { version = "11", features = ["serde-compat", "chrono-impl", "uuid-impl"] }
+ts-rs = { version = "12", features = ["serde-compat", "chrono-impl", "uuid-impl"] }
 tauri-plugin-dialog = "2.7.1"
 
 # Phase 2 — local Whisper (optional: building it needs a C/C++ toolchain +
