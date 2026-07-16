@@ -272,8 +272,7 @@ pub fn split_timeline_item(
 
     // Map the timeline split point back into the source media.
     let speed = original.speed.max(0.01);
-    let src_split =
-        original.in_ms + (((at_timeline_ms - start) as f32) * speed).round() as i64;
+    let src_split = original.in_ms + (((at_timeline_ms - start) as f32) * speed).round() as i64;
     let src_split = src_split.clamp(original.in_ms + 1, original.out_ms - 1);
 
     let mut left = original.clone();
@@ -607,7 +606,14 @@ mod tests {
         }
     }
 
-    fn item(id: &str, track_id: &str, media_id: Option<&str>, start: i64, in_ms: i64, out_ms: i64) -> TimelineItem {
+    fn item(
+        id: &str,
+        track_id: &str,
+        media_id: Option<&str>,
+        start: i64,
+        in_ms: i64,
+        out_ms: i64,
+    ) -> TimelineItem {
         TimelineItem {
             id: id.into(),
             track_id: track_id.into(),

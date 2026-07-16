@@ -944,7 +944,10 @@ mod tests {
         assert_eq!(loaded.media.len(), 1, "one media item synthesized");
         assert_eq!(loaded.media[0].content_hash, "abc123");
         assert_eq!(loaded.media[0].original_filename, "test.mp4");
-        assert!(loaded.media[0].has_audio, "audio_wav_path present → has_audio");
+        assert!(
+            loaded.media[0].has_audio,
+            "audio_wav_path present → has_audio"
+        );
 
         let video_tracks: Vec<_> = loaded
             .tracks

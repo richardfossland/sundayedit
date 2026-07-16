@@ -630,7 +630,10 @@ impl Project {
             }
 
             if it.timeline_start_ms < 0 {
-                return Err(format!("timeline_item[{}] has negative timeline_start_ms", i));
+                return Err(format!(
+                    "timeline_item[{}] has negative timeline_start_ms",
+                    i
+                ));
             }
         }
 
@@ -697,7 +700,14 @@ mod timeline_tests {
         }
     }
 
-    fn item(id: &str, track_id: &str, media_id: Option<&str>, start: i64, in_ms: i64, out_ms: i64) -> TimelineItem {
+    fn item(
+        id: &str,
+        track_id: &str,
+        media_id: Option<&str>,
+        start: i64,
+        in_ms: i64,
+        out_ms: i64,
+    ) -> TimelineItem {
         TimelineItem {
             id: id.into(),
             track_id: track_id.into(),

@@ -187,5 +187,12 @@ pub fn op_add_text_item(
     duration_ms: i64,
     text: String,
 ) -> AppResult<Project> {
-    timeline_ops::add_text_item(&project, new_id(), &track_id, timeline_start_ms, duration_ms, text)
+    timeline_ops::add_text_item(
+        &project,
+        new_id(),
+        &track_id,
+        timeline_start_ms,
+        duration_ms,
+        text,
+    )
 }

@@ -35,7 +35,9 @@ use ts_rs::TS;
 
 use crate::error::{AppError, AppResult};
 use crate::model::{Project, TimelineItem, Transform};
-use crate::services::burnin::{default_encoder, encoder_name, escape_filter_path, Encoder, VideoCodec};
+use crate::services::burnin::{
+    default_encoder, encoder_name, escape_filter_path, Encoder, VideoCodec,
+};
 use crate::services::video::{ffmpeg_path, MediaKind};
 
 /// Output settings for a compose render. Mirrors the knobs `BurnInOptions`
@@ -396,7 +398,9 @@ pub fn build_proxy_args(
     let mut args = build_filter_complex(project, settings, ass_file, output);
     // Insert `-preset ultrafast` just before the trailing output path so the
     // x264 encoder runs at its lowest-latency profile.
-    let out = args.pop().expect("build_filter_complex always ends with output");
+    let out = args
+        .pop()
+        .expect("build_filter_complex always ends with output");
     args.push("-preset".into());
     args.push("ultrafast".into());
     args.push(out);
@@ -521,12 +525,7 @@ pub fn run_compose(
     } else {
         Some(ass_str.as_str())
     };
-    let args = build_filter_complex(
-        project,
-        settings,
-        ass_ref,
-        &output.to_string_lossy(),
-    );
+    let args = build_filter_complex(project, settings, ass_ref, &output.to_string_lossy());
 
     // Ensure output dir exists (best-effort).
     if let Some(parent) = output.parent() {
@@ -789,7 +788,14 @@ mod tests {
         }
     }
 
-    fn item(id: &str, track_id: &str, media_id: &str, start: i64, in_ms: i64, out_ms: i64) -> TimelineItem {
+    fn item(
+        id: &str,
+        track_id: &str,
+        media_id: &str,
+        start: i64,
+        in_ms: i64,
+        out_ms: i64,
+    ) -> TimelineItem {
         TimelineItem {
             id: id.into(),
             track_id: track_id.into(),
@@ -892,7 +898,9 @@ mod tests {
         let inputs = args.iter().filter(|a| *a == "-i").count();
         assert_eq!(inputs, 2, "one deduped media input + one canvas input");
         // The canvas is a lavfi color source.
-        assert!(args.iter().any(|a| a.starts_with("color=black:s=1920x1080")));
+        assert!(args
+            .iter()
+            .any(|a| a.starts_with("color=black:s=1920x1080")));
     }
 
     #[test]
@@ -1037,7 +1045,10 @@ mod tests {
         );
         let args = build_filter_complex(&p, &settings(), None, "out.mp4");
         let g = fc(&args);
-        assert!(!g.contains("ass="), "no caption layer without a sidecar: {g}");
+        assert!(
+            !g.contains("ass="),
+            "no caption layer without a sidecar: {g}"
+        );
     }
 
     #[test]
@@ -1250,8 +1261,7 @@ mod tests {
             .output()
             .expect("spawn ffprobe");
         let json = String::from_utf8_lossy(&probe.stdout);
-        let meta = crate::services::video::parse_ffprobe_json(&json)
-            .expect("ffprobe json parses");
+        let meta = crate::services::video::parse_ffprobe_json(&json).expect("ffprobe json parses");
         assert_eq!(meta.width, 1280, "composed onto the 1280-wide canvas");
         assert_eq!(meta.height, 720, "composed onto the 720-high canvas");
         assert!(
@@ -1340,7 +1350,10 @@ mod tests {
             "≈6s concat, got {} ms",
             meta.duration_ms
         );
-        assert!(meta.video_codec.is_some(), "output must have a video stream");
+        assert!(
+            meta.video_codec.is_some(),
+            "output must have a video stream"
+        );
         let _ = std::fs::remove_file(&out);
     }
 
@@ -1380,7 +1393,10 @@ mod tests {
             "xfade duration ≈5.5s, got {} ms",
             meta.duration_ms
         );
-        assert!(meta.video_codec.is_some(), "output must have a video stream");
+        assert!(
+            meta.video_codec.is_some(),
+            "output must have a video stream"
+        );
         let _ = std::fs::remove_file(&out);
     }
 
@@ -1491,7 +1507,10 @@ mod tests {
         let meta = run_ffmpeg_and_probe(&args, &out);
         assert_eq!(meta.width, 1280);
         assert_eq!(meta.height, 720);
-        assert!(meta.video_codec.is_some(), "output must have a video stream");
+        assert!(
+            meta.video_codec.is_some(),
+            "output must have a video stream"
+        );
 
         let _ = std::fs::remove_file(&out);
         let _ = std::fs::remove_file(&ass_path);
@@ -1518,12 +1537,17 @@ mod tests {
         p.video_fps = 30.0;
 
         let s = proxy_settings(&p);
-        assert!(s.height <= 480, "proxy settings cap height at 480, got {}", s.height);
+        assert!(
+            s.height <= 480,
+            "proxy settings cap height at 480, got {}",
+            s.height
+        );
 
         let out_str = out.to_string_lossy().into_owned();
         let args = build_proxy_args(&p, &s, None, &out_str);
         assert!(
-            args.windows(2).any(|w| w[0] == "-preset" && w[1] == "ultrafast"),
+            args.windows(2)
+                .any(|w| w[0] == "-preset" && w[1] == "ultrafast"),
             "proxy args carry -preset ultrafast"
         );
         let meta = run_ffmpeg_and_probe(&args, &out);
